@@ -214,6 +214,30 @@ export default function HomePage({ user, onOpenModule }) {
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 28 }}>›</div>
         </div>
 
+        {/* ADMIN AREA */}
+        {userData?.perfil === "admin" && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: 700, fontSize: 18, color: "#1B3F7A", marginBottom: 14 }}>Administração</div>
+            <div onClick={() => onOpenModule("usuarios")} style={{
+              background: "#fff", borderRadius: 20, padding: "20px 24px",
+              display: "flex", alignItems: "center", gap: 16,
+              boxShadow: "0 2px 12px rgba(27,63,122,0.08)",
+              cursor: "pointer", border: "2px solid #E8730A22",
+              transition: "transform .15s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+            >
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: "#E8730A18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>👥</div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A" }}>Gestão de Usuários</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Criar, editar e gerenciar acessos</div>
+              </div>
+              <div style={{ marginLeft: "auto", fontSize: 24, color: "#ccc" }}>›</div>
+            </div>
+          </div>
+        )}
+
         {/* MODULES */}
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1B3F7A", marginBottom: 18 }}>Módulos do Sistema</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
