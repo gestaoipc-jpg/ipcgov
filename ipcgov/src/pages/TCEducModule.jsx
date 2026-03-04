@@ -81,7 +81,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack }) {
+export default function TCEducModule({ user, onBack, onCadastros }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -205,7 +205,8 @@ export default function TCEducModule({ user, onBack }) {
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
               <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>TCEduc</div>
             </div>
-            <div style={{ marginLeft: "auto" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+              <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
               <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
                 color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
