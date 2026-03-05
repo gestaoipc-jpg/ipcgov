@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import TCEducModule from "./pages/TCEducModule";
 import UsuariosPage from "./pages/UsuariosPage";
 import CadastrosPage from "./pages/CadastrosPage";
+import AlertasPage from "./pages/AlertasPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -34,9 +35,10 @@ export default function App() {
   );
 
   if (!user) return <LoginPage onLogin={setUser} />;
-  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} />;
+  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} />;
   if (currentModule === "usuarios") return <UsuariosPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "cadastros") return <CadastrosPage onBack={() => setCurrentModule("tceduc")} />;
+  if (currentModule === "alertas") return <AlertasPage onBack={() => setCurrentModule("tceduc")} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
