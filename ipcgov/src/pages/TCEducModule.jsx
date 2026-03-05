@@ -106,8 +106,8 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
   const loadInstrutores = async () => {
     try {
-      const snap = await getDocs(collection(db, "ipc_externos"));
-      setInstrutores(snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.tipo==="Instrutor(a)"));
+      const snap = await getDocs(collection(db, "tceduc_instrutores"));
+      setInstrutores(snap.docs.map(d=>({id:d.id,...d.data()})));
     } catch(e) { console.error(e); }
   };
 
@@ -718,9 +718,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div><label style={labelStyle}>Data</label><input type="date" value={form.data || ""} onChange={e => setForm(p => ({ ...p, data: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>Horário</label><input type="time" value={form.hora || ""} onChange={e => setForm(p => ({ ...p, hora: e.target.value }))} style={inputStyle} /></div>
               <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Local</label><input value={form.local || ""} onChange={e => setForm(p => ({ ...p, local: e.target.value }))} placeholder="Ex: Câmara Municipal" style={inputStyle} /></div>
-              <div><label style={labelStyle}>Instrutor Presencial</label><input value={form.instrutorPresencial || ""} onChange={e => setForm(p => ({ ...p, instrutorPresencial: e.target.value }))} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Instrutor Remoto</label><input value={form.instrutorRemoto || ""} onChange={e => setForm(p => ({ ...p, instrutorRemoto: e.target.value }))} style={inputStyle} /></div>
-              <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Link Google Meet</label><input type="url" value={form.linkMeet || ""} onChange={e => setForm(p => ({ ...p, linkMeet: e.target.value }))} placeholder="https://meet.google.com/..." style={inputStyle} /></div>
+              <div><label style={labelStyle}>Motorista</label><input value={form.motorista || ""} onChange={e => setForm(p => ({ ...p, motorista: e.target.value }))} style={inputStyle} /></div>
               <div><label style={labelStyle}>Motorista</label><input value={form.motorista || ""} onChange={e => setForm(p => ({ ...p, motorista: e.target.value }))} style={inputStyle} /></div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelStyle}>Status</label>
