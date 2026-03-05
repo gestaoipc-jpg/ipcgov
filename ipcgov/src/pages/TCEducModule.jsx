@@ -122,7 +122,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
   const loadUsuarios = async () => {
     try {
-      const snap = await getDocs(collection(db, "usuarios"));
+      const snap = await getDocs(collection(db, "ipc_servidores"));
       setUsuarios(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); }
   };
