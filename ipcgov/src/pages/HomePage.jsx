@@ -8,11 +8,8 @@ const MODULES = [
   { id: "designer", name: "IPC Designer", icon: "🎨", desc: "Gestão de Atividades", color: "#7c3aed", available: true },
   { id: "processos", name: "IPC Processos", icon: "📁", desc: "Gestão de Processos", color: "#0891b2", available: true },
   { id: "almoxarifado", name: "Almoxarifado", icon: "🗃️", desc: "Controle de Estoque", color: "#059669", available: true },
-  { id: "designer", name: "IPC Designer", icon: "🎨", desc: "Artes e Vídeos", color: "#7c3aed", available: false },
-  { id: "processos", name: "IPC Processos", icon: "📋", desc: "Gestão Processual", color: "#0891b2", available: false },
-  { id: "almoxarifado", name: "Almoxarifado", icon: "📦", desc: "Controle de Estoque", color: "#059669", available: false },
+  { id: "pessoas", name: "IPC Pessoas", icon: "👥", desc: "Gestão de Pessoas", color: "#E8730A", available: true },
   { id: "indicadores", name: "Indicadores", icon: "📊", desc: "Metas e Relatórios", color: "#d97706", available: false },
-  { id: "pessoas", name: "IPC Pessoas", icon: "👥", desc: "Gestão de Equipe", color: "#dc2626", available: false },
 ];
 
 function BottomNav({ tab, setTab }) {
