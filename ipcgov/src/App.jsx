@@ -18,6 +18,10 @@ import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
 import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
 import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
 import ProcessosRelatorioPage from "./pages/ProcessosRelatorioPage";
+import AlmoxarifadoModule from "./pages/AlmoxarifadoModule";
+import AlmoxSolicitacoesPage from "./pages/AlmoxSolicitacoesPage";
+import AlmoxDashboardPage from "./pages/AlmoxDashboardPage";
+import AlmoxRelatorioPage from "./pages/AlmoxRelatorioPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -60,6 +64,12 @@ export default function App() {
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_relatorio") return <ProcessosRelatorioPage onBack={() => setCurrentModule("processos")} processoId={processoRelatorioId} />;
+
+  // Almoxarifado
+  if (currentModule === "almoxarifado") return <AlmoxarifadoModule user={user} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("almox_dashboard")} onRelatorio={() => setCurrentModule("almox_relatorio")} onSolicitacoes={() => setCurrentModule("almox_solicitacoes")} />;
+  if (currentModule === "almox_dashboard") return <AlmoxDashboardPage onBack={() => setCurrentModule("almoxarifado")} />;
+  if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} onBack={() => setCurrentModule("almoxarifado")} isAdmin={true} />;
+  if (currentModule === "almox_relatorio") return <AlmoxRelatorioPage onBack={() => setCurrentModule("almoxarifado")} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
