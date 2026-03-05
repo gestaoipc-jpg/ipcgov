@@ -1,8 +1,18 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "../firebase/config";
+import emailjs from "@emailjs/browser";
+
+const EMAILJS_SERVICE = "service_m6wjek9";
+const EMAILJS_TEMPLATE = "template_lglpt37";
+const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
+
+const MODULOS_NOMES = {
+  tceduc:"🎓 TCEduc", designer:"🎨 IPC Designer", processos:"📁 IPC Processos",
+  almoxarifado:"🗃️ Almoxarifado", pessoas:"👥 IPC Pessoas",
+};
 
 const TIPOS_EXTERNO = ["Instrutor(a)","Motorista","Apoio de Outro Órgão","Consultor(a)","Voluntário(a)","Outro"];
 const ORGAOS = ["SESA","SEDUC","SECULT","STDS","SSPDS","TCE","MPE","Prefeitura","Outro"];
@@ -38,6 +48,9 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   const [salvando, setSalvando] = useState(false);
   const [erroLogin, setErroLogin] = useState("");
   const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [emailEnviado, setEmailEnviado] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -58,6 +71,52 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
       verificarTodosAniversarios(servidoresCarregados).catch(e=>console.error(e));
     } catch(e) { console.error(e); }
     setLoading(false);
+  };
+
+  const enviarEmailCadastro = async (servidor) => {
+    if (!servidor.email) return { ok: false, erro: "Servidor sem e-mail cadastrado." };
+    setEnviandoEmail(true);
+    try {
+      // Busca template customizado do Firebase
+      let template = null;
+      try {
+        const tSnap = await getDoc(doc(db,"config_emails","templates"));
+        if (tSnap.exists()) template = tSnap.data()?.confirmacao_cadastro;
+      } catch(e) {}
+
+      const modulosTexto = servidor.isAdmin
+        ? Object.values(MODULOS_NOMES).join("\n• ")
+        : (servidor.modulosAcesso||[]).map(m => MODULOS_NOMES[m]||m).join("\n• ");
+
+      const corpo = (template?.corpo || "")
+        .replace("{{nome}}", servidor.nome)
+        .replace("{{email}}", servidor.email)
+        .replace("{{senha}}", "Tce1234567890!@#")
+        .replace("{{modulos}}", modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado");
+
+      const params = {
+        to_name: servidor.nome,
+        to_email: servidor.email,
+        subject: template?.assunto || "Bem-vindo(a) ao IPCgov — Seus dados de acesso",
+        saudacao: (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome),
+        corpo,
+        rodape: template?.rodape || "Atenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo",
+        link: "https://ipcgov.vercel.app",
+        usuario: servidor.email,
+        senha: "Tce1234567890!@#",
+        modulos: modulosTexto || "Nenhum módulo",
+      };
+
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, params, EMAILJS_PUBLIC_KEY);
+      setEnviandoEmail(false);
+      setEmailEnviado(true);
+      setTimeout(() => setEmailEnviado(false), 4000);
+      return { ok: true };
+    } catch(e) {
+      console.error(e);
+      setEnviandoEmail(false);
+      return { ok: false, erro: e?.text || "Erro ao enviar e-mail." };
+    }
   };
 
   // Calcula chefia imediata pelo cargo selecionado
@@ -89,13 +148,13 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
     setSalvando(true); setErroLogin("");
     try {
       let uid = form.uid || null;
-      let fotoUrl = form.foto || null;
+      // Nunca salvar blob URL no Firestore — só URLs reais do Firebase Storage
+      let fotoUrl = (form.foto && form.foto.startsWith("http")) ? form.foto : "";
 
       if (form._fotoFile) {
-        fotoUrl = await uploadFoto(form._fotoFile, selected?.id);
+        fotoUrl = await uploadFoto(form._fotoFile, selected?.id) || "";
       }
 
-      // Chefia: automática pelo cargo ou manual
       const chefiaFinal = calcularChefiaImediata(form.cargoId, form.chefiaManual);
 
       if (form.criarAcesso && form.email && !form.uid) {
@@ -110,12 +169,12 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
             criadoEm: new Date().toISOString()
           });
         } catch(e) {
-          setErroLogin(e.code==="auth/email-already-in-use"?"E-mail já cadastrado no sistema.":`Erro: ${e.message}`);
+          setErroLogin(e.code==="auth/email-already-in-use"?"E-mail já cadastrado no sistema.":`Erro ao criar acesso: ${e.message}`);
           setSalvando(false); return;
         }
       }
 
-      const { _fotoFile, chefiaManual, ...formLimpo } = form;
+      const { _fotoFile, chefiaManual, enviarEmail, ...formLimpo } = form;
       const dados = { ...formLimpo, foto: fotoUrl, uid: uid||"", chefia: chefiaFinal, atualizadoEm: new Date().toISOString() };
 
       if (selected) {
@@ -126,12 +185,23 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         dados.registros = [];
         const docRef = await addDoc(collection(db,"ipc_servidores"), dados);
         setServidores(s=>[...s,{id:docRef.id,...dados}]);
-        if (dados.dataAniversario) {
-          await verificarAniversarioProximo({id:docRef.id,...dados});
-        }
+        if (dados.dataAniversario) verificarAniversarioProximo({id:docRef.id,...dados}).catch(()=>{});
+        if (enviarEmail && form.email) enviarEmailCadastro({...dados, id:docRef.id}).catch(()=>{});
       }
-      setModal(null); setForm({});
-    } catch(e) { console.error(e); }
+
+      // Toast de sucesso
+      setErroLogin("");
+      setSalvando(false);
+      setModal(null);
+      setForm({});
+      setToast({ tipo:"sucesso", msg: selected ? "✅ Cadastro atualizado com sucesso!" : "✅ Servidor cadastrado com sucesso!" });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    } catch(e) {
+      console.error("Erro ao salvar:", e);
+      setToast({ tipo:"erro", msg:`❌ Erro no cadastro: ${e.message||"Tente novamente."}` });
+      setTimeout(() => setToast(null), 5000);
+    }
     setSalvando(false);
   };
 
@@ -249,6 +319,13 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   return (
     <div style={{ minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-thumb{background:#1B3F7A44;border-radius:3px} select,input,textarea{font-family:'Montserrat',sans-serif}`}</style>
+
+      {/* TOAST */}
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:999, background:toast.tipo==="sucesso"?"#059669":"#dc2626", color:"#fff", borderRadius:16, padding:"14px 28px", fontWeight:700, fontSize:15, boxShadow:"0 8px 32px rgba(0,0,0,0.18)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
+          {toast.msg}
+        </div>
+      )}
 
       <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 32px" }}>
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
@@ -557,6 +634,19 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                     </div>
                   )}
                   {erroLogin && <div style={{ marginTop:10, color:"#dc2626", fontSize:12, fontWeight:600 }}>⚠️ {erroLogin}</div>}
+
+                  {/* Toggle enviar e-mail */}
+                  {form.criarAcesso && form.email && (
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:8, padding:"10px 0", borderTop:"1px solid #e8edf2" }}>
+                      <div onClick={()=>setForm(f=>({...f,enviarEmail:!f.enviarEmail}))} style={{ width:44, height:24, borderRadius:12, background:form.enviarEmail?"#059669":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                        <div style={{ position:"absolute", top:3, left:form.enviarEmail?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>📧 Enviar e-mail de boas-vindas</div>
+                        <div style={{ fontSize:11, color:"#888" }}>Envia usuário, senha e módulos para {form.email}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ gridColumn:"1/-1" }}>
@@ -564,7 +654,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                   <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
                 </div>
               </div>
-              <button onClick={salvarServidor} disabled={salvando||!form.nome||!form.cargo} style={{ width:"100%", marginTop:20, background:salvando||!form.nome||!form.cargo?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome||!form.cargo?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+              <button onClick={salvarServidor} disabled={salvando||!form.nome} style={{ width:"100%", marginTop:20, background:salvando||!form.nome?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
                 {salvando?"Salvando...":selected?"💾 Salvar Alterações":"💾 Cadastrar Servidor"}
               </button>
             </div>
