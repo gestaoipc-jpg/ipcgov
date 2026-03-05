@@ -69,7 +69,7 @@ function daysUntil(d) {
   return Math.ceil((new Date(d) - new Date()) / 86400000);
 }
 
-const statusColors = { Pendente: "#E8730A", Realizado: "#059669", Cancelado: "#dc2626" };
+const statusColors = { Pendente: "#E8730A", Programado: "#7c3aed", Realizado: "#059669", Cancelado: "#dc2626" };
 
 const inputStyle = {
   width: "100%", background: "#f8f9fb", border: "1px solid #e8edf2",
@@ -85,6 +85,8 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [instrutores, setInstrutores] = useState([]);
+  const [tiposAcaoEdu, setTiposAcaoEdu] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -97,10 +99,24 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
-  const [itemOcorrencia, setItemOcorrencia] = useState(null); // item do checklist com ocorrência aberta
+  const [itemOcorrencia, setItemOcorrencia] = useState(null);
   const [novaOcorrenciaItem, setNovaOcorrenciaItem] = useState("");
 
-  useEffect(() => { loadEventos(); loadUsuarios(); }, []);
+  useEffect(() => { loadEventos(); loadUsuarios(); loadInstrutores(); loadTiposAcaoEdu(); }, []);
+
+  const loadInstrutores = async () => {
+    try {
+      const snap = await getDocs(collection(db, "ipc_externos"));
+      setInstrutores(snap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.tipo==="Instrutor(a)"));
+    } catch(e) { console.error(e); }
+  };
+
+  const loadTiposAcaoEdu = async () => {
+    try {
+      const snap = await getDocs(collection(db, "tceduc_acoes_edu"));
+      setTiposAcaoEdu(snap.docs.map(d=>({id:d.id,...d.data()})));
+    } catch(e) { console.error(e); }
+  };
 
   const loadEventos = async () => {
     setLoading(true);
@@ -387,6 +403,34 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                 {selected.local && <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "10px 14px" }}><div style={{ color: "#aaa", fontSize: 10, marginBottom: 3 }}>LOCAL</div><div style={{ color: "#1B3F7A", fontWeight: 600, fontSize: 13 }}>{selected.local}</div></div>}
                 {selected.instrutorPresencial && <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "10px 14px" }}><div style={{ color: "#aaa", fontSize: 10, marginBottom: 3 }}>INSTRUTOR PRESENCIAL</div><div style={{ color: "#1B3F7A", fontWeight: 600, fontSize: 13 }}>{selected.instrutorPresencial}</div></div>}
                 {selected.instrutorRemoto && <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "10px 14px" }}><div style={{ color: "#aaa", fontSize: 10, marginBottom: 3 }}>INSTRUTOR REMOTO</div><div style={{ color: "#1B3F7A", fontWeight: 600, fontSize: 13 }}>{selected.instrutorRemoto}</div></div>}
+
+                {/* AÇÕES EDUCACIONAIS */}
+                {(selected.acoesEducacionais||[]).length > 0 && (
+                  <div style={{ gridColumn:"1/-1" }}>
+                    <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8, fontWeight:600 }}>Ações Educacionais</div>
+                    {selected.acoesEducacionais.map((a,i) => (
+                      <div key={i} style={{ background:"#f0f4ff", borderRadius:12, padding:"10px 14px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{a.acaoNome||a.nome||"—"}</div>
+                          <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                            {a.instrutorNome && `👤 ${a.instrutorNome}`}
+                            {a.modalidade && ` · ${a.modalidade}`}
+                            {a.cargaHoraria && ` · ${a.cargaHoraria}h`}
+                            {a.link && <span> · <a href={a.link} target="_blank" rel="noreferrer" style={{ color:"#1B3F7A" }}>🔗 Link</a></span>}
+                          </div>
+                        </div>
+                        <div style={{ textAlign:"right", flexShrink:0 }}>
+                          <div style={{ fontWeight:700, fontSize:15, color:"#059669" }}>{a.participantes||0}</div>
+                          <div style={{ fontSize:10, color:"#aaa" }}>participantes</div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background:"#059669", borderRadius:12, padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <div style={{ color:"#fff", fontWeight:700, fontSize:13 }}>Total de Participantes</div>
+                      <div style={{ color:"#fff", fontWeight:900, fontSize:18 }}>{(selected.acoesEducacionais||[]).reduce((s,a)=>s+(parseInt(a.participantes)||0),0)}</div>
+                    </div>
+                  </div>
+                )}
                 {selected.motorista && <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "10px 14px" }}><div style={{ color: "#aaa", fontSize: 10, marginBottom: 3 }}>MOTORISTA</div><div style={{ color: "#1B3F7A", fontWeight: 600, fontSize: 13 }}>{selected.motorista}</div></div>}
               </div>
             )}
@@ -678,28 +722,63 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div><label style={labelStyle}>Instrutor Remoto</label><input value={form.instrutorRemoto || ""} onChange={e => setForm(p => ({ ...p, instrutorRemoto: e.target.value }))} style={inputStyle} /></div>
               <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Link Google Meet</label><input type="url" value={form.linkMeet || ""} onChange={e => setForm(p => ({ ...p, linkMeet: e.target.value }))} placeholder="https://meet.google.com/..." style={inputStyle} /></div>
               <div><label style={labelStyle}>Motorista</label><input value={form.motorista || ""} onChange={e => setForm(p => ({ ...p, motorista: e.target.value }))} style={inputStyle} /></div>
-              <div><label style={labelStyle}>Nº de Inscritos</label><input type="number" value={form.inscritos || ""} onChange={e => setForm(p => ({ ...p, inscritos: e.target.value }))} style={inputStyle} /></div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelStyle}>Status</label>
                 <select value={form.status || "Pendente"} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={inputStyle}>
-                  <option>Pendente</option><option>Realizado</option><option>Cancelado</option>
+                  <option>Pendente</option><option>Programado</option><option>Realizado</option><option>Cancelado</option>
                 </select>
               </div>
               <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Observações</label><textarea value={form.observacoes || ""} onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} /></div>
 
               {/* AÇÕES EDUCACIONAIS */}
               <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 12 }}>
-                  📚 Ações Educacionais
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A" }}>📚 Ações Educacionais</div>
                 </div>
                 {(form.acoesEducacionais || []).map((acao, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center" }}>
-                    <input value={acao.nome || ""} onChange={e => { const a = [...(form.acoesEducacionais||[])]; a[idx]={...a[idx],nome:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder={form.tipo==="Regional"?"Ex: Palestra, Curso":"Ex: Controle Social, Licitações"} style={{...inputStyle,flex:2}} />
-                    <input type="number" value={acao.participantes || ""} onChange={e => { const a = [...(form.acoesEducacionais||[])]; a[idx]={...a[idx],participantes:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder="Participantes" style={{...inputStyle,flex:1}} />
-                    <div onClick={() => { const a=(form.acoesEducacionais||[]).filter((_,i)=>i!==idx); setForm(f=>({...f,acoesEducacionais:a})); }} style={{ width:36,height:36,background:"#fee2e2",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#dc2626",fontSize:18,flexShrink:0 }}>×</div>
+                  <div key={idx} style={{ background:"#f8f9fb", borderRadius:14, padding:"16px", marginBottom:12, border:"1px solid #e8edf2" }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                      <div>
+                        <label style={labelStyle}>Ação Educacional</label>
+                        <select value={acao.acaoId||""} onChange={e => {
+                          const sel = tiposAcaoEdu.find(t=>t.id===e.target.value);
+                          const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],acaoId:e.target.value,acaoNome:sel?.nome||""}; setForm(f=>({...f,acoesEducacionais:a}));
+                        }} style={inputStyle}>
+                          <option value="">Selecione...</option>
+                          {tiposAcaoEdu.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Instrutor</label>
+                        <select value={acao.instrutorId||""} onChange={e => {
+                          const sel = instrutores.find(i=>i.id===e.target.value);
+                          const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],instrutorId:e.target.value,instrutorNome:sel?.nome||""}; setForm(f=>({...f,acoesEducacionais:a}));
+                        }} style={inputStyle}>
+                          <option value="">Selecione...</option>
+                          {instrutores.map(i=><option key={i.id} value={i.id}>{i.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Modalidade</label>
+                        <select value={acao.modalidade||"Presencial"} onChange={e => { const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],modalidade:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} style={inputStyle}>
+                          <option>Presencial</option><option>EaD</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Carga Horária (h)</label>
+                        <input type="number" value={acao.cargaHoraria||""} onChange={e => { const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],cargaHoraria:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder="Ex: 8" style={inputStyle}/>
+                      </div>
+                      {acao.modalidade==="EaD" && (
+                        <div style={{ gridColumn:"1/-1" }}>
+                          <label style={labelStyle}>Link da Transmissão</label>
+                          <input value={acao.link||""} onChange={e => { const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],link:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder="https://..." style={inputStyle}/>
+                        </div>
+                      )}
+                    </div>
+                    <div onClick={() => { const a=(form.acoesEducacionais||[]).filter((_,i)=>i!==idx); setForm(f=>({...f,acoesEducacionais:a})); }} style={{ color:"#dc2626", fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"right" }}>🗑️ Remover ação</div>
                   </div>
                 ))}
-                <div onClick={() => setForm(f=>({...f,acoesEducacionais:[...(f.acoesEducacionais||[]),{nome:"",participantes:""}]}))} style={{ background:"#f0f4ff",borderRadius:12,padding:"10px 16px",fontSize:13,color:"#1B3F7A",fontWeight:700,cursor:"pointer",textAlign:"center",border:"2px dashed #1B3F7A33" }}>+ Adicionar Ação Educacional</div>
+                <div onClick={() => setForm(f=>({...f,acoesEducacionais:[...(f.acoesEducacionais||[]),{acaoId:"",acaoNome:"",instrutorId:"",instrutorNome:"",modalidade:"Presencial",cargaHoraria:"",link:""}]}))} style={{ background:"#f0f4ff", borderRadius:12, padding:"10px 16px", fontSize:13, color:"#1B3F7A", fontWeight:700, cursor:"pointer", textAlign:"center", border:"2px dashed #1B3F7A33" }}>+ Adicionar Ação Educacional</div>
               </div>
             </div>
             <button onClick={saveEvento} style={{ width: "100%", marginTop: 20, background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 14, padding: 16, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>💾 Salvar Evento</button>
