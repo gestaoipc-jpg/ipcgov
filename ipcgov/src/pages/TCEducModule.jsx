@@ -81,7 +81,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack, onCadastros }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -305,10 +305,10 @@ export default function TCEducModule({ user, onBack, onCadastros }) {
         {[
           { id: "eventos", icon: "📅", label: "Eventos" },
           { id: "municipios", icon: "🗺️", label: "Municípios" },
-          { id: "alertas", icon: "🔔", label: "Alertas" },
+          { id: "alertas", icon: "🔔", label: "Alertas", action: onAlertas },
           { id: "relatorios", icon: "📄", label: "Relatórios" },
         ].map(item => (
-          <div key={item.id} onClick={() => setTab(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}>
+          <div key={item.id} onClick={() => item.action ? item.action() : setTab(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <div style={{ fontSize: 22 }}>{item.icon}</div>
             <div style={{ fontSize: 10, fontWeight: tab === item.id ? 700 : 500, color: tab === item.id ? "#1B3F7A" : "#aaa", textTransform: "uppercase", letterSpacing: 0.5 }}>{item.label}</div>
             {tab === item.id && <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#1B3F7A" }} />}
