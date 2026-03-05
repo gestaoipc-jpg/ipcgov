@@ -1,25 +1,35 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../firebase/config";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "../firebase/config";
 
 const CARGOS = ["Diretor(a)","Coordenador(a)","Gerente","Supervisor(a)","Técnico(a)","Assistente","Analista","Assessor(a)","Estagiário(a)","Outro"];
 const SETORES = ["Diretoria","TCEduc","IPC Designer","IPC Processos","Almoxarifado","Administração","Financeiro","Jurídico","Comunicação","TI","RH","Outro"];
-const NIVEIS_ACESSO = ["admin","gestor","colaborador"];
 const TIPOS_EXTERNO = ["Instrutor(a)","Motorista","Apoio de Outro Órgão","Consultor(a)","Voluntário(a)","Outro"];
 const ORGAOS = ["SESA","SEDUC","SECULT","STDS","SSPDS","TCE","MPE","Prefeitura","Outro"];
+const MODULOS = [
+  { id:"tceduc", nome:"TCEduc", icon:"🎓" },
+  { id:"designer", nome:"IPC Designer", icon:"🎨" },
+  { id:"processos", nome:"IPC Processos", icon:"📁" },
+  { id:"almoxarifado", nome:"Almoxarifado", icon:"🗃️" },
+  { id:"pessoas", nome:"IPC Pessoas", icon:"👥" },
+];
+const SENHA_PADRAO = "Tce1234567890!@#";
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 function initials(nome) { if(!nome)return"?"; return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase(); }
 function corAvatar(nome) { const cores=["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"]; let h=0; for(let c of (nome||""))h+=c.charCodeAt(0); return cores[h%cores.length]; }
+function formatDate(d) { if(!d)return"—"; const[y,m,day]=d.split("-"); return`${day}/${m}/${y}`; }
 
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
-export default function PessoasModule({ user, onBack, onOrganograma }) {
+export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios }) {
   const [servidores, setServidores] = useState([]);
   const [externos, setExternos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [aba, setAba] = useState("equipe"); // equipe | externos
+  const [aba, setAba] = useState("equipe");
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({});
@@ -28,6 +38,7 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
   const [filtroSetor, setFiltroSetor] = useState("todos");
   const [salvando, setSalvando] = useState(false);
   const [erroLogin, setErroLogin] = useState("");
+  const [uploadingFoto, setUploadingFoto] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -35,8 +46,8 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
     setLoading(true);
     try {
       const [sSnap, eSnap] = await Promise.all([
-        getDocs(collection(db, "ipc_servidores")),
-        getDocs(collection(db, "ipc_externos")),
+        getDocs(collection(db,"ipc_servidores")),
+        getDocs(collection(db,"ipc_externos")),
       ]);
       setServidores(sSnap.docs.map(d=>({id:d.id,...d.data()})));
       setExternos(eSnap.docs.map(d=>({id:d.id,...d.data()})));
@@ -44,45 +55,94 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
     setLoading(false);
   };
 
-  // SALVAR SERVIDOR
+  const uploadFoto = async (file, servidorId) => {
+    setUploadingFoto(true);
+    try {
+      const storageRef = ref(storage, `servidores/${servidorId || Date.now()}/foto`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setUploadingFoto(false);
+      return url;
+    } catch(e) { console.error(e); setUploadingFoto(false); return null; }
+  };
+
   const salvarServidor = async () => {
     if (!form.nome || !form.cargo) return;
     setSalvando(true); setErroLogin("");
     try {
       let uid = form.uid || null;
+      let fotoUrl = form.foto || null;
+
+      // Upload foto se houver arquivo
+      if (form._fotoFile) {
+        fotoUrl = await uploadFoto(form._fotoFile, selected?.id);
+      }
+
       // Criar login se solicitado
-      if (form.criarAcesso && form.email && form.senhaTemp && !form.uid) {
+      if (form.criarAcesso && form.email && !form.uid) {
         try {
-          const cred = await createUserWithEmailAndPassword(auth, form.email, form.senhaTemp);
+          const cred = await createUserWithEmailAndPassword(auth, form.email, SENHA_PADRAO);
           uid = cred.user.uid;
+          // Salvar na coleção usuarios
+          await addDoc(collection(db,"usuarios"), {
+            email: form.email, nome: form.nome, cargo: form.cargo,
+            setor: form.setor||"", perfil: form.isAdmin?"admin":"usuario",
+            modulos: form.isAdmin ? MODULOS.map(m=>m.id) : (form.modulosAcesso||[]),
+            ativo: true, servidorId: selected?.id||null,
+            criadoEm: new Date().toISOString()
+          });
         } catch(e) {
-          setErroLogin(e.code === "auth/email-already-in-use" ? "E-mail já cadastrado no sistema." : `Erro ao criar login: ${e.message}`);
+          setErroLogin(e.code==="auth/email-already-in-use"?"E-mail já cadastrado no sistema.":`Erro: ${e.message}`);
           setSalvando(false); return;
         }
       }
-      // Salvar no Firestore
-      if (form.criarAcesso && form.email) {
-        // Salvar também na coleção de usuários
-        const usuarioData = { email: form.email, nome: form.nome, cargo: form.cargo, setor: form.setor||"", nivel: form.nivelAcesso||"colaborador", ativo: true, servidorId: selected?.id||null, criadoEm: new Date().toISOString() };
-        const uExistente = (await getDocs(collection(db,"usuarios"))).docs.find(d=>d.data().email===form.email);
-        if (!uExistente) await addDoc(collection(db,"usuarios"), usuarioData);
-      }
-      const dados = { nome:form.nome, cargo:form.cargo, setor:form.setor||"", chefia:form.chefia||"", contato:form.contato||"", email:form.email||"", cpf:form.cpf||"", matricula:form.matricula||"", dataIngresso:form.dataIngresso||"", observacoes:form.observacoes||"", criarAcesso:form.criarAcesso||false, nivelAcesso:form.nivelAcesso||"colaborador", uid:uid||"", atualizadoEm:new Date().toISOString() };
+
+      const { _fotoFile, ...formLimpo } = form;
+      const dados = { ...formLimpo, foto: fotoUrl, uid: uid||"", atualizadoEm: new Date().toISOString() };
+
       if (selected) {
         await updateDoc(doc(db,"ipc_servidores",selected.id), dados);
         setServidores(s=>s.map(x=>x.id===selected.id?{...x,...dados}:x));
       } else {
         dados.criadoEm = new Date().toISOString();
-        dados.solicitacoes = []; dados.registros = [];
-        const ref = await addDoc(collection(db,"ipc_servidores"), dados);
-        setServidores(s=>[...s,{id:ref.id,...dados}]);
+        dados.registros = [];
+        const docRef = await addDoc(collection(db,"ipc_servidores"), dados);
+        setServidores(s=>[...s,{id:docRef.id,...dados}]);
+
+        // Criar tarefa no Designer se tiver aniversário
+        if (dados.dataAniversario) {
+          await verificarAniversarioProximo({id:docRef.id,...dados});
+        }
       }
       setModal(null); setForm({});
     } catch(e) { console.error(e); }
     setSalvando(false);
   };
 
-  // SALVAR EXTERNO
+  // Verifica e cria tarefa no Designer se aniversário em 5 dias
+  const verificarAniversarioProximo = async (servidor) => {
+    if (!servidor.dataAniversario) return;
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const [,mes,dia] = servidor.dataAniversario.split("-");
+    const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
+    if (proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
+    const diasAte = Math.ceil((proxAniv - hoje) / 86400000);
+    if (diasAte <= 5 && diasAte >= 0) {
+      const dataEntrega = new Date(proxAniv);
+      dataEntrega.setDate(dataEntrega.getDate()-1);
+      await addDoc(collection(db,"designer_atividades"), {
+        titulo: `Fazer arte de aniversário de ${servidor.nome}`,
+        descricao: `Criar arte comemorativa para o aniversário de ${servidor.nome} em ${dia}/${mes}`,
+        status: "Aguardando", prioridade: "Alta",
+        dataEntrega: dataEntrega.toISOString().split("T")[0],
+        tipo: "aniversario", servidorId: servidor.id,
+        criadoEm: new Date().toISOString(), criadoPor: "sistema",
+        ocorrencias: [],
+      });
+    }
+  };
+
   const salvarExterno = async () => {
     if (!formExterno.nome || !formExterno.tipo) return;
     setSalvando(true);
@@ -93,8 +153,8 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
         setExternos(e=>e.map(x=>x.id===selected.id?{...x,...dados}:x));
       } else {
         dados.criadoEm = new Date().toISOString();
-        const ref = await addDoc(collection(db,"ipc_externos"), dados);
-        setExternos(e=>[...e,{id:ref.id,...dados}]);
+        const docRef = await addDoc(collection(db,"ipc_externos"), dados);
+        setExternos(e=>[...e,{id:docRef.id,...dados}]);
       }
       setModal(null); setFormExterno({});
     } catch(e) { console.error(e); }
@@ -125,7 +185,6 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
     if(selected?.id===servidor.id) setSelected(atualizado);
   };
 
-  // FILTROS
   const filtradosServidor = servidores.filter(s=>{
     if (filtroSetor!=="todos" && s.setor!==filtroSetor) return false;
     if (busca) { const b=busca.toLowerCase(); if(!((s.nome||"").toLowerCase().includes(b)||(s.cargo||"").toLowerCase().includes(b)||(s.setor||"").toLowerCase().includes(b))) return false; }
@@ -138,11 +197,20 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
 
   const setoresExistentes = [...new Set(servidores.map(s=>s.setor).filter(Boolean))];
 
+  // Aniversários próximos (5 dias)
+  const aniversariosProximos = servidores.filter(s=>{
+    if(!s.dataAniversario) return false;
+    const hoje = new Date(); const anoAtual = hoje.getFullYear();
+    const [,mes,dia] = s.dataAniversario.split("-");
+    const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
+    if(proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
+    return Math.ceil((proxAniv-hoje)/86400000) <= 5;
+  });
+
   return (
     <div style={{ minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-thumb{background:#1B3F7A44;border-radius:3px} select,input,textarea{font-family:'Montserrat',sans-serif}`}</style>
 
-      {/* HEADER */}
       <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 32px" }}>
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
@@ -153,28 +221,26 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
               <div onClick={onOrganograma} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🌳 Organograma</div>
-              {aba==="equipe" && <div onClick={()=>{ setForm({}); setSelected(null); setModal("form_servidor"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Servidor</div>}
+              <div onClick={onAniversarios} style={{ background:aniversariosProximos.length>0?"rgba(232,115,10,0.4)":"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                🎂 Aniversários{aniversariosProximos.length>0?` (${aniversariosProximos.length})` :""}
+              </div>
+              {aba==="equipe" && <div onClick={()=>{ setForm({ modulosAcesso:[] }); setSelected(null); setModal("form_servidor"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Servidor</div>}
               {aba==="externos" && <div onClick={()=>{ setFormExterno({}); setSelected(null); setModal("form_externo"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Colaborador</div>}
             </div>
           </div>
-
-          {/* STATS */}
           <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:18 }}>
             {[
               { label:"Servidores IPC", value:servidores.length },
               { label:"Com acesso ao sistema", value:servidores.filter(s=>s.criarAcesso).length },
               { label:"Colaboradores externos", value:externos.length },
-              { label:"Instrutores", value:externos.filter(e=>e.tipo==="Instrutor(a)").length },
-              { label:"Motoristas", value:externos.filter(e=>e.tipo==="Motorista").length },
+              { label:"Aniversários próximos", value:aniversariosProximos.length },
             ].map((s,i)=>(
-              <div key={i} style={{ background:"rgba(255,255,255,0.12)", borderRadius:14, padding:"10px 18px" }}>
+              <div key={i} style={{ background:i===3&&s.value>0?"rgba(232,115,10,0.35)":"rgba(255,255,255,0.12)", borderRadius:14, padding:"10px 18px" }}>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{s.value}</div>
                 <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, marginTop:2 }}>{s.label}</div>
               </div>
             ))}
           </div>
-
-          {/* ABAS */}
           <div style={{ display:"flex", gap:10 }}>
             {[{id:"equipe",label:"👥 Equipe IPC"},{id:"externos",label:"🤝 Colaboradores Externos"}].map(a=>(
               <div key={a.id} onClick={()=>{ setAba(a.id); setBusca(""); setFiltroSetor("todos"); }} style={{ background:aba===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${aba===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
@@ -184,7 +250,6 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
       </div>
 
       <div style={{ maxWidth:1300, margin:"0 auto", padding:"24px 32px 80px" }}>
-        {/* FILTROS */}
         <div style={{ display:"flex", gap:10, marginBottom:24, flexWrap:"wrap", alignItems:"center" }}>
           <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder={`🔍 Buscar ${aba==="equipe"?"servidor":"colaborador"}...`} style={{ ...inputStyle, maxWidth:300, padding:"9px 14px" }}/>
           {aba==="equipe" && (
@@ -199,13 +264,12 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
 
         {loading ? <div style={{ textAlign:"center", padding:60, color:"#aaa" }}>Carregando...</div> : (
           <>
-            {/* GRID EQUIPE IPC */}
             {aba==="equipe" && (
               filtradosServidor.length===0 ? (
                 <div style={{ textAlign:"center", padding:60 }}>
                   <div style={{ fontSize:56, marginBottom:16 }}>👥</div>
                   <div style={{ fontWeight:700, fontSize:16, color:"#333", marginBottom:8 }}>Nenhum servidor cadastrado</div>
-                  <div onClick={()=>{ setForm({}); setSelected(null); setModal("form_servidor"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Cadastrar Servidor</div>
+                  <div onClick={()=>{ setForm({modulosAcesso:[]}); setSelected(null); setModal("form_servidor"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Cadastrar Servidor</div>
                 </div>
               ) : (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:16 }}>
@@ -214,7 +278,11 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                       onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(27,63,122,0.14)"}}
                       onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 2px 12px rgba(27,63,122,0.08)"}}>
                       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
-                        <div style={{ width:52, height:52, borderRadius:16, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0 }}>{initials(s.nome)}</div>
+                        {s.foto ? (
+                          <img src={s.foto} alt={s.nome} style={{ width:52, height:52, borderRadius:16, objectFit:"cover", flexShrink:0 }}/>
+                        ) : (
+                          <div style={{ width:52, height:52, borderRadius:16, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0 }}>{initials(s.nome)}</div>
+                        )}
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontWeight:700, fontSize:15, color:"#1B3F7A", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.nome}</div>
                           <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{s.cargo}</div>
@@ -222,17 +290,21 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                       </div>
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                         {s.setor && <div style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{s.setor}</div>}
-                        {s.criarAcesso && <div style={{ background:"#e8f5e9", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>🔑 {s.nivelAcesso||"colaborador"}</div>}
+                        {s.criarAcesso && <div style={{ background:"#e8f5e9", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>🔑 {s.isAdmin?"admin":"colaborador"}</div>}
                       </div>
-                      {s.chefia && <div style={{ marginTop:10, fontSize:11, color:"#aaa" }}>👆 {s.chefia}</div>}
-                      {(s.registros||[]).length>0 && <div style={{ marginTop:8, fontSize:11, color:"#E8730A" }}>📝 {s.registros.length} registro{s.registros.length!==1?"s":""}</div>}
+                      {s.dataAniversario && (() => {
+                        const hoje = new Date(); const [,mes,dia] = s.dataAniversario.split("-");
+                        const proxAniv = new Date(`${hoje.getFullYear()}-${mes}-${dia}`);
+                        if(proxAniv<hoje) proxAniv.setFullYear(hoje.getFullYear()+1);
+                        const dias = Math.ceil((proxAniv-hoje)/86400000);
+                        return dias<=5 ? <div style={{ marginTop:8, background:"#fff3e0", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#E8730A" }}>🎂 {dias===0?"Hoje!":dias===1?"Amanhã!":`Em ${dias} dias`}</div> : null;
+                      })()}
                     </div>
                   ))}
                 </div>
               )
             )}
 
-            {/* GRID EXTERNOS */}
             {aba==="externos" && (
               filtradosExterno.length===0 ? (
                 <div style={{ textAlign:"center", padding:60 }}>
@@ -256,7 +328,6 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                         <div style={{ background:"#f5f3ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#7c3aed" }}>{e.tipo}</div>
                         {e.orgao && <div style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{e.orgao}</div>}
                       </div>
-                      {e.contato && <div style={{ marginTop:10, fontSize:11, color:"#aaa" }}>📞 {e.contato}</div>}
                     </div>
                   ))}
                 </div>
@@ -266,8 +337,8 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
         )}
       </div>
 
-      {/* MODAL PERFIL SERVIDOR */}
-      {modal==="perfil" && selected && <PerfilModal servidor={selected} onClose={()=>setModal(null)} onEditar={()=>{ setForm({...selected}); setModal("form_servidor"); }} onDeletar={()=>deletarServidor(selected.id)} onAddRegistro={adicionarRegistro} user={user} servidores={servidores} />}
+      {/* MODAL PERFIL */}
+      {modal==="perfil" && selected && <PerfilModal servidor={selected} onClose={()=>setModal(null)} onEditar={()=>{ setForm({...selected, modulosAcesso:selected.modulosAcesso||[]}); setModal("form_servidor"); }} onDeletar={()=>deletarServidor(selected.id)} onAddRegistro={adicionarRegistro} user={user} servidores={servidores} />}
 
       {/* MODAL PERFIL EXTERNO */}
       {modal==="perfil_externo" && selected && (
@@ -308,6 +379,25 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                 <div style={{ fontWeight:900, fontSize:20, color:"#1B3F7A" }}>{selected?"✏️ Editar Servidor":"➕ Novo Servidor IPC"}</div>
                 <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#f0f4ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#1B3F7A" }}>✕</div>
               </div>
+
+              {/* FOTO */}
+              <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:24 }}>
+                <div style={{ width:80, height:80, borderRadius:"50%", background:form.foto?"transparent":corAvatar(form.nome||""), overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, border:"3px solid #e8edf2" }}>
+                  {form.foto ? <img src={form.foto} alt="foto" style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : <span style={{ color:"#fff", fontWeight:900, fontSize:24 }}>{initials(form.nome||"")}</span>}
+                </div>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:13, color:"#1B3F7A", marginBottom:6 }}>Foto de perfil</div>
+                  <label style={{ background:"#f0f4ff", borderRadius:10, padding:"8px 14px", fontSize:12, color:"#1B3F7A", fontWeight:700, cursor:"pointer", display:"inline-block" }}>
+                    {uploadingFoto?"Enviando...":"📷 Selecionar foto"}
+                    <input type="file" accept="image/*" style={{ display:"none" }} onChange={async(e)=>{
+                      const file = e.target.files[0];
+                      if(file){ const preview = URL.createObjectURL(file); setForm(f=>({...f, foto:preview, _fotoFile:file})); }
+                    }}/>
+                  </label>
+                  <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>JPG, PNG — máx. 2MB</div>
+                </div>
+              </div>
+
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                 <div style={{ gridColumn:"1/-1" }}>
                   <label style={labelStyle}>Nome Completo *</label>
@@ -335,12 +425,16 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Matrícula</label>
-                  <input value={form.matricula||""} onChange={e=>setForm(f=>({...f,matricula:e.target.value}))} placeholder="Nº de matrícula" style={inputStyle}/>
+                  <label style={labelStyle}>E-mail</label>
+                  <input type="email" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@tce.ce.gov.br" style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={labelStyle}>CPF</label>
-                  <input value={form.cpf||""} onChange={e=>setForm(f=>({...f,cpf:e.target.value}))} placeholder="000.000.000-00" style={inputStyle}/>
+                  <label style={labelStyle}>Data de Aniversário</label>
+                  <input type="date" value={form.dataAniversario||""} onChange={e=>setForm(f=>({...f,dataAniversario:e.target.value}))} style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Matrícula</label>
+                  <input value={form.matricula||""} onChange={e=>setForm(f=>({...f,matricula:e.target.value}))} placeholder="Nº de matrícula" style={inputStyle}/>
                 </div>
                 <div>
                   <label style={labelStyle}>Contato / Telefone</label>
@@ -349,6 +443,10 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                 <div>
                   <label style={labelStyle}>Data de Ingresso</label>
                   <input type="date" value={form.dataIngresso||""} onChange={e=>setForm(f=>({...f,dataIngresso:e.target.value}))} style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>CPF</label>
+                  <input value={form.cpf||""} onChange={e=>setForm(f=>({...f,cpf:e.target.value}))} placeholder="000.000.000-00" style={inputStyle}/>
                 </div>
 
                 {/* ACESSO AO SISTEMA */}
@@ -359,31 +457,45 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                     </div>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A" }}>🔑 Criar acesso ao sistema</div>
-                      <div style={{ fontSize:11, color:"#888" }}>O servidor receberá login e senha para acessar o IPCgov</div>
+                      <div style={{ fontSize:11, color:"#888" }}>Senha padrão: <strong>{SENHA_PADRAO}</strong></div>
                     </div>
                   </div>
                   {form.criarAcesso && (
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
-                      <div style={{ gridColumn:"1/3" }}>
+                    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                      <div>
                         <label style={labelStyle}>E-mail de acesso *</label>
-                        <input type="email" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@ipc.ce.gov.br" style={inputStyle}/>
+                        <input type="email" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="Mesmo e-mail acima" style={inputStyle}/>
+                        <div style={{ fontSize:11, color:"#888", marginTop:4 }}>Usando o e-mail do campo acima automaticamente</div>
                       </div>
-                      {!selected?.uid && (
+                      {/* Admin toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div onClick={()=>setForm(f=>({...f,isAdmin:!f.isAdmin}))} style={{ width:44, height:24, borderRadius:12, background:form.isAdmin?"#E8730A":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                          <div style={{ position:"absolute", top:3, left:form.isAdmin?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                        </div>
                         <div>
-                          <label style={labelStyle}>Senha Temporária *</label>
-                          <input type="password" value={form.senhaTemp||""} onChange={e=>setForm(f=>({...f,senhaTemp:e.target.value}))} placeholder="Mínimo 6 dígitos" style={inputStyle}/>
+                          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>👑 Administrador</div>
+                          <div style={{ fontSize:11, color:"#888" }}>{form.isAdmin?"Acesso total a todos os módulos":"Acesso somente aos módulos selecionados"}</div>
+                        </div>
+                      </div>
+                      {/* Módulos */}
+                      {!form.isAdmin && (
+                        <div>
+                          <label style={labelStyle}>Módulos com acesso</label>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                            {MODULOS.map(m=>{
+                              const sel = (form.modulosAcesso||[]).includes(m.id);
+                              return (
+                                <div key={m.id} onClick={()=>{
+                                  const atual = form.modulosAcesso||[];
+                                  setForm(f=>({...f,modulosAcesso:sel?atual.filter(x=>x!==m.id):[...atual,m.id]}));
+                                }} style={{ background:sel?"#1B3F7A":"#f0f4ff", borderRadius:10, padding:"7px 14px", fontSize:12, fontWeight:700, color:sel?"#fff":"#1B3F7A", cursor:"pointer", border:`1px solid ${sel?"#1B3F7A":"#dce8f5"}` }}>
+                                  {m.icon} {m.nome}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
-                      <div style={{ gridColumn:"1/-1" }}>
-                        <label style={labelStyle}>Nível de Acesso</label>
-                        <div style={{ display:"flex", gap:10 }}>
-                          {NIVEIS_ACESSO.map(n=>(
-                            <div key={n} onClick={()=>setForm(f=>({...f,nivelAcesso:n}))} style={{ flex:1, textAlign:"center", padding:"10px", borderRadius:12, border:`2px solid ${form.nivelAcesso===n?"#1B3F7A":"#e8edf2"}`, background:form.nivelAcesso===n?"#f0f4ff":"#fff", color:form.nivelAcesso===n?"#1B3F7A":"#888", fontWeight:700, fontSize:12, cursor:"pointer" }}>
-                              {n==="admin"?"👑 Admin":n==="gestor"?"👔 Gestor":"👤 Colaborador"}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
                     </div>
                   )}
                   {erroLogin && <div style={{ marginTop:10, color:"#dc2626", fontSize:12, fontWeight:600 }}>⚠️ {erroLogin}</div>}
@@ -391,7 +503,7 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
 
                 <div style={{ gridColumn:"1/-1" }}>
                   <label style={labelStyle}>Observações Iniciais</label>
-                  <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais sobre o servidor..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
+                  <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
                 </div>
               </div>
               <button onClick={salvarServidor} disabled={salvando||!form.nome||!form.cargo} style={{ width:"100%", marginTop:20, background:salvando||!form.nome||!form.cargo?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome||!form.cargo?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
@@ -411,44 +523,15 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
                 <div style={{ fontWeight:900, fontSize:20, color:"#7c3aed" }}>{selected?"✏️ Editar Colaborador":"➕ Novo Colaborador Externo"}</div>
                 <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#f5f3ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#7c3aed" }}>✕</div>
               </div>
-              <div style={{ background:"#f5f3ff", borderRadius:12, padding:"10px 14px", marginBottom:20, fontSize:12, color:"#7c3aed", fontWeight:600 }}>
-                🤝 Colaboradores externos não têm acesso ao sistema IPCgov
-              </div>
+              <div style={{ background:"#f5f3ff", borderRadius:12, padding:"10px 14px", marginBottom:20, fontSize:12, color:"#7c3aed", fontWeight:600 }}>🤝 Colaboradores externos não têm acesso ao sistema IPCgov</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={labelStyle}>Nome Completo *</label>
-                  <input value={formExterno.nome||""} onChange={e=>setFormExterno(f=>({...f,nome:e.target.value}))} placeholder="Nome completo" style={inputStyle}/>
-                </div>
-                <div>
-                  <label style={labelStyle}>Tipo *</label>
-                  <select value={formExterno.tipo||""} onChange={e=>setFormExterno(f=>({...f,tipo:e.target.value}))} style={inputStyle}>
-                    <option value="">Selecione...</option>
-                    {TIPOS_EXTERNO.map(t=><option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Órgão / Origem</label>
-                  <select value={formExterno.orgao||""} onChange={e=>setFormExterno(f=>({...f,orgao:e.target.value}))} style={inputStyle}>
-                    <option value="">Selecione...</option>
-                    {ORGAOS.map(o=><option key={o} value={o}>{o}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Contato / Telefone</label>
-                  <input value={formExterno.contato||""} onChange={e=>setFormExterno(f=>({...f,contato:e.target.value}))} placeholder="(85) 99999-9999" style={inputStyle}/>
-                </div>
-                <div>
-                  <label style={labelStyle}>E-mail</label>
-                  <input type="email" value={formExterno.email||""} onChange={e=>setFormExterno(f=>({...f,email:e.target.value}))} placeholder="email@exemplo.com" style={inputStyle}/>
-                </div>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={labelStyle}>Especialidade / Área</label>
-                  <input value={formExterno.especialidade||""} onChange={e=>setFormExterno(f=>({...f,especialidade:e.target.value}))} placeholder="Ex: Gestão Fiscal, CNH categoria D..." style={inputStyle}/>
-                </div>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <label style={labelStyle}>Observações</label>
-                  <textarea value={formExterno.observacoes||""} onChange={e=>setFormExterno(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
-                </div>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Nome Completo *</label><input value={formExterno.nome||""} onChange={e=>setFormExterno(f=>({...f,nome:e.target.value}))} placeholder="Nome completo" style={inputStyle}/></div>
+                <div><label style={labelStyle}>Tipo *</label><select value={formExterno.tipo||""} onChange={e=>setFormExterno(f=>({...f,tipo:e.target.value}))} style={inputStyle}><option value="">Selecione...</option>{TIPOS_EXTERNO.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+                <div><label style={labelStyle}>Órgão / Origem</label><select value={formExterno.orgao||""} onChange={e=>setFormExterno(f=>({...f,orgao:e.target.value}))} style={inputStyle}><option value="">Selecione...</option>{ORGAOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                <div><label style={labelStyle}>Contato / Telefone</label><input value={formExterno.contato||""} onChange={e=>setFormExterno(f=>({...f,contato:e.target.value}))} placeholder="(85) 99999-9999" style={inputStyle}/></div>
+                <div><label style={labelStyle}>E-mail</label><input type="email" value={formExterno.email||""} onChange={e=>setFormExterno(f=>({...f,email:e.target.value}))} placeholder="email@exemplo.com" style={inputStyle}/></div>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Especialidade / Área</label><input value={formExterno.especialidade||""} onChange={e=>setFormExterno(f=>({...f,especialidade:e.target.value}))} placeholder="Ex: Gestão Fiscal, CNH categoria D..." style={inputStyle}/></div>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Observações</label><textarea value={formExterno.observacoes||""} onChange={e=>setFormExterno(f=>({...f,observacoes:e.target.value}))} style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/></div>
               </div>
               <button onClick={salvarExterno} disabled={salvando||!formExterno.nome||!formExterno.tipo} style={{ width:"100%", marginTop:20, background:salvando||!formExterno.nome||!formExterno.tipo?"#ccc":"linear-gradient(135deg,#7c3aed,#8b5cf6)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!formExterno.nome||!formExterno.tipo?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
                 {salvando?"Salvando...":"💾 Salvar Colaborador"}
@@ -461,7 +544,6 @@ export default function PessoasModule({ user, onBack, onOrganograma }) {
   );
 }
 
-// PERFIL MODAL
 function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, user, servidores }) {
   const [novoRegistro, setNovoRegistro] = useState("");
   const [tipoRegistro, setTipoRegistro] = useState("observacao");
@@ -471,11 +553,14 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
       <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:680, maxHeight:"92vh", overflow:"auto" }} onClick={e=>e.stopPropagation()}>
-        {/* Header */}
         <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"24px 28px", borderRadius:"24px 24px 0 0" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-              <div style={{ width:60, height:60, borderRadius:18, background:corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:24, flexShrink:0 }}>{initials(servidor.nome)}</div>
+              {servidor.foto ? (
+                <img src={servidor.foto} alt={servidor.nome} style={{ width:64, height:64, borderRadius:18, objectFit:"cover", flexShrink:0, border:"3px solid rgba(255,255,255,0.3)" }}/>
+              ) : (
+                <div style={{ width:64, height:64, borderRadius:18, background:corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:24, flexShrink:0 }}>{initials(servidor.nome)}</div>
+              )}
               <div>
                 <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:2 }}>SERVIDOR IPC</div>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>{servidor.nome}</div>
@@ -484,16 +569,14 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
             </div>
             <div onClick={onClose} style={{ width:36, height:36, background:"rgba(255,255,255,0.15)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:18 }}>✕</div>
           </div>
-          {/* Mini abas */}
           <div style={{ display:"flex", gap:8, marginTop:18 }}>
-            {[{id:"dados",label:"📋 Dados"},{id:"registros",label:`📝 Registros (${(servidor.registros||[]).length})`},{id:"solicitacoes",label:`📚 Solicitações`}].map(a=>(
+            {[{id:"dados",label:"📋 Dados"},{id:"registros",label:`📝 Registros (${(servidor.registros||[]).length})`},{id:"solicitacoes",label:"📚 Solicitações"}].map(a=>(
               <div key={a.id} onClick={()=>setAbaP(a.id)} style={{ background:abaP===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${abaP===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
             ))}
           </div>
         </div>
 
         <div style={{ padding:"24px 28px" }}>
-          {/* DADOS */}
           {abaP==="dados" && (
             <>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20 }}>
@@ -501,18 +584,27 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
                   { label:"Cargo", value:servidor.cargo },
                   { label:"Setor", value:servidor.setor },
                   { label:"Chefia", value:servidor.chefia||"Topo da hierarquia" },
+                  { label:"E-mail", value:servidor.email },
                   { label:"Matrícula", value:servidor.matricula },
                   { label:"Contato", value:servidor.contato },
-                  { label:"Data de Ingresso", value:servidor.dataIngresso?new Date(servidor.dataIngresso).toLocaleDateString("pt-BR"):"—" },
-                  { label:"Acesso ao sistema", value:servidor.criarAcesso?`✅ ${servidor.nivelAcesso||"colaborador"}`:"❌ Sem acesso" },
-                  { label:"E-mail", value:servidor.email },
-                ].filter(f=>f.value&&f.value!=="—").map((f,i)=>(
+                  { label:"Aniversário", value:servidor.dataAniversario?formatDate(servidor.dataAniversario):null },
+                  { label:"Data de Ingresso", value:servidor.dataIngresso?new Date(servidor.dataIngresso).toLocaleDateString("pt-BR"):null },
+                  { label:"Acesso", value:servidor.criarAcesso?`✅ ${servidor.isAdmin?"admin":"colaborador"}`:"❌ Sem acesso" },
+                ].filter(f=>f.value).map((f,i)=>(
                   <div key={i} style={{ background:"#f8f9fb", borderRadius:12, padding:"12px 14px" }}>
                     <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>{f.label}</div>
                     <div style={{ color:"#1B3F7A", fontWeight:600, fontSize:13 }}>{f.value}</div>
                   </div>
                 ))}
               </div>
+              {servidor.criarAcesso && !servidor.isAdmin && (servidor.modulosAcesso||[]).length>0 && (
+                <div style={{ background:"#f0f4ff", borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+                  <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>Módulos com acesso</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {(servidor.modulosAcesso||[]).map(m=>{ const mod=MODULOS.find(x=>x.id===m); return mod?<div key={m} style={{ background:"#1B3F7A", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>{mod.icon} {mod.nome}</div>:null; })}
+                  </div>
+                </div>
+              )}
               {servidor.observacoes && (
                 <div style={{ background:"#f5f3ff", borderRadius:12, padding:"14px 16px", marginBottom:20, borderLeft:"3px solid #7c3aed" }}>
                   <div style={{ color:"#7c3aed", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:6 }}>Observações</div>
@@ -525,12 +617,10 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
               </div>
             </>
           )}
-
-          {/* REGISTROS */}
           {abaP==="registros" && (
             <>
               <div style={{ display:"flex", gap:10, marginBottom:16 }}>
-                {[{id:"observacao",label:"📝 Observação"},{id:"curso",label:"📚 Curso"},{id:"elogio",label:"⭐ Elogio"},{id:"ocorrencia",label:"⚠️ Ocorrência"}].map(t=>(
+                {[{id:"observacao",label:"📝 Obs."},{id:"curso",label:"📚 Curso"},{id:"elogio",label:"⭐ Elogio"},{id:"ocorrencia",label:"⚠️ Ocorrência"}].map(t=>(
                   <div key={t.id} onClick={()=>setTipoRegistro(t.id)} style={{ flex:1, textAlign:"center", padding:"8px", borderRadius:10, border:`2px solid ${tipoRegistro===t.id?"#1B3F7A":"#e8edf2"}`, background:tipoRegistro===t.id?"#f0f4ff":"#fff", color:tipoRegistro===t.id?"#1B3F7A":"#888", fontWeight:700, fontSize:11, cursor:"pointer" }}>{t.label}</div>
                 ))}
               </div>
@@ -538,9 +628,8 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
                 <textarea value={novoRegistro} onChange={e=>setNovoRegistro(e.target.value)} placeholder="Digite o registro..." style={{ flex:1, background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif", minHeight:70, resize:"vertical" }}/>
                 <div onClick={()=>{ if(novoRegistro.trim()){ onAddRegistro(servidor,novoRegistro,tipoRegistro); setNovoRegistro(""); } }} style={{ width:44, background:"#1B3F7A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:22, flexShrink:0 }}>+</div>
               </div>
-              {(servidor.registros||[]).length===0 ? (
-                <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhum registro ainda</div>
-              ) : [...(servidor.registros||[])].reverse().map((r,i)=>(
+              {(servidor.registros||[]).length===0 ? <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhum registro ainda</div>
+              : [...(servidor.registros||[])].reverse().map((r,i)=>(
                 <div key={i} style={{ background:r.tipo==="ocorrencia"?"#fff3e0":r.tipo==="elogio"?"#f0fdf4":r.tipo==="curso"?"#f5f3ff":"#f8f9fb", borderRadius:12, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${r.tipo==="ocorrencia"?"#E8730A":r.tipo==="elogio"?"#059669":r.tipo==="curso"?"#7c3aed":"#1B3F7A"}` }}>
                   <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>{new Date(r.data).toLocaleString("pt-BR")} · {r.autor} · {r.tipo}</div>
                   <div style={{ fontSize:13, color:"#333" }}>{r.texto}</div>
@@ -548,17 +637,14 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
               ))}
             </>
           )}
-
-          {/* SOLICITAÇÕES */}
           {abaP==="solicitacoes" && (
             <>
               <div style={{ display:"flex", gap:10, marginBottom:20 }}>
                 <textarea value={novaSolicitacao} onChange={e=>setNovaSolicitacao(e.target.value)} placeholder="Ex: Solicito participação no curso de Gestão Pública..." style={{ flex:1, background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif", minHeight:70, resize:"vertical" }}/>
                 <div onClick={()=>{ if(novaSolicitacao.trim()){ onAddRegistro(servidor,novaSolicitacao,"solicitacao"); setNovaSolicitacao(""); } }} style={{ width:44, background:"#E8730A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:22, flexShrink:0 }}>+</div>
               </div>
-              {(servidor.registros||[]).filter(r=>r.tipo==="solicitacao").length===0 ? (
-                <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhuma solicitação ainda</div>
-              ) : [...(servidor.registros||[])].filter(r=>r.tipo==="solicitacao").reverse().map((r,i)=>(
+              {(servidor.registros||[]).filter(r=>r.tipo==="solicitacao").length===0 ? <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhuma solicitação ainda</div>
+              : [...(servidor.registros||[])].filter(r=>r.tipo==="solicitacao").reverse().map((r,i)=>(
                 <div key={i} style={{ background:"#fff8f0", borderRadius:12, padding:"12px 14px", marginBottom:8, borderLeft:"3px solid #E8730A" }}>
                   <div style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>{new Date(r.data).toLocaleString("pt-BR")} · {r.autor}</div>
                   <div style={{ fontSize:13, color:"#333" }}>{r.texto}</div>
