@@ -47,6 +47,7 @@ export default function HomePage({ user, onOpenModule }) {
   const [tab, setTab] = useState("home");
   const [alertas, setAlertas] = useState([]);
   const [showAlertas, setShowAlertas] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -161,20 +162,28 @@ export default function HomePage({ user, onOpenModule }) {
               </div>
               <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 9, letterSpacing: 3 }}>INSTITUTO PLÁCIDO CASTELO</div>
             </div>
-            <div onClick={() => setShowAlertas(true)} style={{
-              position: "relative", width: 44, height: 44,
-              background: "rgba(255,255,255,0.12)", borderRadius: 13,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", fontSize: 20,
-            }}>
-              🔔
-              {alertasNaoLidos.length > 0 && (
-                <div style={{
-                  position: "absolute", top: 7, right: 7,
-                  width: 9, height: 9, background: "#E8730A",
-                  borderRadius: "50%", border: "2px solid #1B3F7A",
-                }} />
-              )}
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div onClick={() => setShowDashboard(true)} style={{
+                width: 44, height: 44,
+                background: "rgba(255,255,255,0.12)", borderRadius: 13,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontSize: 20,
+              }}>📊</div>
+              <div onClick={() => setShowAlertas(true)} style={{
+                position: "relative", width: 44, height: 44,
+                background: "rgba(255,255,255,0.12)", borderRadius: 13,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontSize: 20,
+              }}>
+                🔔
+                {alertasNaoLidos.length > 0 && (
+                  <div style={{
+                    position: "absolute", top: 7, right: 7,
+                    width: 9, height: 9, background: "#E8730A",
+                    borderRadius: "50%", border: "2px solid #1B3F7A",
+                  }} />
+                )}
+              </div>
             </div>
           </div>
           <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 4 }}>Bem-vindo,</div>
@@ -358,6 +367,61 @@ export default function HomePage({ user, onOpenModule }) {
                 ))}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DASHBOARD */}
+      {showDashboard && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 200,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        }} onClick={() => setShowDashboard(false)}>
+          <div style={{
+            background: "#fff", borderRadius: 24,
+            width: "100%", maxWidth: 560, padding: 32,
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 22, color: "#1B3F7A" }}>📊 Dashboards</div>
+                <div style={{ color: "#aaa", fontSize: 13, marginTop: 4 }}>Selecione o módulo</div>
+              </div>
+              <div onClick={() => setShowDashboard(false)} style={{
+                width: 36, height: 36, background: "#f0f4ff", borderRadius: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontSize: 18, color: "#1B3F7A",
+              }}>✕</div>
+            </div>
+            {[
+              { id: "dashboard", modulo: "tceduc", icon: "🎓", nome: "TCEduc", desc: "Eventos, capacitados e municípios", color: "#1B3F7A" },
+              { id: "almox_dashboard", modulo: "almoxarifado", icon: "🗃️", nome: "Almoxarifado", desc: "Estoque, entradas e saídas", color: "#059669" },
+            ].filter(d => canAccess(d.modulo)).map(d => (
+              <div key={d.id} onClick={() => { setShowDashboard(false); onOpenModule(d.id); }} style={{
+                display: "flex", alignItems: "center", gap: 16,
+                background: "#f8f9fb", borderRadius: 16, padding: "18px 20px",
+                cursor: "pointer", marginBottom: 12,
+                border: `2px solid ${d.color}22`,
+                transition: "transform 0.15s, box-shadow 0.15s",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(27,63,122,0.1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+              >
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: `${d.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{d.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1B3F7A" }}>{d.nome}</div>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 3 }}>{d.desc}</div>
+                </div>
+                <div style={{ fontSize: 24, color: "#ccc" }}>›</div>
+              </div>
+            ))}
+            {[
+              { id: "dashboard", modulo: "tceduc" },
+              { id: "almox_dashboard", modulo: "almoxarifado" },
+            ].filter(d => canAccess(d.modulo)).length === 0 && (
+              <div style={{ textAlign: "center", padding: "30px 0", color: "#aaa", fontSize: 14 }}>
+                Nenhum dashboard disponível para o seu perfil.
+              </div>
+            )}
           </div>
         </div>
       )}
