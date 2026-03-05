@@ -25,6 +25,7 @@ import AlmoxRelatorioPage from "./pages/AlmoxRelatorioPage";
 import PessoasModule from "./pages/PessoasModule";
 import OrganogramaPage from "./pages/OrganogramaPage";
 import AniversariosPage from "./pages/AniversariosPage";
+import EstruturaPessoasPage from "./pages/EstruturaPessoasPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -70,9 +71,10 @@ export default function App() {
   if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} onBack={() => setCurrentModule("almoxarifado")} isAdmin={true} />;
   if (currentModule === "almox_relatorio") return <AlmoxRelatorioPage onBack={() => setCurrentModule("almoxarifado")} />;
 
-  if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} onAniversarios={() => setCurrentModule("aniversarios")} />;
+  if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} onAniversarios={() => setCurrentModule("aniversarios")} onEstrutura={() => setCurrentModule("estrutura_pessoas")} />;
   if (currentModule === "organograma") return <OrganogramaPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "aniversarios") return <AniversariosPage onBack={() => setCurrentModule("pessoas")} />;
+  if (currentModule === "estrutura_pessoas") return <EstruturaPessoasPage onBack={() => setCurrentModule("pessoas")} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
