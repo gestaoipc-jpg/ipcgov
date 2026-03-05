@@ -7,6 +7,7 @@ const MODULES = [
   { id: "tceduc", name: "TCEduc", icon: "🎓", desc: "Programa de Capacitação", color: "#1B3F7A", available: true },
   { id: "designer", name: "IPC Designer", icon: "🎨", desc: "Gestão de Atividades", color: "#7c3aed", available: true },
   { id: "processos", name: "IPC Processos", icon: "📁", desc: "Gestão de Processos", color: "#0891b2", available: true },
+  { id: "almoxarifado", name: "Almoxarifado", icon: "🗃️", desc: "Controle de Estoque", color: "#059669", available: true },
   { id: "designer", name: "IPC Designer", icon: "🎨", desc: "Artes e Vídeos", color: "#7c3aed", available: false },
   { id: "processos", name: "IPC Processos", icon: "📋", desc: "Gestão Processual", color: "#0891b2", available: false },
   { id: "almoxarifado", name: "Almoxarifado", icon: "📦", desc: "Controle de Estoque", color: "#059669", available: false },
