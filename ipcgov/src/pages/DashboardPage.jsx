@@ -68,18 +68,25 @@ function daysUntil(d) {
 export default function DashboardPage({ onBack }) {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroAno, setFiltroAno] = useState("2026");
+  const [filtroAno, setFiltroAno] = useState("todos");
   const [filtroMapa, setFiltroMapa] = useState("realizados");
   const [filtroRegiao, setFiltroRegiao] = useState("todas");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
   const [tooltip, setTooltip] = useState(null);
   const [svgLoaded, setSvgLoaded] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(null);
   const svgRef = useRef(null);
+  const mapContainerRef = useRef(null);
 
   useEffect(() => { loadEventos(); }, []);
 
   useEffect(() => {
     if (svgLoaded && !loading) colorirMapa();
-  }, [svgLoaded, loading, filtroMapa, filtroAno, filtroRegiao, eventos]);
+  }, [svgLoaded, loading, filtroMapa, filtroAno, filtroRegiao, filtroStatus, filtroTipo, eventos]);
 
   const loadEventos = async () => {
     setLoading(true);
@@ -90,13 +97,16 @@ export default function DashboardPage({ onBack }) {
     setLoading(false);
   };
 
-  const evFiltrados = eventos.filter(e =>
-    filtroAno === "todos" || (e.data && e.data.startsWith(filtroAno))
-  );
+  const evFiltrados = eventos.filter(e => {
+    if (filtroAno !== "todos" && !(e.data && e.data.startsWith(filtroAno))) return false;
+    if (filtroStatus !== "todos" && e.status !== filtroStatus) return false;
+    if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
+    return true;
+  });
 
   const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && e.status === "Realizado");
   const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && e.status === "Realizado");
-  const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && e.status === "Pendente");
+  const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado"));
 
   const totalCapacitados = evFiltrados.reduce((acc, e) =>
     acc + (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0), 0);
@@ -223,14 +233,20 @@ export default function DashboardPage({ onBack }) {
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>TCEDUC</div>
               <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>📊 Dashboard</div>
             </div>
-            <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-              {["2026","2027","todos"].map(a => (
-                <div key={a} onClick={() => setFiltroAno(a)} style={{
-                  background: filtroAno===a ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)",
-                  border:`1px solid ${filtroAno===a ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)"}`,
-                  borderRadius:12, padding:"8px 16px", color:"#fff",
-                  fontSize:13, fontWeight:700, cursor:"pointer",
-                }}>{a==="todos"?"Todos":a}</div>
+            <div style={{ marginLeft:"auto", display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
+              {/* Filtro Ano */}
+              {[{v:"todos",l:"Todos"},{v:"2026",l:"2026"},{v:"2027",l:"2027"}].map(a => (
+                <div key={a.v} onClick={() => setFiltroAno(a.v)} style={{ background: filtroAno===a.v ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)", border:`1px solid ${filtroAno===a.v ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{a.l}</div>
+              ))}
+              <div style={{ width:1, background:"rgba(255,255,255,0.2)", margin:"0 4px" }}/>
+              {/* Filtro Tipo */}
+              {[{v:"todos",l:"Municipal + Regional"},{v:"Municipal",l:"Municipal"},{v:"Regional",l:"Regional"}].map(t => (
+                <div key={t.v} onClick={() => setFiltroTipo(t.v)} style={{ background: filtroTipo===t.v ? "rgba(232,115,10,0.4)" : "rgba(255,255,255,0.1)", border:`1px solid ${filtroTipo===t.v ? "rgba(232,115,10,0.6)" : "rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{t.l}</div>
+              ))}
+              <div style={{ width:1, background:"rgba(255,255,255,0.2)", margin:"0 4px" }}/>
+              {/* Filtro Status */}
+              {[{v:"todos",l:"Todos status"},{v:"Realizado",l:"Realizado"},{v:"Pendente",l:"Pendente"},{v:"Programado",l:"Programado"}].map(s => (
+                <div key={s.v} onClick={() => setFiltroStatus(s.v)} style={{ background: filtroStatus===s.v ? "rgba(5,150,105,0.4)" : "rgba(255,255,255,0.1)", border:`1px solid ${filtroStatus===s.v ? "rgba(5,150,105,0.6)" : "rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{s.l}</div>
               ))}
             </div>
           </div>
@@ -283,20 +299,38 @@ export default function DashboardPage({ onBack }) {
             </div>
 
             {/* SVG */}
-            <div style={{ position:"relative", background:"#f0f5ff", borderRadius:16, overflow:"hidden", height:460 }}>
-              <object
-                ref={svgRef}
-                data="/ceara.svg"
-                type="image/svg+xml"
-                style={{ width:"100%", height:"100%", display:"block" }}
-                onLoad={() => setSvgLoaded(true)}
-              />
+            <div
+              ref={mapContainerRef}
+              style={{ position:"relative", background:"#f0f5ff", borderRadius:16, overflow:"hidden", height:460, cursor:dragging?"grabbing":"grab", userSelect:"none" }}
+              onMouseDown={e => { setDragging(true); setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); }}
+              onMouseMove={e => { if (dragging && dragStart) { setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); } }}
+              onMouseUp={() => { setDragging(false); setDragStart(null); }}
+              onMouseLeave={() => { setDragging(false); setDragStart(null); }}
+              onWheel={e => { e.preventDefault(); setZoom(z => Math.min(4, Math.max(0.8, z - e.deltaY * 0.001))); }}
+            >
+              <div style={{ transform:`translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin:"center center", width:"100%", height:"100%", transition:dragging?"none":"transform 0.1s" }}>
+                <object
+                  ref={svgRef}
+                  data="/ceara.svg"
+                  type="image/svg+xml"
+                  style={{ width:"100%", height:"100%", display:"block", pointerEvents: dragging ? "none" : "auto" }}
+                  onLoad={() => setSvgLoaded(true)}
+                />
+              </div>
               {!svgLoaded && (
                 <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#aaa", fontSize:14, flexDirection:"column", gap:10 }}>
                   <div style={{ fontSize:32 }}>🗺️</div>
                   <div>Carregando mapa do Ceará...</div>
                 </div>
               )}
+              {/* Zoom controls */}
+              <div style={{ position:"absolute", bottom:14, right:14, display:"flex", flexDirection:"column", gap:6 }}>
+                <div onClick={() => setZoom(z => Math.min(4, z + 0.3))} style={{ width:36, height:36, background:"#fff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", fontSize:20, fontWeight:700, color:"#1B3F7A", userSelect:"none" }}>+</div>
+                <div onClick={() => { setZoom(1); setPan({x:0,y:0}); }} style={{ width:36, height:36, background:"#fff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", fontSize:13, fontWeight:700, color:"#1B3F7A", userSelect:"none" }}>⊙</div>
+                <div onClick={() => setZoom(z => Math.max(0.8, z - 0.3))} style={{ width:36, height:36, background:"#fff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", fontSize:20, fontWeight:700, color:"#1B3F7A", userSelect:"none" }}>−</div>
+              </div>
+              {/* Zoom indicator */}
+              <div style={{ position:"absolute", bottom:14, left:14, background:"rgba(255,255,255,0.9)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{Math.round(zoom*100)}%</div>
             </div>
           </div>
 
