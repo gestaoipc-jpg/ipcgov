@@ -94,17 +94,17 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         .replace("{{senha}}", "Tce1234567890!@#")
         .replace("{{modulos}}", modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado");
 
+      const saudacao = (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome);
+      const rodape = template?.rodape || "Atenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo";
+
+      // corpo_completo é a única variável no template do EmailJS
+      const corpo_completo = `${saudacao}\n\n${corpo}\n\n---\n${rodape}\n\n🔗 Acesse: https://ipcgov.vercel.app`;
+
       const params = {
         to_name: servidor.nome,
         to_email: servidor.email,
         subject: template?.assunto || "Bem-vindo(a) ao IPCgov — Seus dados de acesso",
-        saudacao: (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome),
-        corpo,
-        rodape: template?.rodape || "Atenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo",
-        link: "https://ipcgov.vercel.app",
-        usuario: servidor.email,
-        senha: "Tce1234567890!@#",
-        modulos: modulosTexto || "Nenhum módulo",
+        corpo_completo,
       };
 
       await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, params, EMAILJS_PUBLIC_KEY);
