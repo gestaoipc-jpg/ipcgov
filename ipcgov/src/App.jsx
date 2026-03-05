@@ -26,6 +26,7 @@ import PessoasModule from "./pages/PessoasModule";
 import OrganogramaPage from "./pages/OrganogramaPage";
 import AniversariosPage from "./pages/AniversariosPage";
 import EstruturaPessoasPage from "./pages/EstruturaPessoasPage";
+import GestaoEmailsPage from "./pages/GestaoEmailsPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -75,6 +76,7 @@ export default function App() {
   if (currentModule === "organograma") return <OrganogramaPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "aniversarios") return <AniversariosPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "estrutura_pessoas") return <EstruturaPessoasPage onBack={() => setCurrentModule("pessoas")} />;
+  if (currentModule === "gestao_emails") return <GestaoEmailsPage onBack={() => setCurrentModule(null)} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
