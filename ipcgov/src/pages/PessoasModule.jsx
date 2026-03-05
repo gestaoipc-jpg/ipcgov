@@ -50,10 +50,12 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         getDocs(collection(db,"ipc_setores")),
         getDocs(collection(db,"ipc_cargos")),
       ]);
-      setServidores(sSnap.docs.map(d=>({id:d.id,...d.data()})));
+      const servidoresCarregados = sSnap.docs.map(d=>({id:d.id,...d.data()}));
+      setServidores(servidoresCarregados);
       setExternos(eSnap.docs.map(d=>({id:d.id,...d.data()})));
       setSetores(setSnap.docs.map(d=>({id:d.id,...d.data()})));
       setCargos(cSnap.docs.map(d=>({id:d.id,...d.data()})));
+      verificarTodosAniversarios(servidoresCarregados).catch(e=>console.error(e));
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -133,28 +135,51 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
     setSalvando(false);
   };
 
-  // Verifica e cria tarefa no Designer se aniversário em 5 dias
-  const verificarAniversarioProximo = async (servidor) => {
-    if (!servidor.dataAniversario) return;
+
+  // Verifica todos os servidores e cria tarefas no Designer para aniversários próximos
+  const verificarTodosAniversarios = async (listaServidores) => {
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
-    const [,mes,dia] = servidor.dataAniversario.split("-");
-    const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
-    if (proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
-    const diasAte = Math.ceil((proxAniv - hoje) / 86400000);
-    if (diasAte <= 5 && diasAte >= 0) {
-      const dataEntrega = new Date(proxAniv);
-      dataEntrega.setDate(dataEntrega.getDate()-1);
-      await addDoc(collection(db,"designer_atividades"), {
-        titulo: `Fazer arte de aniversário de ${servidor.nome}`,
-        descricao: `Criar arte comemorativa para o aniversário de ${servidor.nome} em ${dia}/${mes}`,
-        status: "Aguardando", prioridade: "Alta",
-        dataEntrega: dataEntrega.toISOString().split("T")[0],
-        tipo: "aniversario", servidorId: servidor.id,
-        criadoEm: new Date().toISOString(), criadoPor: "sistema",
-        ocorrencias: [],
-      });
+
+    // Busca tarefas de aniversário já criadas para evitar duplicatas
+    const atSnap = await getDocs(collection(db,"designer_atividades"));
+    const tarefasExistentes = atSnap.docs
+      .map(d => d.data())
+      .filter(t => t.tipo === "aniversario");
+
+    for (const servidor of listaServidores) {
+      if (!servidor.dataAniversario) continue;
+      const [,mes,dia] = servidor.dataAniversario.split("-");
+      const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
+      if (proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
+      const diasAte = Math.ceil((proxAniv - hoje) / 86400000);
+
+      if (diasAte <= 5 && diasAte >= 0) {
+        // Verifica se já existe tarefa para este servidor neste ano
+        const jaExiste = tarefasExistentes.some(t =>
+          t.servidorId === servidor.id &&
+          t.dataEntrega?.startsWith(proxAniv.getFullYear().toString())
+        );
+        if (jaExiste) continue;
+
+        const dataEntrega = new Date(proxAniv);
+        dataEntrega.setDate(dataEntrega.getDate() - 1);
+        await addDoc(collection(db,"designer_atividades"), {
+          titulo: `Fazer arte de aniversário de ${servidor.nome}`,
+          descricao: `Criar arte comemorativa para o aniversário de ${servidor.nome} em ${dia}/${mes}`,
+          status: "Aguardando", prioridade: "Alta",
+          dataEntrega: dataEntrega.toISOString().split("T")[0],
+          tipo: "aniversario", servidorId: servidor.id,
+          criadoEm: new Date().toISOString(), criadoPor: "sistema",
+          ocorrencias: [],
+        });
+      }
     }
+  };
+
+  // Verifica aniversário de um servidor específico (no cadastro)
+  const verificarAniversarioProximo = async (servidor) => {
+    await verificarTodosAniversarios([servidor]);
   };
 
   const salvarExterno = async () => {
