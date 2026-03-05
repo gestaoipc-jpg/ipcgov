@@ -326,5 +326,4 @@ export default function AlmoxSolicitacoesPage({ user, onBack, isAdmin }) {
     </div>
   );
 
-  function atualizarItem(idx, campo, val) { setForm(f=>({...f,itens:(f.itens||[]).map((it,i)=>i===idx?{...it,[campo]:val}:it)})); }
 }
