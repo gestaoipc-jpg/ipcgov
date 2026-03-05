@@ -13,12 +13,18 @@ import DesignerModule from "./pages/DesignerModule";
 import FiltrosAdminPage from "./pages/FiltrosAdminPage";
 import KanbanPage from "./pages/KanbanPage";
 import SolicitacoesPage from "./pages/SolicitacoesPage";
+import ProcessosModule from "./pages/ProcessosModule";
+import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
+import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
+import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
+import ProcessosRelatorioPage from "./pages/ProcessosRelatorioPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentModule, setCurrentModule] = useState(null);
   const [relatorioEventoId, setRelatorioEventoId] = useState(null);
+  const [processoRelatorioId, setProcessoRelatorioId] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
@@ -33,16 +39,27 @@ export default function App() {
   );
 
   if (!user) return <LoginPage onLogin={setUser} />;
+
+  // TCEduc
   if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} />;
   if (currentModule === "usuarios") return <UsuariosPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "cadastros") return <CadastrosPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "alertas") return <AlertasPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "dashboard") return <DashboardPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "relatorio") return <RelatorioPage onBack={() => setCurrentModule("tceduc")} eventoId={relatorioEventoId} />;
+
+  // Designer
   if (currentModule === "designer") return <DesignerModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("designer_filtros")} onKanban={() => setCurrentModule("designer_kanban")} onSolicitacoes={() => setCurrentModule("designer_solicitacoes")} />;
   if (currentModule === "designer_filtros") return <FiltrosAdminPage onBack={() => setCurrentModule("designer")} />;
   if (currentModule === "designer_kanban") return <KanbanPage onBack={() => setCurrentModule("designer")} onAbrirAtividade={() => setCurrentModule("designer")} />;
   if (currentModule === "designer_solicitacoes") return <SolicitacoesPage user={user} onBack={() => setCurrentModule("designer")} />;
+
+  // Processos
+  if (currentModule === "processos") return <ProcessosModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} />;
+  if (currentModule === "processos_kanban") return <ProcessosKanbanPage onBack={() => setCurrentModule("processos")} />;
+  if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
+  if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
+  if (currentModule === "processos_relatorio") return <ProcessosRelatorioPage onBack={() => setCurrentModule("processos")} processoId={processoRelatorioId} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
