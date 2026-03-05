@@ -84,6 +84,7 @@ const labelStyle = {
 export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -96,8 +97,10 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
+  const [itemOcorrencia, setItemOcorrencia] = useState(null); // item do checklist com ocorrência aberta
+  const [novaOcorrenciaItem, setNovaOcorrenciaItem] = useState("");
 
-  useEffect(() => { loadEventos(); }, []);
+  useEffect(() => { loadEventos(); loadUsuarios(); }, []);
 
   const loadEventos = async () => {
     setLoading(true);
@@ -115,6 +118,13 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       }
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  const loadUsuarios = async () => {
+    try {
+      const snap = await getDocs(collection(db, "usuarios"));
+      setUsuarios(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { console.error(e); }
   };
 
   const saveEvento = async () => {
@@ -154,13 +164,51 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       atualizadoEm: new Date().toISOString(),
     };
     await updateDoc(doc(db, "tceduc_eventos", selected.id), updates);
+    // Gerar alertas para itens com data limite e responsável
+    const hoje = new Date();
+    for (const [key, val] of Object.entries(checklist)) {
+      if (val?.dataLimite && val?.responsavel && !val?.feito) {
+        const diff = Math.ceil((new Date(val.dataLimite) - hoje) / 86400000);
+        if (diff <= 2 && diff >= 0) {
+          const chave = `tceduc_${selected.id}_${key}`;
+          const alertasSnap = await getDocs(collection(db, "alertas"));
+          const jaExiste = alertasSnap.docs.find(d => d.data().chave === chave);
+          if (!jaExiste) {
+            await addDoc(collection(db, "alertas"), {
+              chave, modulo: "tceduc", tipo: "checklist",
+              titulo: `Checklist pendente: ${key}`,
+              mensagem: `Item "${key}" do evento ${selected.municipio || selected.regiao} vence em ${diff === 0 ? "hoje" : `${diff} dia(s)`}`,
+              responsavel: val.responsavel,
+              eventoId: selected.id,
+              lido: false,
+              criadoEm: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
     setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ...updates } : e));
     setSalvando(false);
     setModal("detalhe");
   };
 
   const toggleCheck = (key) => {
-    setChecklist(c => ({ ...c, [key]: !c[key] }));
+    setChecklist(c => ({ ...c, [key]: { ...c[key], feito: !c[key]?.feito } }));
+  };
+
+  const setItemResponsavel = (key, responsavel) => {
+    setChecklist(c => ({ ...c, [key]: { ...c[key], responsavel } }));
+  };
+
+  const setItemDataLimite = (key, dataLimite) => {
+    setChecklist(c => ({ ...c, [key]: { ...c[key], dataLimite } }));
+  };
+
+  const adicionarOcorrenciaItem = (key) => {
+    if (!novaOcorrenciaItem.trim()) return;
+    const ocAtual = checklist[key]?.ocorrencias || [];
+    setChecklist(c => ({ ...c, [key]: { ...c[key], ocorrencias: [...ocAtual, { texto: novaOcorrenciaItem, data: new Date().toISOString(), autor: user?.email || "sistema" }] } }));
+    setNovaOcorrenciaItem("");
   };
 
   const adicionarOcorrencia = () => {
@@ -178,7 +226,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
   const progressoChecklist = (ev, items) => {
     const ch = ev.checklist || {};
-    const done = items.filter(i => ch[i]).length;
+    const done = items.filter(i => ch[i]?.feito).length;
     return { done, total: items.length, pct: Math.round((done / items.length) * 100) };
   };
 
@@ -404,43 +452,114 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             {/* BLOCO ANTES */}
             {blocoAtivo === "antes" && (
               <div>
-                {CHECKLIST_ANTES.map((item, i) => (
-                  <div key={i} onClick={() => toggleCheck(item)} style={{
-                    display: "flex", alignItems: "center", gap: 14,
-                    padding: "14px 16px", marginBottom: 8,
-                    background: checklist[item] ? "#e8f5e9" : "#f8f9fb",
-                    borderRadius: 14, cursor: "pointer",
-                    border: `1px solid ${checklist[item] ? "#c8e6c9" : "#e8edf2"}`,
-                    transition: "all .15s",
-                  }}>
-                    <div style={{
-                      width: 24, height: 24, borderRadius: 8,
-                      background: checklist[item] ? "#059669" : "#fff",
-                      border: `2px solid ${checklist[item] ? "#059669" : "#ddd"}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 14, color: "#fff", flexShrink: 0,
-                    }}>{checklist[item] ? "✓" : ""}</div>
-                    <div style={{ fontSize: 14, color: checklist[item] ? "#059669" : "#333", fontWeight: checklist[item] ? 600 : 400, textDecoration: checklist[item] ? "line-through" : "none" }}>{item}</div>
-                  </div>
-                ))}
+                {CHECKLIST_ANTES.map((item, i) => {
+                  const val = checklist[item] || {};
+                  const venceEm = val.dataLimite ? Math.ceil((new Date(val.dataLimite) - new Date()) / 86400000) : null;
+                  const atrasado = venceEm !== null && venceEm < 0 && !val.feito;
+                  const urgente = venceEm !== null && venceEm <= 2 && venceEm >= 0 && !val.feito;
+                  return (
+                    <div key={i} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
+                      {/* linha principal */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => toggleCheck(item)}>
+                        <div style={{ width: 24, height: 24, borderRadius: 8, background: val.feito ? "#059669" : "#fff", border: `2px solid ${val.feito ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
+                          <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                            {val.responsavel && <div style={{ fontSize: 11, color: "#888" }}>👤 {val.responsavel}</div>}
+                            {val.dataLimite && <div style={{ fontSize: 11, color: atrasado ? "#dc2626" : urgente ? "#E8730A" : "#888", fontWeight: atrasado || urgente ? 700 : 400 }}>📅 {formatDate(val.dataLimite)}{atrasado ? " ⚠️ ATRASADO" : urgente ? ` ⏰ ${venceEm === 0 ? "HOJE" : `${venceEm}d`}` : ""}</div>}
+                            {(val.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {val.ocorrencias.length} ocorrência{val.ocorrencias.length !== 1 ? "s" : ""}</div>}
+                          </div>
+                        </div>
+                        <div onClick={e => { e.stopPropagation(); setItemOcorrencia(itemOcorrencia === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
+                      </div>
+                      {/* painel expandido */}
+                      {itemOcorrencia === item && (
+                        <div style={{ padding: "0 16px 14px", borderTop: "1px solid #e8edf2" }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12, marginBottom: 12 }}>
+                            <div>
+                              <label style={labelStyle}>Responsável</label>
+                              <select value={val.responsavel || ""} onChange={e => setItemResponsavel(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }}>
+                                <option value="">Selecione...</option>
+                                {usuarios.map(u => <option key={u.id} value={u.email}>{u.nome || u.email}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Data Limite</label>
+                              <input type="date" value={val.dataLimite || ""} onChange={e => setItemDataLimite(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }} />
+                            </div>
+                          </div>
+                          <label style={labelStyle}>Ocorrências do item</label>
+                          {(val.ocorrencias || []).map((oc, j) => (
+                            <div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, fontSize: 12, color: "#333", borderLeft: "3px solid #E8730A" }}>
+                              <div style={{ color: "#aaa", fontSize: 10, marginBottom: 2 }}>{new Date(oc.data).toLocaleString("pt-BR")} · {oc.autor}</div>
+                              {oc.texto}
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                            <input value={novaOcorrenciaItem} onChange={e => setNovaOcorrenciaItem(e.target.value)} placeholder="Registrar ocorrência neste item..." style={{ ...inputStyle, flex: 1, padding: "8px 12px" }} />
+                            <div onClick={() => adicionarOcorrenciaItem(item)} style={{ background: "#E8730A", borderRadius: 10, padding: "8px 14px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* BLOCO VIAGEM */}
             {blocoAtivo === "viagem" && (
               <div>
-                {CHECKLIST_VIAGEM.map((item, i) => (
-                  <div key={i} onClick={() => toggleCheck(item)} style={{
-                    display: "flex", alignItems: "center", gap: 14,
-                    padding: "14px 16px", marginBottom: 8,
-                    background: checklist[item] ? "#e8f5e9" : "#f8f9fb",
-                    borderRadius: 14, cursor: "pointer",
-                    border: `1px solid ${checklist[item] ? "#c8e6c9" : "#e8edf2"}`,
-                  }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 8, background: checklist[item] ? "#059669" : "#fff", border: `2px solid ${checklist[item] ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{checklist[item] ? "✓" : ""}</div>
-                    <div style={{ fontSize: 14, color: checklist[item] ? "#059669" : "#333", textDecoration: checklist[item] ? "line-through" : "none" }}>{item}</div>
-                  </div>
-                ))}
+                {CHECKLIST_VIAGEM.map((item, i) => {
+                  const val = checklist[item] || {};
+                  const venceEm = val.dataLimite ? Math.ceil((new Date(val.dataLimite) - new Date()) / 86400000) : null;
+                  const atrasado = venceEm !== null && venceEm < 0 && !val.feito;
+                  const urgente = venceEm !== null && venceEm <= 2 && venceEm >= 0 && !val.feito;
+                  return (
+                    <div key={i} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => toggleCheck(item)}>
+                        <div style={{ width: 24, height: 24, borderRadius: 8, background: val.feito ? "#059669" : "#fff", border: `2px solid ${val.feito ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
+                          <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+                            {val.responsavel && <div style={{ fontSize: 11, color: "#888" }}>👤 {val.responsavel}</div>}
+                            {val.dataLimite && <div style={{ fontSize: 11, color: atrasado ? "#dc2626" : urgente ? "#E8730A" : "#888", fontWeight: atrasado || urgente ? 700 : 400 }}>📅 {formatDate(val.dataLimite)}{atrasado ? " ⚠️ ATRASADO" : urgente ? ` ⏰ ${venceEm === 0 ? "HOJE" : `${venceEm}d`}` : ""}</div>}
+                            {(val.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {val.ocorrencias.length} ocorrência{val.ocorrencias.length !== 1 ? "s" : ""}</div>}
+                          </div>
+                        </div>
+                        <div onClick={e => { e.stopPropagation(); setItemOcorrencia(itemOcorrencia === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
+                      </div>
+                      {itemOcorrencia === item && (
+                        <div style={{ padding: "0 16px 14px", borderTop: "1px solid #e8edf2" }} onClick={e => e.stopPropagation()}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12, marginBottom: 12 }}>
+                            <div>
+                              <label style={labelStyle}>Responsável</label>
+                              <select value={val.responsavel || ""} onChange={e => setItemResponsavel(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }}>
+                                <option value="">Selecione...</option>
+                                {usuarios.map(u => <option key={u.id} value={u.email}>{u.nome || u.email}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label style={labelStyle}>Data Limite</label>
+                              <input type="date" value={val.dataLimite || ""} onChange={e => setItemDataLimite(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }} />
+                            </div>
+                          </div>
+                          <label style={labelStyle}>Ocorrências do item</label>
+                          {(val.ocorrencias || []).map((oc, j) => (
+                            <div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, fontSize: 12, color: "#333", borderLeft: "3px solid #E8730A" }}>
+                              <div style={{ color: "#aaa", fontSize: 10, marginBottom: 2 }}>{new Date(oc.data).toLocaleString("pt-BR")} · {oc.autor}</div>
+                              {oc.texto}
+                            </div>
+                          ))}
+                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                            <input value={novaOcorrenciaItem} onChange={e => setNovaOcorrenciaItem(e.target.value)} placeholder="Registrar ocorrência neste item..." style={{ ...inputStyle, flex: 1, padding: "8px 12px" }} />
+                            <div onClick={() => adicionarOcorrenciaItem(item)} style={{ background: "#E8730A", borderRadius: 10, padding: "8px 14px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <div style={{ marginTop: 20 }}>
                   <label style={labelStyle}>Avisos gerais de viagem</label>
                   <textarea value={infoViagem.avisos || ""} onChange={e => setInfoViagem(v => ({ ...v, avisos: e.target.value }))}
