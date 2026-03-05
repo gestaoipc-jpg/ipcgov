@@ -22,6 +22,8 @@ import AlmoxarifadoModule from "./pages/AlmoxarifadoModule";
 import AlmoxSolicitacoesPage from "./pages/AlmoxSolicitacoesPage";
 import AlmoxDashboardPage from "./pages/AlmoxDashboardPage";
 import AlmoxRelatorioPage from "./pages/AlmoxRelatorioPage";
+import PessoasModule from "./pages/PessoasModule";
+import OrganogramaPage from "./pages/OrganogramaPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -70,6 +72,10 @@ export default function App() {
   if (currentModule === "almox_dashboard") return <AlmoxDashboardPage onBack={() => setCurrentModule("almoxarifado")} />;
   if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} onBack={() => setCurrentModule("almoxarifado")} isAdmin={true} />;
   if (currentModule === "almox_relatorio") return <AlmoxRelatorioPage onBack={() => setCurrentModule("almoxarifado")} />;
+
+  // Pessoas
+  if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} />;
+  if (currentModule === "organograma") return <OrganogramaPage onBack={() => setCurrentModule("pessoas")} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
