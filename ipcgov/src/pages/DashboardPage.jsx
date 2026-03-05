@@ -130,12 +130,17 @@ export default function DashboardPage({ onBack }) {
     const svgDoc = svgRef.current?.contentDocument;
     if (!svgDoc) return;
 
-    const realizadosNorm = municipaisRealizados.map(e => normalizar(e.municipio));
-    const pendentesNorm = municipaisPendentes.map(e => normalizar(e.municipio));
+    // Mapas de status por município considerando TODOS os filtros ativos
+    const municipioEventos = {};
+    evFiltrados.filter(e => e.tipo === "Municipal" && e.municipio).forEach(e => {
+      const norm = normalizar(e.municipio);
+      if (!municipioEventos[norm]) municipioEventos[norm] = [];
+      municipioEventos[norm].push(e);
+    });
 
-    // Reset all paths to white
+    // Reset all paths
     svgDoc.querySelectorAll("path").forEach(p => {
-      p.style.fill = "#f0f4ff";
+      p.style.fill = "#e8eef8";
       p.style.stroke = "#c0cfe0";
       p.style.strokeWidth = "0.5";
       p.style.cursor = "default";
@@ -143,57 +148,67 @@ export default function DashboardPage({ onBack }) {
       p.onmouseleave = null;
     });
 
-    // Color mapped municipalities
-    Object.entries(MUNICIPIO_PATH_MAP).forEach(([muni, pathId]) => {
-      const el = svgDoc.getElementById(pathId);
-      if (!el) return;
+    // Só colorir municípios se filtro não for exclusivamente Regional
+    if (filtroTipo !== "Regional") {
+      Object.entries(MUNICIPIO_PATH_MAP).forEach(([muni, pathId]) => {
+        const el = svgDoc.getElementById(pathId);
+        if (!el) return;
 
-      const muniNorm = normalizar(muni);
-      const isRealizado = realizadosNorm.includes(muniNorm);
-      const isPendente = pendentesNorm.includes(muniNorm);
+        const muniNorm = normalizar(muni);
+        const evs = municipioEventos[muniNorm] || [];
+        const temRealizado   = evs.some(e => e.status === "Realizado");
+        const temProgramado  = evs.some(e => e.status === "Programado");
+        const temPendente    = evs.some(e => e.status === "Pendente");
+        const semEvento      = evs.length === 0;
 
-      let color = "#dce8f5"; // default
+        // Cor baseada na combinação de filtros
+        let color = "#e8eef8"; // sem evento
 
-      if (filtroMapa === "realizados") {
-        if (isRealizado) color = "#059669";
-        else if (isPendente) color = "#E8730A";
-        else color = "#dce8f5";
-      } else if (filtroMapa === "nao_visitados") {
-        if (!isRealizado) color = "#5B9BD5";
-        else color = "#e0f2f1";
-      } else if (filtroMapa === "agendados") {
-        if (isPendente) color = "#E8730A";
-        else color = "#dce8f5";
-      }
+        if (filtroStatus === "Realizado") {
+          color = temRealizado ? "#059669" : "#e8eef8";
+        } else if (filtroStatus === "Programado") {
+          color = temProgramado ? "#7c3aed" : "#e8eef8";
+        } else if (filtroStatus === "Pendente") {
+          color = temPendente ? "#E8730A" : "#e8eef8";
+        } else {
+          // Todos os status — prioridade: Realizado > Programado > Pendente
+          if (temRealizado) color = "#059669";
+          else if (temProgramado) color = "#7c3aed";
+          else if (temPendente) color = "#E8730A";
+          else color = "#e8eef8";
+        }
 
-      el.style.fill = color;
-      el.style.stroke = "#1B3F7A";
-      el.style.strokeWidth = "0.5";
-      el.style.cursor = "pointer";
-      el.style.transition = "fill 0.2s";
-
-      const ev = evFiltrados.find(ev => normalizar(ev.municipio) === muniNorm);
-      const savedColor = color;
-
-      el.onmouseenter = (e) => {
-        el.style.fill = "#1B3F7A";
-        el.style.strokeWidth = "1.5";
-        const participants = (ev?.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes)||0), 0);
-        setTooltip({
-          nome: muni,
-          status: ev?.status || "Sem evento",
-          data: ev?.data,
-          participantes: participants,
-          x: e.clientX,
-          y: e.clientY,
-        });
-      };
-      el.onmouseleave = () => {
-        el.style.fill = savedColor;
+        el.style.fill = color;
+        el.style.stroke = color === "#e8eef8" ? "#c0cfe0" : "#1B3F7A";
         el.style.strokeWidth = "0.5";
-        setTooltip(null);
-      };
-    });
+        el.style.cursor = "pointer";
+        el.style.transition = "fill 0.2s";
+
+        const ev = evs[0];
+        const savedColor = color;
+        el.onmouseenter = (e) => {
+          el.style.fill = "#1B3F7A";
+          el.style.strokeWidth = "1.5";
+          const participants = evs.reduce((s, ev) =>
+            s + (ev.acoesEducacionais||[]).reduce((ss,a) => ss+(parseInt(a.participantes)||0),0), 0);
+          setTooltip({ nome:muni, status:ev?.status||"Sem evento", data:ev?.data, participantes:participants, x:e.clientX, y:e.clientY });
+        };
+        el.onmouseleave = () => { el.style.fill = savedColor; el.style.strokeWidth = "0.5"; setTooltip(null); };
+      });
+    }
+  };
+
+  // Legenda dinâmica baseada nos filtros ativos
+  const legendaCores = () => {
+    if (filtroStatus === "Realizado")   return [{ cor:"#059669", label:`Realizado (${municipaisRealizados.length})` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
+    if (filtroStatus === "Programado")  return [{ cor:"#7c3aed", label:`Programado` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
+    if (filtroStatus === "Pendente")    return [{ cor:"#E8730A", label:`Pendente (${municipaisPendentes.length})` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
+    return [
+      { cor:"#059669", label:`Realizado (${municipaisRealizados.length})` },
+      { cor:"#7c3aed", label:`Programado` },
+      { cor:"#E8730A", label:`Pendente/Agendado (${municipaisPendentes.length})` },
+      { cor:"#e8eef8", label:`Sem evento (${184 - municipaisRealizados.length})`, borda:true },
+    ];
   };
 
   const s = { fontFamily: "'Montserrat', sans-serif" };
@@ -274,28 +289,22 @@ export default function DashboardPage({ onBack }) {
           <div style={{ background:"#fff", borderRadius:24, padding:24, boxShadow:"0 4px 20px rgba(27,63,122,0.08)" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <div>
-                <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A" }}>🗺️ Cobertura — {filtroAno==="todos"?"Todos os anos":filtroAno}</div>
+                <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A" }}>🗺️ Cobertura — {filtroAno==="todos"?"Todos os anos":filtroAno}{filtroTipo!=="todos"?` · ${filtroTipo}`:""}{filtroStatus!=="todos"?` · ${filtroStatus}`:""}</div>
                 <div style={{ color:"#aaa", fontSize:11, marginTop:3 }}>Passe o mouse sobre o município para ver detalhes</div>
               </div>
-              <select value={filtroMapa} onChange={e => setFiltroMapa(e.target.value)} style={{
-                background:"#f0f4ff", border:"none", borderRadius:10, padding:"8px 14px",
-                fontSize:12, fontWeight:700, color:"#1B3F7A", cursor:"pointer", outline:"none",
-              }}>
-                <option value="realizados">Realizados + Agendados</option>
-                <option value="nao_visitados">Não visitados</option>
-                <option value="agendados">Apenas agendados</option>
-              </select>
             </div>
 
-            {/* LEGENDA */}
-            <div style={{ display:"flex", gap:16, marginBottom:14, flexWrap:"wrap" }}>
-              {filtroMapa==="realizados" && <>
-                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}><div style={{ width:12, height:12, borderRadius:3, background:"#059669" }}/> Realizado ({municipaisRealizados.length})</div>
-                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}><div style={{ width:12, height:12, borderRadius:3, background:"#E8730A" }}/> Agendado ({municipaisPendentes.length})</div>
-                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}><div style={{ width:12, height:12, borderRadius:3, background:"#dce8f5", border:"1px solid #aaa" }}/> Não visitado</div>
-              </>}
-              {filtroMapa==="nao_visitados" && <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}><div style={{ width:12, height:12, borderRadius:3, background:"#5B9BD5" }}/> Não visitados ({184-municipaisRealizados.length})</div>}
-              {filtroMapa==="agendados" && <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}><div style={{ width:12, height:12, borderRadius:3, background:"#E8730A" }}/> Agendados ({municipaisPendentes.length})</div>}
+            {/* LEGENDA DINÂMICA */}
+            <div style={{ display:"flex", gap:14, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
+              {legendaCores().map((item,i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#555" }}>
+                  <div style={{ width:13, height:13, borderRadius:3, background:item.cor, border:item.borda?"1px solid #aaa":"none", flexShrink:0 }}/>
+                  {item.label}
+                </div>
+              ))}
+              {filtroTipo === "Regional" && (
+                <div style={{ fontSize:12, color:"#888", fontStyle:"italic" }}>Mapa exibe apenas municípios — eventos regionais não têm localização no mapa</div>
+              )}
             </div>
 
             {/* SVG */}
