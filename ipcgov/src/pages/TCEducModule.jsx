@@ -81,7 +81,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack, onCadastros, onAlertas }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -206,6 +206,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas }) {
               <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>TCEduc</div>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+              <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
               <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
@@ -565,6 +566,21 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas }) {
                 </select>
               </div>
               <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Observações</label><textarea value={form.observacoes || ""} onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} /></div>
+
+              {/* AÇÕES EDUCACIONAIS */}
+              <div style={{ gridColumn: "1 / -1", marginTop: 8 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 12 }}>
+                  📚 Ações Educacionais
+                </div>
+                {(form.acoesEducacionais || []).map((acao, idx) => (
+                  <div key={idx} style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "center" }}>
+                    <input value={acao.nome || ""} onChange={e => { const a = [...(form.acoesEducacionais||[])]; a[idx]={...a[idx],nome:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder={form.tipo==="Regional"?"Ex: Palestra, Curso":"Ex: Controle Social, Licitações"} style={{...inputStyle,flex:2}} />
+                    <input type="number" value={acao.participantes || ""} onChange={e => { const a = [...(form.acoesEducacionais||[])]; a[idx]={...a[idx],participantes:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder="Participantes" style={{...inputStyle,flex:1}} />
+                    <div onClick={() => { const a=(form.acoesEducacionais||[]).filter((_,i)=>i!==idx); setForm(f=>({...f,acoesEducacionais:a})); }} style={{ width:36,height:36,background:"#fee2e2",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#dc2626",fontSize:18,flexShrink:0 }}>×</div>
+                  </div>
+                ))}
+                <div onClick={() => setForm(f=>({...f,acoesEducacionais:[...(f.acoesEducacionais||[]),{nome:"",participantes:""}]}))} style={{ background:"#f0f4ff",borderRadius:12,padding:"10px 16px",fontSize:13,color:"#1B3F7A",fontWeight:700,cursor:"pointer",textAlign:"center",border:"2px dashed #1B3F7A33" }}>+ Adicionar Ação Educacional</div>
+              </div>
             </div>
             <button onClick={saveEvento} style={{ width: "100%", marginTop: 20, background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 14, padding: 16, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>💾 Salvar Evento</button>
           </div>
