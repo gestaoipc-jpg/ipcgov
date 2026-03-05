@@ -4,8 +4,6 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "../firebase/config";
 
-const CARGOS = ["Diretor(a)","Coordenador(a)","Gerente","Supervisor(a)","Técnico(a)","Assistente","Analista","Assessor(a)","Estagiário(a)","Outro"];
-const SETORES = ["Diretoria","TCEduc","IPC Designer","IPC Processos","Almoxarifado","Administração","Financeiro","Jurídico","Comunicação","TI","RH","Outro"];
 const TIPOS_EXTERNO = ["Instrutor(a)","Motorista","Apoio de Outro Órgão","Consultor(a)","Voluntário(a)","Outro"];
 const ORGAOS = ["SESA","SEDUC","SECULT","STDS","SSPDS","TCE","MPE","Prefeitura","Outro"];
 const MODULOS = [
@@ -16,7 +14,6 @@ const MODULOS = [
   { id:"pessoas", nome:"IPC Pessoas", icon:"👥" },
 ];
 const SENHA_PADRAO = "Tce1234567890!@#";
-const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 function initials(nome) { if(!nome)return"?"; return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase(); }
 function corAvatar(nome) { const cores=["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"]; let h=0; for(let c of (nome||""))h+=c.charCodeAt(0); return cores[h%cores.length]; }
@@ -25,9 +22,11 @@ function formatDate(d) { if(!d)return"—"; const[y,m,day]=d.split("-"); return`
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
-export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios }) {
+export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios, onEstrutura }) {
   const [servidores, setServidores] = useState([]);
   const [externos, setExternos] = useState([]);
+  const [setores, setSetores] = useState([]);
+  const [cargos, setCargos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState("equipe");
   const [modal, setModal] = useState(null);
@@ -45,14 +44,31 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sSnap, eSnap] = await Promise.all([
+      const [sSnap, eSnap, setSnap, cSnap] = await Promise.all([
         getDocs(collection(db,"ipc_servidores")),
         getDocs(collection(db,"ipc_externos")),
+        getDocs(collection(db,"ipc_setores")),
+        getDocs(collection(db,"ipc_cargos")),
       ]);
       setServidores(sSnap.docs.map(d=>({id:d.id,...d.data()})));
       setExternos(eSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setSetores(setSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setCargos(cSnap.docs.map(d=>({id:d.id,...d.data()})));
     } catch(e) { console.error(e); }
     setLoading(false);
+  };
+
+  // Calcula chefia imediata pelo cargo selecionado
+  const calcularChefiaImediata = (cargoId, chefiaManual) => {
+    if (chefiaManual) return chefiaManual;
+    if (!cargoId) return "";
+    const cargo = cargos.find(c => c.id === cargoId);
+    if (!cargo?.cargoPaiId) return "";
+    // Busca servidor que tem esse cargo pai
+    const cargoPai = cargos.find(c => c.id === cargo.cargoPaiId);
+    if (!cargoPai) return "";
+    const servidorChefe = servidores.find(s => s.cargoId === cargo.cargoPaiId);
+    return servidorChefe?.nome || cargoPai.nome;
   };
 
   const uploadFoto = async (file, servidorId) => {
@@ -67,26 +83,26 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   };
 
   const salvarServidor = async () => {
-    if (!form.nome || !form.cargo) return;
+    if (!form.nome) return;
     setSalvando(true); setErroLogin("");
     try {
       let uid = form.uid || null;
       let fotoUrl = form.foto || null;
 
-      // Upload foto se houver arquivo
       if (form._fotoFile) {
         fotoUrl = await uploadFoto(form._fotoFile, selected?.id);
       }
 
-      // Criar login se solicitado
+      // Chefia: automática pelo cargo ou manual
+      const chefiaFinal = calcularChefiaImediata(form.cargoId, form.chefiaManual);
+
       if (form.criarAcesso && form.email && !form.uid) {
         try {
           const cred = await createUserWithEmailAndPassword(auth, form.email, SENHA_PADRAO);
           uid = cred.user.uid;
-          // Salvar na coleção usuarios
           await addDoc(collection(db,"usuarios"), {
-            email: form.email, nome: form.nome, cargo: form.cargo,
-            setor: form.setor||"", perfil: form.isAdmin?"admin":"usuario",
+            email: form.email, nome: form.nome, cargo: form.cargo||"", cargoId: form.cargoId||"",
+            setor: form.setor||"", setorId: form.setorId||"", perfil: form.isAdmin?"admin":"usuario",
             modulos: form.isAdmin ? MODULOS.map(m=>m.id) : (form.modulosAcesso||[]),
             ativo: true, servidorId: selected?.id||null,
             criadoEm: new Date().toISOString()
@@ -97,8 +113,8 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         }
       }
 
-      const { _fotoFile, ...formLimpo } = form;
-      const dados = { ...formLimpo, foto: fotoUrl, uid: uid||"", atualizadoEm: new Date().toISOString() };
+      const { _fotoFile, chefiaManual, ...formLimpo } = form;
+      const dados = { ...formLimpo, foto: fotoUrl, uid: uid||"", chefia: chefiaFinal, atualizadoEm: new Date().toISOString() };
 
       if (selected) {
         await updateDoc(doc(db,"ipc_servidores",selected.id), dados);
@@ -108,8 +124,6 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         dados.registros = [];
         const docRef = await addDoc(collection(db,"ipc_servidores"), dados);
         setServidores(s=>[...s,{id:docRef.id,...dados}]);
-
-        // Criar tarefa no Designer se tiver aniversário
         if (dados.dataAniversario) {
           await verificarAniversarioProximo({id:docRef.id,...dados});
         }
@@ -221,6 +235,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
               <div onClick={onOrganograma} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🌳 Organograma</div>
+              <div onClick={onEstrutura} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🏗️ Estrutura</div>
               <div onClick={onAniversarios} style={{ background:aniversariosProximos.length>0?"rgba(232,115,10,0.4)":"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                 🎂 Aniversários{aniversariosProximos.length>0?` (${aniversariosProximos.length})` :""}
               </div>
@@ -404,25 +419,43 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                   <input value={form.nome||""} onChange={e=>setForm(f=>({...f,nome:e.target.value}))} placeholder="Nome completo do servidor" style={inputStyle}/>
                 </div>
                 <div>
-                  <label style={labelStyle}>Cargo *</label>
-                  <select value={form.cargo||""} onChange={e=>setForm(f=>({...f,cargo:e.target.value}))} style={inputStyle}>
-                    <option value="">Selecione...</option>
-                    {CARGOS.map(c=><option key={c} value={c}>{c}</option>)}
+                  <label style={labelStyle}>Cargo</label>
+                  <select value={form.cargoId||""} onChange={e=>{
+                    const cargoSel = cargos.find(c=>c.id===e.target.value);
+                    setForm(f=>({...f, cargoId:e.target.value, cargo:cargoSel?.nome||""}));
+                  }} style={inputStyle}>
+                    <option value="">Sem cargo formal</option>
+                    {[...cargos].sort((a,b)=>(a.nivel||1)-(b.nivel||1)).map(c=><option key={c.id} value={c.id}>{'  '.repeat((c.nivel||1)-1)}{c.nome}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={labelStyle}>Setor</label>
-                  <select value={form.setor||""} onChange={e=>setForm(f=>({...f,setor:e.target.value}))} style={inputStyle}>
-                    <option value="">Selecione...</option>
-                    {SETORES.map(s=><option key={s} value={s}>{s}</option>)}
+                  <select value={form.setorId||""} onChange={e=>{
+                    const setorSel = setores.find(s=>s.id===e.target.value);
+                    setForm(f=>({...f, setorId:e.target.value, setor:setorSel?.nome||""}));
+                  }} style={inputStyle}>
+                    <option value="">Selecione o setor...</option>
+                    {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={labelStyle}>Chefia Direta</label>
-                  <select value={form.chefia||""} onChange={e=>setForm(f=>({...f,chefia:e.target.value}))} style={inputStyle}>
-                    <option value="">Sem chefia / Topo da hierarquia</option>
-                    {servidores.filter(s=>s.id!==selected?.id).map(s=><option key={s.id} value={s.nome}>{s.nome} — {s.cargo}</option>)}
-                  </select>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Chefia Imediata</label>
+                  {form.cargoId && calcularChefiaImediata(form.cargoId, null) ? (
+                    <div style={{ background:"#e8f5e9", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#059669", fontWeight:600 }}>
+                      ✅ Calculada automaticamente: <strong>{calcularChefiaImediata(form.cargoId, null)}</strong>
+                      <div style={{ fontSize:11, color:"#888", marginTop:4, fontWeight:400 }}>Baseada na hierarquia de cargos</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <select value={form.chefiaManual||""} onChange={e=>setForm(f=>({...f,chefiaManual:e.target.value,chefia:e.target.value}))} style={inputStyle}>
+                        <option value="">Selecione a chefia imediata...</option>
+                        {servidores.filter(s=>s.id!==selected?.id).map(s=><option key={s.id} value={s.nome}>{s.nome} {s.cargo?"— "+s.cargo:""}</option>)}
+                      </select>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>
+                        {form.cargoId ? "Cargo selecionado não tem superior cadastrado — selecione manualmente" : "Sem cargo formal — selecione a chefia diretamente"}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>E-mail</label>
