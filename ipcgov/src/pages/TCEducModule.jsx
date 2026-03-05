@@ -81,7 +81,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -307,7 +307,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           { id: "eventos", icon: "📅", label: "Eventos" },
           { id: "municipios", icon: "🗺️", label: "Municípios" },
           { id: "alertas", icon: "🔔", label: "Alertas", action: onAlertas },
-          { id: "relatorios", icon: "📄", label: "Relatórios" },
+          { id: "relatorios", icon: "📄", label: "Relatórios", action: onRelatorio },
         ].map(item => (
           <div key={item.id} onClick={() => item.action ? item.action() : setTab(item.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <div style={{ fontSize: 22 }}>{item.icon}</div>
@@ -377,6 +377,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => { setForm({ ...selected }); setModal("form"); }} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Evento</button>
+              <button onClick={() => onRelatorio(selected.id)} style={{ flex: 1, background: "#f0f4ff", border: "none", borderRadius: 14, padding: 14, color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>📄 Relatório</button>
               <button onClick={() => deleteEvento(selected.id)} style={{ width: 52, background: "#fee2e2", border: "none", borderRadius: 14, color: "#dc2626", fontSize: 20, cursor: "pointer" }}>🗑</button>
             </div>
           </div>
