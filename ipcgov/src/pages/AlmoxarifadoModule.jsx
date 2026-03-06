@@ -13,17 +13,26 @@ const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1
 
 export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelatorio, onSolicitacoes }) {
   const [materiais, setMateriais] = useState([]);
+  const [servidores, setServidores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({});
   const [formEntrada, setFormEntrada] = useState({});
+  const [formSaida, setFormSaida] = useState({});
   const [busca, setBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [salvando, setSalvando] = useState(false);
-  const [aba, setAba] = useState("materiais"); // materiais | entradas
+  const [aba, setAba] = useState("materiais");
 
-  useEffect(() => { loadMateriais(); }, []);
+  useEffect(() => { loadMateriais(); loadServidores(); }, []);
+
+  const loadServidores = async () => {
+    try {
+      const snap = await getDocs(collection(db, "ipc_servidores"));
+      setServidores(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.nome||"").localeCompare(b.nome||"")));
+    } catch(e) { console.error(e); }
+  };
 
   const loadMateriais = async () => {
     setLoading(true);
@@ -97,6 +106,46 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
     setSalvando(false);
   };
 
+  const registrarSaida = async () => {
+    if (!formSaida.materialId || !formSaida.quantidade) return;
+    setSalvando(true);
+    try {
+      const mat = materiais.find(m => m.id === formSaida.materialId);
+      if (!mat) return;
+      const qtd = parseInt(formSaida.quantidade);
+      if (qtd > (mat.estoqueAtual||0)) {
+        alert(`Estoque insuficiente! Disponível: ${mat.estoqueAtual||0} ${mat.unidade||"un."}`);
+        setSalvando(false); return;
+      }
+      const novoEstoque = (mat.estoqueAtual||0) - qtd;
+      const saida = {
+        materialId: formSaida.materialId,
+        materialNome: mat.nome,
+        quantidade: qtd,
+        solicitanteId: formSaida.solicitanteId || "",
+        solicitanteNome: formSaida.solicitanteNome || "",
+        observacao: formSaida.observacao || "",
+        data: formSaida.data || new Date().toISOString().split("T")[0],
+        registradoPor: user?.email || "sistema",
+        criadoEm: new Date().toISOString(),
+        tipo: "saida",
+      };
+      await addDoc(collection(db, "almox_movimentacoes"), saida);
+      await updateDoc(doc(db, "almox_materiais", mat.id), { estoqueAtual: novoEstoque, atualizadoEm: new Date().toISOString() });
+      setMateriais(m => m.map(x => x.id===mat.id ? { ...x, estoqueAtual: novoEstoque } : x));
+      if (novoEstoque <= (mat.estoqueMinimo||0) && mat.estoqueMinimo > 0) {
+        await addDoc(collection(db, "almox_alertas"), {
+          materialId: mat.id, materialNome: mat.nome,
+          tipo: "estoque_minimo", lido: false,
+          mensagem: `Estoque de "${mat.nome}" está em ${novoEstoque} unidade${novoEstoque!==1?"s":""} (mínimo: ${mat.estoqueMinimo||0})`,
+          criadoEm: new Date().toISOString(),
+        });
+      }
+      setModal(null); setFormSaida({});
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
   const filtrados = materiais.filter(m => {
     if (filtroCategoria !== "todas" && m.categoria !== filtroCategoria) return false;
     if (busca) {
@@ -128,6 +177,7 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
               <div onClick={onSolicitacoes} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Solicitações</div>
               <div onClick={onRelatorio} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📄 Relatórios</div>
               <div onClick={() => { setFormEntrada({}); setModal("entrada"); }} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📥 Registrar Entrada</div>
+              <div onClick={() => { setFormSaida({}); setModal("saida"); }} style={{ background:"rgba(220,38,38,0.3)", border:"1px solid rgba(220,38,38,0.4)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Registrar Saída</div>
               <div onClick={() => { setForm({ setoresAutorizados:[] }); setSelected(null); setModal("form"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Material</div>
             </div>
           </div>
@@ -366,6 +416,55 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
             </div>
             <button onClick={registrarEntrada} disabled={salvando||!formEntrada.materialId||!formEntrada.quantidade} style={{ width:"100%", marginTop:20, background:salvando||!formEntrada.materialId||!formEntrada.quantidade?"#ccc":"linear-gradient(135deg,#059669,#10b981)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!formEntrada.materialId||!formEntrada.quantidade?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
               {salvando?"Registrando...":"📥 Confirmar Entrada"}
+            </button>
+          </div>
+        </div>
+      )}
+      {modal==="saida" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:560, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+              <div style={{ fontWeight:900, fontSize:20, color:"#dc2626" }}>📤 Registrar Saída de Estoque</div>
+              <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#fff0f0", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#dc2626" }}>✕</div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <label style={labelStyle}>Material *</label>
+                <select value={formSaida.materialId||""} onChange={e=>setFormSaida(f=>({...f,materialId:e.target.value}))} style={inputStyle}>
+                  <option value="">Selecione o material...</option>
+                  {materiais.map(m=><option key={m.id} value={m.id}>{m.nome} (disponível: {m.estoqueAtual||0} {m.unidade||"un."})</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Quantidade *</label>
+                <input type="number" min="1" value={formSaida.quantidade||""} onChange={e=>setFormSaida(f=>({...f,quantidade:e.target.value}))} placeholder="Ex: 5" style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Data de Saída</label>
+                <input type="date" value={formSaida.data||""} onChange={e=>setFormSaida(f=>({...f,data:e.target.value}))} style={inputStyle}/>
+              </div>
+              <div style={{ gridColumn:"1/-1" }}>
+                <label style={labelStyle}>Usuário Solicitante</label>
+                <select value={formSaida.solicitanteId||""} onChange={e=>{
+                  const srv = servidores.find(s=>s.id===e.target.value);
+                  setFormSaida(f=>({...f, solicitanteId:e.target.value, solicitanteNome:srv?.nome||""}));
+                }} style={inputStyle}>
+                  <option value="">Selecione o solicitante...</option>
+                  {servidores.map(s=><option key={s.id} value={s.id}>{s.nome}{s.setor?` — ${s.setor}`:""}</option>)}
+                </select>
+              </div>
+              <div style={{ gridColumn:"1/-1" }}>
+                <label style={labelStyle}>Observação</label>
+                <textarea value={formSaida.observacao||""} onChange={e=>setFormSaida(f=>({...f,observacao:e.target.value}))} placeholder="Motivo da saída, destino, informações adicionais..." style={{ ...inputStyle, minHeight:80, resize:"vertical" }}/>
+              </div>
+            </div>
+            {formSaida.materialId && formSaida.quantidade && parseInt(formSaida.quantidade) > (materiais.find(m=>m.id===formSaida.materialId)?.estoqueAtual||0) && (
+              <div style={{ background:"#fff0f0", border:"1px solid #dc262630", borderRadius:12, padding:"10px 14px", marginTop:12, fontSize:13, color:"#dc2626", fontWeight:600 }}>
+                ⚠️ Quantidade maior que o estoque disponível ({materiais.find(m=>m.id===formSaida.materialId)?.estoqueAtual||0} {materiais.find(m=>m.id===formSaida.materialId)?.unidade||"un."})
+              </div>
+            )}
+            <button onClick={registrarSaida} disabled={salvando||!formSaida.materialId||!formSaida.quantidade} style={{ width:"100%", marginTop:20, background:salvando||!formSaida.materialId||!formSaida.quantidade?"#ccc":"linear-gradient(135deg,#dc2626,#ef4444)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!formSaida.materialId||!formSaida.quantidade?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+              {salvando?"Registrando...":"📤 Confirmar Saída"}
             </button>
           </div>
         </div>
