@@ -31,6 +31,7 @@ import EstruturaPessoasPage from "./pages/EstruturaPessoasPage";
 import GestaoEmailsPage from "./pages/GestaoEmailsPage";
 import CalendarioPage from "./pages/CalendarioPage";
 import OcorrenciasPage from "./pages/OcorrenciasPage";
+import OcorrenciaPublicaPage from "./pages/OcorrenciaPublicaPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -50,6 +51,11 @@ export default function App() {
       <div style={{ color:"rgba(255,255,255,0.4)", fontSize:13, letterSpacing:3 }}>CARREGANDO...</div>
     </div>
   );
+
+  // Rota pública — formulário de ocorrência via QR Code (sem login)
+  if (window.location.pathname === "/ocorrencia" || window.location.pathname.startsWith("/ocorrencia?")) {
+    return <OcorrenciaPublicaPage />;
+  }
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
