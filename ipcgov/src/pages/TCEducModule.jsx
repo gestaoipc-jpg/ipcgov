@@ -81,7 +81,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -98,7 +98,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [blocoAtivo, setBlocoAtivo] = useState(null);
   const [checklist, setChecklist] = useState({});
   const [ocorrencias, setOcorrencias] = useState([]);
-  const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "" });
+  const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
@@ -237,7 +237,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     setNovaOcorrenciaItem("");
   };
 
-  const adicionarOcorrencia = () => {
+  const adicionarOcorrencia = async () => {
     if (!novaOcorrencia.descricao) return;
     const oc = {
       ...novaOcorrencia,
@@ -245,23 +245,41 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       data: new Date().toISOString(),
       autorId: user?.uid || "",
       autorEmail: user?.email || "sistema",
+      autorNome: "",
       status: "Pendente",
       resposta: "",
       respondidoPor: "",
       respondidoEm: "",
     };
-    setOcorrencias(o => [...o, oc]);
-    setNovaOcorrencia({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "" });
+    const novasOcs = [...ocorrencias, oc];
+    setOcorrencias(novasOcs);
+    // Salva imediatamente no Firebase para não perder
+    try {
+      await updateDoc(doc(db, "tceduc_eventos", selected.id), {
+        ocorrencias: novasOcs,
+        atualizadoEm: new Date().toISOString(),
+      });
+      setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ocorrencias: novasOcs } : e));
+    } catch(e) { console.error(e); }
+    setNovaOcorrencia({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   };
 
-  const excluirOcorrencia = (ocId) => {
+  const excluirOcorrencia = async (ocId) => {
     const oc = ocorrencias.find(o => o.id === ocId);
     if (!oc) return;
     const isAdmin = user?.email && ["admin","administrador"].some(a => user.email.toLowerCase().includes(a));
     const isCriador = oc.autorId === user?.uid || oc.autorEmail === user?.email;
     if (!isAdmin && !isCriador) { alert("Apenas o criador ou administrador pode excluir esta ocorrência."); return; }
     if (!window.confirm("Excluir esta ocorrência?")) return;
-    setOcorrencias(o => o.filter(x => x.id !== ocId));
+    const novasOcs = ocorrencias.filter(x => x.id !== ocId);
+    setOcorrencias(novasOcs);
+    try {
+      await updateDoc(doc(db, "tceduc_eventos", selected.id), {
+        ocorrencias: novasOcs,
+        atualizadoEm: new Date().toISOString(),
+      });
+      setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ocorrencias: novasOcs } : e));
+    } catch(e) { console.error(e); }
   };
 
   const responderOcorrencia = async (eventoId, ocId, resposta, status) => {
@@ -335,6 +353,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
+              <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
               <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
@@ -434,7 +453,6 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         {[
           { id: "eventos", icon: "📅", label: "Eventos" },
           { id: "municipios", icon: "🗺️", label: "Municípios" },
-          { id: "minhasOcs", icon: "📋", label: "Minhas Ocs." },
           { id: "alertas", icon: "🔔", label: "Alertas", action: onAlertas },
           { id: "relatorios", icon: "📄", label: "Relatórios", action: onRelatorio },
         ].map(item => (
@@ -692,20 +710,33 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                       </select>
                     </div>
                     <div>
+                      <label style={labelStyle}>Curso / Ação Educacional</label>
+                      <select value={novaOcorrencia.acaoId||""} onChange={e => {
+                        const acao = (selected?.acoesEducacionais||[]).find(a=>a.acaoId===e.target.value||a.id===e.target.value);
+                        setNovaOcorrencia(o=>({...o, acaoId:e.target.value, acaoNome:acao?.acaoNome||acao?.nome||""}));
+                      }} style={inputStyle}>
+                        <option value="">Geral (sem curso específico)</option>
+                        {(selected?.acoesEducacionais||[]).map((a,i)=>(
+                          <option key={i} value={a.acaoId||a.id||String(i)}>{a.acaoNome||a.nome||"Ação "+(i+1)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                    <div>
                       <label style={labelStyle}>CPF (se aplicável)</label>
                       <input value={novaOcorrencia.cpf} onChange={e => setNovaOcorrencia(o => ({ ...o, cpf: e.target.value }))} placeholder="000.000.000-00" style={inputStyle} />
                     </div>
+                    <div>
+                      <label style={labelStyle}>Nome (se aplicável)</label>
+                      <input value={novaOcorrencia.nome} onChange={e => setNovaOcorrencia(o => ({ ...o, nome: e.target.value }))} placeholder="Nome da pessoa" style={inputStyle} />
+                    </div>
                   </div>
                   <div style={{ marginBottom: 12 }}>
-                    <label style={labelStyle}>Nome (se aplicável)</label>
-                    <input value={novaOcorrencia.nome} onChange={e => setNovaOcorrencia(o => ({ ...o, nome: e.target.value }))} placeholder="Nome da pessoa" style={inputStyle} />
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={labelStyle}>Descrição da ocorrência</label>
+                    <label style={labelStyle}>Descrição da ocorrência *</label>
                     <textarea value={novaOcorrencia.descricao} onChange={e => setNovaOcorrencia(o => ({ ...o, descricao: e.target.value }))}
                       placeholder="Descreva a ocorrência..." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
                   </div>
-                  {/* DESTINO */}
                   <div style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1px solid #e8edf2", marginBottom: 14 }}>
                     <label style={{ ...labelStyle, marginBottom: 10 }}>Direcionar ocorrência para</label>
                     <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -738,41 +769,48 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                       </select>
                     )}
                   </div>
-                  <button onClick={adicionarOcorrencia} style={{
-                    background: "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
-                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
+                  <button onClick={adicionarOcorrencia} disabled={!novaOcorrencia.descricao} style={{
+                    background: !novaOcorrencia.descricao ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
+                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: !novaOcorrencia.descricao ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif",
                   }}>+ Adicionar Ocorrência</button>
                 </div>
 
+                {/* LISTA DE OCORRÊNCIAS REGISTRADAS */}
                 {ocorrencias.length > 0 && (
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>Ocorrências registradas ({ocorrencias.length})</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>
+                      Ocorrências registradas ({ocorrencias.length})
+                    </div>
                     {ocorrencias.map((oc, i) => {
-                      const isAdmin = user?.email && ["admin","administrador"].some(a => user.email.toLowerCase().includes(a));
+                      const isAdm = user?.email && ["admin","administrador"].some(a => user.email.toLowerCase().includes(a));
                       const isCriador = oc.autorId === user?.uid || oc.autorEmail === user?.email;
-                      const podeExcluir = isAdmin || isCriador;
+                      const podeExcluir = isAdm || isCriador;
                       const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
+                      const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
                       return (
-                        <div key={oc.id || i} style={{ background: "#fff3e0", borderRadius: 14, padding: "14px 16px", marginBottom: 10, border: "1px solid #ffe0b2" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                              <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700, textTransform: "uppercase" }}>{oc.tipo}</div>
-                              <div style={{ background: statusCor + "22", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status || "Pendente"}</div>
-                              {oc.destinoNome && <div style={{ fontSize: 10, color: "#888" }}>→ {oc.destinoTipo === "grupo" ? "👥" : "👤"} {oc.destinoNome}</div>}
+                        <div key={oc.id || i} style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", marginBottom: 12, border: `2px solid ${statusCor}22`, boxShadow: "0 2px 8px rgba(27,63,122,0.06)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                              <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A" }}>{TIPO_LBL[oc.tipo]||oc.tipo}</span>
+                              <span style={{ background: statusCor+"22", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status||"Pendente"}</span>
+                              {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
+                              {oc.destinoNome && <span style={{ background: "#f0fdf4", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#059669", fontWeight: 600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
                             </div>
                             {podeExcluir && (
-                              <div onClick={() => excluirOcorrencia(oc.id)} style={{ cursor: "pointer", color: "#dc2626", fontSize: 16, padding: "0 4px" }}>×</div>
+                              <div onClick={() => excluirOcorrencia(oc.id)} style={{ cursor: "pointer", color: "#dc2626", fontSize: 18, padding: "0 4px", flexShrink: 0 }}>×</div>
                             )}
                           </div>
-                          {oc.nome && <div style={{ fontSize: 12, color: "#666", marginBottom: 2 }}>👤 {oc.nome} {oc.cpf && `· ${oc.cpf}`}</div>}
-                          <div style={{ fontSize: 13, color: "#333", marginBottom: oc.resposta ? 8 : 0 }}>{oc.descricao}</div>
+                          {oc.nome && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>👤 {oc.nome}{oc.cpf ? ` · CPF: ${oc.cpf}` : ""}</div>}
+                          <div style={{ fontSize: 13, color: "#333", lineHeight: 1.5, background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: 8 }}>{oc.descricao}</div>
                           {oc.resposta && (
-                            <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "8px 12px", marginTop: 8, borderLeft: "3px solid #059669" }}>
-                              <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 2 }}>Resposta de {oc.respondidoPor}</div>
-                              <div style={{ fontSize: 12, color: "#333" }}>{oc.resposta}</div>
+                            <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "10px 14px", borderLeft: "3px solid #059669" }}>
+                              <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 3 }}>
+                                ✅ Respondido por {oc.respondidoPor}{oc.respondidoEm ? ` · ${new Date(oc.respondidoEm).toLocaleString("pt-BR")}` : ""}
+                              </div>
+                              <div style={{ fontSize: 13, color: "#333" }}>{oc.resposta}</div>
                             </div>
                           )}
-                          <div style={{ fontSize: 10, color: "#aaa", marginTop: 6 }}>Por: {oc.autorEmail} · {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</div>
+                          <div style={{ fontSize: 10, color: "#bbb", marginTop: 6 }}>Por: {oc.autorEmail} · {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</div>
                         </div>
                       );
                     })}
@@ -781,7 +819,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               </div>
             )}
 
-            {/* BLOCO PÓS */}
+                        {/* BLOCO PÓS */}
             {blocoAtivo === "pos" && (
               <div>
                 <label style={labelStyle}>Lições aprendidas</label>
@@ -801,83 +839,6 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           </div>
         </div>
       )}
-
-      {/* ABA MINHAS OCORRÊNCIAS */}
-      {tab === "minhasOcs" && (() => {
-        const todasOcs = getMinhasOcorrencias(eventos, grupos);
-        const pendentes = todasOcs.filter(o => !o.status || o.status === "Pendente");
-        const resolvidas = todasOcs.filter(o => o.status === "Ciente" || o.status === "Resolvido");
-
-        const OcCard = ({ oc, showResposta }) => {
-          const [resp, setResp] = useState(oc.resposta || "");
-          const [novoStatus, setNovoStatus] = useState(oc.status || "Pendente");
-          const statusCor = { "Pendente":"#E8730A","Ciente":"#0891b2","Resolvido":"#059669" };
-          return (
-            <div style={{ background: "#fff", borderRadius: 16, padding: 18, marginBottom: 12, border: `2px solid ${statusCor[oc.status||"Pendente"]}33`, boxShadow: "0 2px 8px rgba(27,63,122,0.06)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: "#1B3F7A" }}>📅 {oc.eventoNome}</div>
-                  <div style={{ fontSize: 11, color: "#aaa" }}>{oc.eventoData ? new Date(oc.eventoData + "T12:00:00").toLocaleDateString("pt-BR") : ""} · {new Date(oc.data).toLocaleString("pt-BR")}</div>
-                </div>
-                <div style={{ background: statusCor[oc.status||"Pendente"] + "22", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: statusCor[oc.status||"Pendente"] }}>{oc.status || "Pendente"}</div>
-              </div>
-              <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{oc.tipo}</div>
-              <div style={{ fontSize: 13, color: "#333", marginBottom: 8 }}>{oc.descricao}</div>
-              {oc.resposta && (
-                <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "8px 12px", marginBottom: 8, borderLeft: "3px solid #059669" }}>
-                  <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 2 }}>Sua resposta</div>
-                  <div style={{ fontSize: 12, color: "#333" }}>{oc.resposta}</div>
-                </div>
-              )}
-              {showResposta && (
-                <div style={{ marginTop: 10 }}>
-                  <textarea value={resp} onChange={e => setResp(e.target.value)} placeholder="Escreva sua resposta..." style={{ ...inputStyle, minHeight: 64, resize: "vertical", marginBottom: 8 }} />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["Ciente","Resolvido","Pendente"].map(s => (
-                      <div key={s} onClick={() => setNovoStatus(s)} style={{ flex: 1, textAlign: "center", padding: "7px", borderRadius: 10, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                        background: novoStatus === s ? statusCor[s] : statusCor[s] + "18",
-                        color: novoStatus === s ? "#fff" : statusCor[s], border: `1px solid ${statusCor[s]}44` }}>
-                        {s}
-                      </div>
-                    ))}
-                  </div>
-                  <div onClick={() => responderOcorrencia(oc.eventoId, oc.id, resp, novoStatus)}
-                    style={{ marginTop: 8, background: "linear-gradient(135deg,#1B3F7A,#2a5ba8)", borderRadius: 12, padding: "10px", textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                    💾 Salvar Resposta
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        return (
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 24px 60px" }}>
-            <div style={{ fontWeight: 900, fontSize: 20, color: "#1B3F7A", marginBottom: 20 }}>📋 Minhas Ocorrências</div>
-
-            {/* PENDENTES */}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#E8730A" }}>⚠️ Pendentes ({pendentes.length})</div>
-                {pendentes.length > 0 && <div style={{ background: "#E8730A", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700, color: "#fff" }}>{pendentes.length}</div>}
-              </div>
-              {pendentes.length === 0
-                ? <div style={{ background: "#fff", borderRadius: 14, padding: 20, textAlign: "center", color: "#aaa", fontSize: 13 }}>✅ Nenhuma ocorrência pendente</div>
-                : pendentes.map((oc, i) => <OcCard key={i} oc={oc} showResposta={true} />)
-              }
-            </div>
-
-            {/* RESOLVIDAS */}
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 14 }}>✅ Resolvidas / Cientes ({resolvidas.length})</div>
-              {resolvidas.length === 0
-                ? <div style={{ background: "#fff", borderRadius: 14, padding: 20, textAlign: "center", color: "#aaa", fontSize: 13 }}>Nenhuma ocorrência resolvida ainda</div>
-                : resolvidas.map((oc, i) => <OcCard key={i} oc={oc} showResposta={false} />)
-              }
-            </div>
-          </div>
-        );
-      })()}
 
       {/* MODAL FORM */}
       {modal === "form" && (
