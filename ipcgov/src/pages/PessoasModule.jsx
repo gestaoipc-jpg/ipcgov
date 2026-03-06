@@ -37,6 +37,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   const [externos, setExternos] = useState([]);
   const [setores, setSetores] = useState([]);
   const [cargos, setCargos] = useState([]);
+  const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState("equipe");
   const [modal, setModal] = useState(null);
@@ -57,17 +58,19 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sSnap, eSnap, setSnap, cSnap] = await Promise.all([
+      const [sSnap, eSnap, setSnap, cSnap, gSnap] = await Promise.all([
         getDocs(collection(db,"ipc_servidores")),
         getDocs(collection(db,"ipc_externos")),
         getDocs(collection(db,"ipc_setores")),
         getDocs(collection(db,"ipc_cargos")),
+        getDocs(collection(db,"ipc_grupos_trabalho")),
       ]);
       const servidoresCarregados = sSnap.docs.map(d=>({id:d.id,...d.data()}));
       setServidores(servidoresCarregados);
       setExternos(eSnap.docs.map(d=>({id:d.id,...d.data()})));
       setSetores(setSnap.docs.map(d=>({id:d.id,...d.data()})));
       setCargos(cSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setGrupos(gSnap.docs.map(d=>({id:d.id,...d.data()})));
       verificarTodosAniversarios(servidoresCarregados).catch(e=>console.error(e));
     } catch(e) { console.error(e); }
     setLoading(false);
@@ -476,7 +479,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
       </div>
 
       {/* MODAL PERFIL */}
-      {modal==="perfil" && selected && <PerfilModal servidor={selected} onClose={()=>setModal(null)} onEditar={()=>{ setForm({...selected, modulosAcesso:selected.modulosAcesso||[]}); setModal("form_servidor"); }} onDeletar={()=>deletarServidor(selected.id)} onAddRegistro={adicionarRegistro} user={user} servidores={servidores} />}
+      {modal==="perfil" && selected && <PerfilModal servidor={selected} onClose={()=>setModal(null)} onEditar={()=>{ setForm({...selected, modulosAcesso:selected.modulosAcesso||[], grupos:selected.grupos||[]}); setModal("form_servidor"); }} onDeletar={()=>deletarServidor(selected.id)} onAddRegistro={adicionarRegistro} user={user} servidores={servidores} grupos={grupos} />}
 
       {/* MODAL PERFIL EXTERNO */}
       {modal==="perfil_externo" && selected && (
@@ -560,6 +563,27 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                     <option value="">Selecione o setor...</option>
                     {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
                   </select>
+                </div>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Grupos de Trabalho</label>
+                  {grupos.length === 0 ? (
+                    <div style={{ fontSize:12, color:"#aaa", padding:"10px 14px", background:"#f8f9fb", borderRadius:12 }}>Nenhum grupo cadastrado ainda. Crie grupos em Estrutura Organizacional.</div>
+                  ) : (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      {grupos.sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).map(g => {
+                        const sel = (form.grupos||[]).includes(g.id);
+                        return (
+                          <div key={g.id} onClick={()=>{
+                            const atual = form.grupos||[];
+                            setForm(f=>({...f, grupos: sel ? atual.filter(x=>x!==g.id) : [...atual, g.id]}));
+                          }} style={{ display:"flex", alignItems:"center", gap:6, background:sel?"#1B3F7A":"#f0f4ff", border:`1px solid ${sel?"#1B3F7A":"#e8edf2"}`, borderRadius:10, padding:"7px 14px", cursor:"pointer", transition:"all 0.15s" }}>
+                            <div style={{ width:8, height:8, borderRadius:"50%", background:sel?"#fff":"#1B3F7A44" }}/>
+                            <span style={{ fontSize:12, fontWeight:700, color:sel?"#fff":"#1B3F7A" }}>👥 {g.nome}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div style={{ gridColumn:"1/-1" }}>
                   <label style={labelStyle}>Chefia Imediata</label>
@@ -713,7 +737,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
   );
 }
 
-function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, user, servidores }) {
+function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, user, servidores, grupos }) {
   const [novoRegistro, setNovoRegistro] = useState("");
   const [tipoRegistro, setTipoRegistro] = useState("observacao");
   const [novaSolicitacao, setNovaSolicitacao] = useState("");
@@ -771,6 +795,14 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
                   <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>Módulos com acesso</div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                     {(servidor.modulosAcesso||[]).map(m=>{ const mod=MODULOS.find(x=>x.id===m); return mod?<div key={m} style={{ background:"#1B3F7A", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>{mod.icon} {mod.nome}</div>:null; })}
+                  </div>
+                </div>
+              )}
+              {(servidor.grupos||[]).length > 0 && (
+                <div style={{ background:"#f0fdf4", borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+                  <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>Grupos de Trabalho</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {(servidor.grupos||[]).map(gId=>{ const g=(grupos||[]).find(x=>x.id===gId); return g?<div key={gId} style={{ background:"#059669", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>👥 {g.nome}</div>:null; })}
                   </div>
                 </div>
               )}
