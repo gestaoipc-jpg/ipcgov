@@ -242,7 +242,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                       </div>
                       {ev.acoesEducacionais.map((a, i) => (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 20px", borderBottom: i < ev.acoesEducacionais.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "#333" }}>{a.nome}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#333" }}>{a.acaoNome || a.nome || "—"}</div>
                           <div style={{ fontWeight: 900, fontSize: 16, color: "#1B3F7A" }}>{a.participantes || 0}</div>
                         </div>
                       ))}
