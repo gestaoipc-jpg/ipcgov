@@ -36,7 +36,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSolicitacoes }) {
+export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSolicitacoes, onDashboard }) {
   const [atividades, setAtividades] = useState([]);
   const [equipe, setEquipe] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -163,6 +163,7 @@ export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSo
               <div onClick={onSolicitacoes} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📥 Solicitações</div>
             <div onClick={onKanban} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 0 }}>📋 Kanban</div>
             <div onClick={onFiltros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 8 }}>⚙️ Filtros</div>
+            <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
             <div onClick={abrirNova} style={{ background: "#E8730A", borderRadius: 14, padding: "10px 22px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(232,115,10,0.4)" }}>+ Nova Atividade</div>
             </div>
           </div>
