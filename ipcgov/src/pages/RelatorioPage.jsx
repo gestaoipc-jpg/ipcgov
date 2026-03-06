@@ -106,9 +106,11 @@ export default function RelatorioPage({ onBack, eventoId }) {
 
         @media print {
           .no-print { display: none !important; }
-          body { background: #fff !important; }
-          .print-area { padding: 0 !important; background: #fff !important; }
+          body { background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print-area { padding: 0 !important; background: #fff !important; margin: 0 !important; max-width: 100% !important; }
           .page-break { page-break-before: always; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          @page { margin: 12mm; }
         }
       `}</style>
 
@@ -186,23 +188,23 @@ export default function RelatorioPage({ onBack, eventoId }) {
             <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 4px 24px rgba(27,63,122,0.1)" }}>
 
               {/* CABEÇALHO DO RELATÓRIO */}
-              <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "32px 40px" }}>
+              <div style={{ background: "#1B3F7A", padding: "32px 40px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
+                    <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
                     <div style={{ color: "#fff", fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>IPC<span style={{ color: "#E8730A" }}>gov</span></div>
-                    <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 4 }}>Relatório de Evento</div>
+                    <div style={{ color: "#c5d5e8", fontSize: 13, marginTop: 4 }}>Relatório de Evento</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ background: statusCor[ev.status] + "30", border: `2px solid ${statusCor[ev.status]}60`, borderRadius: 12, padding: "6px 18px", color: statusCor[ev.status], fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{ev.status}</div>
-                    <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
+                    <div style={{ background: "#fff", border: `2px solid ${statusCor[ev.status]}`, borderRadius: 12, padding: "6px 18px", color: statusCor[ev.status], fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{ev.status}</div>
+                    <div style={{ color: "#a8bdd8", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
                   </div>
                 </div>
 
-                <div style={{ marginTop: 28, borderTop: "1px solid rgba(255,255,255,0.15)", paddingTop: 20 }}>
-                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 2 }}>{ev.tipo?.toUpperCase()}</div>
+                <div style={{ marginTop: 28, borderTop: "1px solid #2d5a9e", paddingTop: 20 }}>
+                  <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 2 }}>{ev.tipo?.toUpperCase()}</div>
                   <div style={{ color: "#fff", fontWeight: 900, fontSize: 36, letterSpacing: -1, marginTop: 4 }}>{nome}</div>
-                  <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 15, marginTop: 6 }}>
+                  <div style={{ color: "#d0e0f0", fontSize: 15, marginTop: 6 }}>
                     📅 {formatDate(ev.data)}{ev.hora ? ` às ${ev.hora}` : ""}{ev.local ? ` · 📍 ${ev.local}` : ""}
                   </div>
                 </div>
@@ -237,8 +239,8 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     </div>
                     <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#1B3F7A", padding: "12px 20px" }}>
-                        <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
-                        <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
+                        <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
+                        <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
                       </div>
                       {ev.acoesEducacionais.map((a, i) => (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 20px", borderBottom: i < ev.acoesEducacionais.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
@@ -246,7 +248,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                           <div style={{ fontWeight: 900, fontSize: 16, color: "#1B3F7A" }}>{a.participantes || 0}</div>
                         </div>
                       ))}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#E8730A18", borderTop: "2px solid #E8730A33" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#fff5ec", borderTop: "2px solid #E8730A" }}>
                         <div style={{ fontWeight: 800, fontSize: 14, color: "#E8730A" }}>TOTAL DE CAPACITADOS</div>
                         <div style={{ fontWeight: 900, fontSize: 20, color: "#E8730A" }}>{cap}</div>
                       </div>
@@ -269,7 +271,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                       return (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, border: `1px solid ${done ? "#c8e6c9" : "#e8edf2"}` }}>
                           <div style={{ width: 20, height: 20, borderRadius: 6, background: done ? "#059669" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0 }}>{done ? "✓" : ""}</div>
-                          <div style={{ fontSize: 12, color: done ? "#059669" : "#666", fontWeight: done ? 600 : 400, textDecoration: done ? "line-through" : "none" }}>{item}</div>
+                          <div style={{ fontSize: 12, color: done ? "#059669" : "#333", fontWeight: done ? 600 : 500, textDecoration: done ? "line-through" : "none" }}>{item}</div>
                         </div>
                       );
                     })}
@@ -291,7 +293,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                       return (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, border: `1px solid ${done ? "#c8e6c9" : "#e8edf2"}` }}>
                           <div style={{ width: 20, height: 20, borderRadius: 6, background: done ? "#059669" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0 }}>{done ? "✓" : ""}</div>
-                          <div style={{ fontSize: 12, color: done ? "#059669" : "#666", fontWeight: done ? 600 : 400, textDecoration: done ? "line-through" : "none" }}>{item}</div>
+                          <div style={{ fontSize: 12, color: done ? "#059669" : "#333", fontWeight: done ? 600 : 500, textDecoration: done ? "line-through" : "none" }}>{item}</div>
                         </div>
                       );
                     })}
@@ -321,7 +323,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
                     const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
                     return (
-                    <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: `2px solid ${statusCor}22` }}>
+                    <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: `2px solid ${statusCor}` }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                           <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A", textTransform: "uppercase" }}>
@@ -329,7 +331,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                           </span>
                           {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
                           {oc.destinoNome && <span style={{ background: "#f0fdf4", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#059669", fontWeight: 600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
-                          <span style={{ background: statusCor+"22", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status || "Pendente"}</span>
+                          <span style={{ background: "#f8f9fb", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status || "Pendente"}</span>
                         </div>
                       </div>
                       {(oc.nome || oc.cpf) && (
@@ -377,7 +379,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
 
                 {/* RODAPÉ */}
                 <div style={{ borderTop: "1px solid #e8edf2", paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ fontSize: 11, color: "#aaa" }}>IPCgov — Instituto Plácido Castelo · TCEduc</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>IPCgov — Instituto Plácido Castelo · TCEduc</div>
                   <div style={{ fontSize: 11, color: "#aaa" }}>Relatório gerado em {formatDateTime()}</div>
                 </div>
               </div>
@@ -389,15 +391,15 @@ export default function RelatorioPage({ onBack, eventoId }) {
         {modo === "geral" && (
           <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 4px 24px rgba(27,63,122,0.1)" }}>
             {/* CABEÇALHO */}
-            <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "32px 40px" }}>
+            <div style={{ background: "#1B3F7A", padding: "32px 40px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
+                  <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
                   <div style={{ color: "#fff", fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>IPC<span style={{ color: "#E8730A" }}>gov</span></div>
-                  <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 4 }}>Relatório Geral do Programa</div>
+                  <div style={{ color: "#c5d5e8", fontSize: 13, marginTop: 4 }}>Relatório Geral do Programa</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
+                  <div style={{ color: "#a8bdd8", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
                 </div>
               </div>
               {/* STATS PILLS */}
@@ -408,9 +410,9 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   { label: "Total capacitados", value: totalCap },
                   { label: "Total de eventos", value: eventos.length },
                 ].map((s, i) => (
-                  <div key={i} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: "10px 18px" }}>
+                  <div key={i} style={{ background: "#2d5a9e", borderRadius: 12, padding: "10px 18px" }}>
                     <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>{s.value}</div>
-                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, marginTop: 2 }}>{s.label}</div>
+                    <div style={{ color: "#a8bdd8", fontSize: 10, marginTop: 2 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -426,8 +428,8 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   </div>
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#1B3F7A", padding: "12px 20px" }}>
-                      <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
-                      <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
+                      <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
+                      <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
                     </div>
                     {Object.entries(acoesSummary).sort((a, b) => b[1] - a[1]).map(([nome, total], i, arr) => (
                       <div key={nome} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
@@ -435,7 +437,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                         <div style={{ fontWeight: 900, fontSize: 16, color: "#1B3F7A" }}>{total}</div>
                       </div>
                     ))}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#E8730A18", borderTop: "2px solid #E8730A33" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#fff5ec", borderTop: "2px solid #E8730A" }}>
                       <div style={{ fontWeight: 800, fontSize: 14, color: "#E8730A" }}>TOTAL GERAL</div>
                       <div style={{ fontWeight: 900, fontSize: 20, color: "#E8730A" }}>{totalCap}</div>
                     </div>
@@ -455,7 +457,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", background: "#059669", padding: "12px 20px" }}>
                       {["Município/Região", "Data", "Tipo", "Capacitados"].map(h => (
-                        <div key={h} style={{ color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
+                        <div key={h} style={{ color: "#e8f0f8", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
                       ))}
                     </div>
                     {realizados.map((ev, i) => (
@@ -480,7 +482,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", background: "#E8730A", padding: "12px 20px" }}>
                       {["Município/Região", "Data", "Tipo", "Dias"].map(h => (
-                        <div key={h} style={{ color: "rgba(255,255,255,0.85)", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
+                        <div key={h} style={{ color: "#ffe8d0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
                       ))}
                     </div>
                     {proximos.map((ev, i) => {
@@ -500,7 +502,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
 
               {/* RODAPÉ */}
               <div style={{ borderTop: "1px solid #e8edf2", paddingTop: 20, display: "flex", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 11, color: "#aaa" }}>IPCgov — Instituto Plácido Castelo · TCEduc</div>
+                <div style={{ fontSize: 11, color: "#555" }}>IPCgov — Instituto Plácido Castelo · TCEduc</div>
                 <div style={{ fontSize: 11, color: "#aaa" }}>Relatório gerado em {formatDateTime()}</div>
               </div>
             </div>
