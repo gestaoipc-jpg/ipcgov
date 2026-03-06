@@ -76,13 +76,61 @@ export default function HomePage({ user, onOpenModule }) {
 
   const loadAlertas = async () => {
     try {
-      const snap = await getDocs(collection(db, "alertas"));
-      setAlertas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [alertasSnap, eventosSnap, servidoresSnap] = await Promise.all([
+        getDocs(collection(db, "alertas")),
+        getDocs(collection(db, "tceduc_eventos")),
+        getDocs(collection(db, "ipc_servidores")),
+      ]);
+      const alertasBase = alertasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // Descobre os grupos do usuário logado via ipc_servidores
+      const uid = user?.uid || "";
+      const email = user?.email || "";
+      const servidores = servidoresSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const meuServidor = servidores.find(s => s.id === uid || s.email === email);
+      const meusGrupoIds = meuServidor?.grupos || [];
+
+      // Ocorrências TCEduc direcionadas ao usuário logado (direto ou via grupo)
+      const alertasOcs = [];
+      eventosSnap.docs.forEach(d => {
+        const ev = { id: d.id, ...d.data() };
+        (ev.ocorrencias || []).forEach(oc => {
+          if (!oc.status || oc.status === "Pendente") {
+            let paraMim = false;
+            if (oc.destinoTipo === "usuario") {
+              paraMim = oc.destinoId === uid || oc.destinoId === email;
+            } else if (oc.destinoTipo === "grupo") {
+              paraMim = meusGrupoIds.includes(oc.destinoId);
+            }
+            if (paraMim) {
+              alertasOcs.push({
+                id: `oc_${ev.id}_${oc.id}`,
+                modulo: "tceduc",
+                tipo: "ocorrencia",
+                titulo: `Ocorrência pendente: ${ev.municipio || ev.regiao || "Evento"}`,
+                mensagem: oc.descricao,
+                eventoId: ev.id,
+                lido: false,
+                criadoEm: oc.data,
+              });
+            }
+          }
+        });
+      });
+
+      setAlertas([...alertasBase, ...alertasOcs]);
     } catch { setAlertas([]); }
   };
 
   const marcarLido = async (id) => {
-    await updateDoc(doc(db, "alertas", id), { lido: true });
+    // Alertas virtuais de ocorrência (id começa com "oc_") só ficam na memória
+    if (id.startsWith("oc_")) {
+      setAlertas(a => a.filter(al => al.id !== id));
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "alertas", id), { lido: true });
+    } catch(e) { console.error(e); }
     setAlertas(a => a.map(al => al.id === id ? { ...al, lido: true } : al));
   };
 
