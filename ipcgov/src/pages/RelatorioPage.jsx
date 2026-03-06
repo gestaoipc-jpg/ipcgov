@@ -191,20 +191,20 @@ export default function RelatorioPage({ onBack, eventoId }) {
               <div style={{ background: "#1B3F7A", padding: "32px 40px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
+                    <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 3, marginBottom: 6, fontWeight: 700 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
                     <div style={{ color: "#fff", fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>IPC<span style={{ color: "#E8730A" }}>gov</span></div>
-                    <div style={{ color: "#c5d5e8", fontSize: 13, marginTop: 4 }}>Relatório de Evento</div>
+                    <div style={{ color: "#ffffff", fontSize: 14, marginTop: 4, fontWeight: 600 }}>Relatório de Evento</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ background: "#fff", border: `2px solid ${statusCor[ev.status]}`, borderRadius: 12, padding: "6px 18px", color: statusCor[ev.status], fontWeight: 700, fontSize: 14, marginBottom: 8 }}>{ev.status}</div>
-                    <div style={{ color: "#a8bdd8", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
+                    <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 600 }}>Gerado em {formatDateTime()}</div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 28, borderTop: "1px solid #2d5a9e", paddingTop: 20 }}>
-                  <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 2 }}>{ev.tipo?.toUpperCase()}</div>
+                  <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 2, fontWeight: 700 }}>{ev.tipo?.toUpperCase()}</div>
                   <div style={{ color: "#fff", fontWeight: 900, fontSize: 36, letterSpacing: -1, marginTop: 4 }}>{nome}</div>
-                  <div style={{ color: "#d0e0f0", fontSize: 15, marginTop: 6 }}>
+                  <div style={{ color: "#ffffff", fontSize: 15, marginTop: 6, fontWeight: 600 }}>
                     📅 {formatDate(ev.data)}{ev.hora ? ` às ${ev.hora}` : ""}{ev.local ? ` · 📍 ${ev.local}` : ""}
                   </div>
                 </div>
@@ -224,7 +224,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     { label: "Capacitados", value: cap || "—", icon: "👥" },
                   ].map((f, i) => f.value ? (
                     <div key={i} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 16px" }}>
-                      <div style={{ color: "#aaa", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{f.icon} {f.label}</div>
+                      <div style={{ color: "#555", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, fontWeight: 700 }}>{f.icon} {f.label}</div>
                       <div style={{ color: "#1B3F7A", fontWeight: 600, fontSize: 13, wordBreak: "break-all" }}>{f.value}</div>
                     </div>
                   ) : null)}
@@ -239,8 +239,8 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     </div>
                     <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#1B3F7A", padding: "12px 20px" }}>
-                        <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
-                        <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
+                        <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Ação Educacional</div>
+                        <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Participantes</div>
                       </div>
                       {ev.acoesEducacionais.map((a, i) => (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 20px", borderBottom: i < ev.acoesEducacionais.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
@@ -248,9 +248,9 @@ export default function RelatorioPage({ onBack, eventoId }) {
                           <div style={{ fontWeight: 900, fontSize: 16, color: "#1B3F7A" }}>{a.participantes || 0}</div>
                         </div>
                       ))}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#fff5ec", borderTop: "2px solid #E8730A" }}>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: "#E8730A" }}>TOTAL DE CAPACITADOS</div>
-                        <div style={{ fontWeight: 900, fontSize: 20, color: "#E8730A" }}>{cap}</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: "#ffffff" }}>TOTAL DE CAPACITADOS</div>
+                        <div style={{ fontWeight: 900, fontSize: 20, color: "#ffffff" }}>{cap}</div>
                       </div>
                     </div>
                   </div>
@@ -269,7 +269,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     {CHECKLIST_ANTES.map((item, i) => {
                       const done = (ev.checklist || {})[item];
                       return (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, border: `1px solid ${done ? "#c8e6c9" : "#e8edf2"}` }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f0f2f5", borderRadius: 10, border: `1px solid ${done ? "#059669" : "#b0b8c8"}` }}>
                           <div style={{ width: 20, height: 20, borderRadius: 6, background: done ? "#059669" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0 }}>{done ? "✓" : ""}</div>
                           <div style={{ fontSize: 12, color: done ? "#059669" : "#333", fontWeight: done ? 600 : 500, textDecoration: done ? "line-through" : "none" }}>{item}</div>
                         </div>
@@ -291,7 +291,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     {CHECKLIST_VIAGEM.map((item, i) => {
                       const done = (ev.checklist || {})[item];
                       return (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, border: `1px solid ${done ? "#c8e6c9" : "#e8edf2"}` }}>
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: done ? "#e8f5e9" : "#f0f2f5", borderRadius: 10, border: `1px solid ${done ? "#059669" : "#b0b8c8"}` }}>
                           <div style={{ width: 20, height: 20, borderRadius: 6, background: done ? "#059669" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0 }}>{done ? "✓" : ""}</div>
                           <div style={{ fontSize: 12, color: done ? "#059669" : "#333", fontWeight: done ? 600 : 500, textDecoration: done ? "line-through" : "none" }}>{item}</div>
                         </div>
@@ -300,7 +300,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   </div>
                   {ev.infoViagem?.avisos && (
                     <div style={{ marginTop: 12, background: "#f8f9fb", borderRadius: 12, padding: "14px 16px", fontSize: 13, color: "#555", borderLeft: "3px solid #2a5ba8" }}>
-                      <div style={{ fontWeight: 700, fontSize: 11, color: "#aaa", marginBottom: 4 }}>AVISOS DE VIAGEM</div>
+                      <div style={{ fontWeight: 700, fontSize: 11, color: "#444", marginBottom: 4, fontWeight: 700 }}>AVISOS DE VIAGEM</div>
                       {ev.infoViagem.avisos}
                     </div>
                   )}
@@ -394,12 +394,12 @@ export default function RelatorioPage({ onBack, eventoId }) {
             <div style={{ background: "#1B3F7A", padding: "32px 40px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 3, marginBottom: 6 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
+                  <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 3, marginBottom: 6, fontWeight: 700 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
                   <div style={{ color: "#fff", fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>IPC<span style={{ color: "#E8730A" }}>gov</span></div>
-                  <div style={{ color: "#c5d5e8", fontSize: 13, marginTop: 4 }}>Relatório Geral do Programa</div>
+                  <div style={{ color: "#ffffff", fontSize: 14, marginTop: 4, fontWeight: 600 }}>Relatório Geral do Programa</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#a8bdd8", fontSize: 11 }}>Gerado em {formatDateTime()}</div>
+                  <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 600 }}>Gerado em {formatDateTime()}</div>
                 </div>
               </div>
               {/* STATS PILLS */}
@@ -412,7 +412,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                 ].map((s, i) => (
                   <div key={i} style={{ background: "#2d5a9e", borderRadius: 12, padding: "10px 18px" }}>
                     <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>{s.value}</div>
-                    <div style={{ color: "#a8bdd8", fontSize: 10, marginTop: 2 }}>{s.label}</div>
+                    <div style={{ color: "#d0e4f8", fontSize: 10, marginTop: 2, fontWeight: 600 }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -428,8 +428,8 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   </div>
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#1B3F7A", padding: "12px 20px" }}>
-                      <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Ação Educacional</div>
-                      <div style={{ color: "#d0e0f0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Participantes</div>
+                      <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Ação Educacional</div>
+                      <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Participantes</div>
                     </div>
                     {Object.entries(acoesSummary).sort((a, b) => b[1] - a[1]).map(([nome, total], i, arr) => (
                       <div key={nome} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
@@ -437,9 +437,9 @@ export default function RelatorioPage({ onBack, eventoId }) {
                         <div style={{ fontWeight: 900, fontSize: 16, color: "#1B3F7A" }}>{total}</div>
                       </div>
                     ))}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#fff5ec", borderTop: "2px solid #E8730A" }}>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: "#E8730A" }}>TOTAL GERAL</div>
-                      <div style={{ fontWeight: 900, fontSize: 20, color: "#E8730A" }}>{totalCap}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "14px 20px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: "#ffffff" }}>TOTAL GERAL</div>
+                      <div style={{ fontWeight: 900, fontSize: 20, color: "#ffffff" }}>{totalCap}</div>
                     </div>
                   </div>
                 </div>
@@ -457,7 +457,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", background: "#059669", padding: "12px 20px" }}>
                       {["Município/Região", "Data", "Tipo", "Capacitados"].map(h => (
-                        <div key={h} style={{ color: "#e8f0f8", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
+                        <div key={h} style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                       ))}
                     </div>
                     {realizados.map((ev, i) => (
@@ -482,7 +482,7 @@ export default function RelatorioPage({ onBack, eventoId }) {
                   <div style={{ border: "1px solid #e8edf2", borderRadius: 16, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", background: "#E8730A", padding: "12px 20px" }}>
                       {["Município/Região", "Data", "Tipo", "Dias"].map(h => (
-                        <div key={h} style={{ color: "#ffe8d0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>{h}</div>
+                        <div key={h} style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                       ))}
                     </div>
                     {proximos.map((ev, i) => {
