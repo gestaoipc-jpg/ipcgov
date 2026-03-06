@@ -43,6 +43,7 @@ export default function EstruturaPessoasPage({ onBack }) {
   const [aba, setAba] = useState("setores");
   const [setores, setSetores] = useState([]);
   const [cargos, setCargos] = useState([]);
+  const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -55,12 +56,14 @@ export default function EstruturaPessoasPage({ onBack }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sSnap, cSnap] = await Promise.all([
+      const [sSnap, cSnap, gSnap] = await Promise.all([
         getDocs(collection(db,"ipc_setores")),
         getDocs(collection(db,"ipc_cargos")),
+        getDocs(collection(db,"ipc_grupos_trabalho")),
       ]);
       setSetores(sSnap.docs.map(d => ({ id:d.id, ...d.data() })));
       setCargos(cSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setGrupos(gSnap.docs.map(d => ({ id:d.id, ...d.data() })));
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -120,6 +123,31 @@ export default function EstruturaPessoasPage({ onBack }) {
     setModal(null); setSelected(null);
   };
 
+  const salvarGrupo = async () => {
+    if (!form.nome) return;
+    setSalvando(true);
+    try {
+      const dados = { nome:form.nome, observacao:form.observacao||"", atualizadoEm:new Date().toISOString() };
+      if (selected) {
+        await updateDoc(doc(db,"ipc_grupos_trabalho",selected.id), dados);
+        setGrupos(g => g.map(x => x.id===selected.id ? {...x,...dados} : x));
+      } else {
+        dados.criadoEm = new Date().toISOString();
+        const ref = await addDoc(collection(db,"ipc_grupos_trabalho"), dados);
+        setGrupos(g => [...g, {id:ref.id,...dados}]);
+      }
+      setModal(null); setForm({}); setSelected(null);
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const excluirGrupo = async (id) => {
+    if (!window.confirm("Excluir este grupo de trabalho?")) return;
+    await deleteDoc(doc(db,"ipc_grupos_trabalho",id));
+    setGrupos(g => g.filter(x => x.id!==id));
+    setModal(null); setSelected(null);
+  };
+
   const nomeSetor = (id) => setores.find(s => s.id===id)?.nome || "—";
   const nomeCargo = (id) => cargos.find(c => c.id===id)?.nome || "—";
 
@@ -147,10 +175,11 @@ export default function EstruturaPessoasPage({ onBack }) {
             <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
               {aba==="setores" && <div onClick={()=>{ setForm({}); setSelected(null); setModal("form_setor"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Setor</div>}
               {aba==="cargos" && <div onClick={()=>{ setForm({}); setSelected(null); setModal("form_cargo"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Cargo</div>}
+              {aba==="grupos" && <div onClick={()=>{ setForm({}); setSelected(null); setModal("form_grupo"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Grupo</div>}
             </div>
           </div>
           <div style={{ display:"flex", gap:12, marginBottom:18 }}>
-            {[{label:"Setores",value:setores.length},{label:"Cargos",value:cargos.length},{label:"Níveis hierárquicos",value:cargos.length>0?Math.max(...cargos.map(c=>c.nivel||1)):0}].map((s,i)=>(
+            {[{label:"Setores",value:setores.length},{label:"Cargos",value:cargos.length},{label:"Grupos de Trabalho",value:grupos.length},{label:"Níveis hierárquicos",value:cargos.length>0?Math.max(...cargos.map(c=>c.nivel||1)):0}].map((s,i)=>(
               <div key={i} style={{ background:"rgba(255,255,255,0.12)", borderRadius:14, padding:"10px 18px" }}>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{s.value}</div>
                 <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, marginTop:2 }}>{s.label}</div>
@@ -158,7 +187,7 @@ export default function EstruturaPessoasPage({ onBack }) {
             ))}
           </div>
           <div style={{ display:"flex", gap:10 }}>
-            {[{id:"setores",label:"🏢 Setores"},{id:"cargos",label:"👔 Cargos & Hierarquia"}].map(a=>(
+            {[{id:"setores",label:"🏢 Setores"},{id:"cargos",label:"👔 Cargos & Hierarquia"},{id:"grupos",label:"👥 Grupos de Trabalho"}].map(a=>(
               <div key={a.id} onClick={()=>setAba(a.id)} style={{ background:aba===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${aba===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
             ))}
           </div>
@@ -299,6 +328,62 @@ export default function EstruturaPessoasPage({ onBack }) {
               <button onClick={()=>{ setForm({...selected}); setModal("form_cargo"); }} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
               <button onClick={()=>deletarCargo(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* GRUPOS DE TRABALHO */}
+      {aba==="grupos" && (
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:"28px 32px 60px" }}>
+          {grupos.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 0", color:"#aaa" }}>
+              <div style={{ fontSize:48, marginBottom:16 }}>👥</div>
+              <div style={{ fontWeight:700, fontSize:18, marginBottom:8 }}>Nenhum grupo cadastrado</div>
+              <div style={{ fontSize:13 }}>Crie grupos de trabalho para organizar equipes</div>
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:16 }}>
+              {grupos.sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).map(g => (
+                <div key={g.id} style={{ background:"#fff", borderRadius:20, padding:20, boxShadow:"0 2px 12px rgba(27,63,122,0.07)", border:"2px solid transparent", transition:"all 0.15s" }}
+                  onMouseEnter={e=>{e.currentTarget.style.border="2px solid #1B3F7A22";e.currentTarget.style.boxShadow="0 6px 20px rgba(27,63,122,0.12)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.border="2px solid transparent";e.currentTarget.style.boxShadow="0 2px 12px rgba(27,63,122,0.07)";}}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                    <div style={{ width:40, height:40, borderRadius:12, background:"#1B3F7A18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>👥</div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <div onClick={()=>{ setForm({...g}); setSelected(g); setModal("form_grupo"); }} style={{ background:"#f0f4ff", borderRadius:8, padding:"5px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A", cursor:"pointer" }}>✏️</div>
+                      <div onClick={()=>excluirGrupo(g.id)} style={{ background:"#fee2e2", borderRadius:8, padding:"5px 10px", fontSize:11, fontWeight:700, color:"#dc2626", cursor:"pointer" }}>🗑️</div>
+                    </div>
+                  </div>
+                  <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A", marginBottom:6 }}>{g.nome}</div>
+                  {g.observacao && <div style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>{g.observacao}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL FORM GRUPO */}
+      {modal==="form_grupo" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>{ setModal(null); setForm({}); setSelected(null); }}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:480, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:24 }}>
+              <div style={{ fontWeight:900, fontSize:20, color:"#1B3F7A" }}>{selected?"✏️ Editar Grupo":"➕ Novo Grupo de Trabalho"}</div>
+              <div onClick={()=>{ setModal(null); setForm({}); setSelected(null); }} style={{ width:36, height:36, background:"#f0f4ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#1B3F7A" }}>✕</div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              <div>
+                <label style={labelStyle}>Nome do Grupo *</label>
+                <input value={form.nome||""} onChange={e=>setForm(f=>({...f,nome:e.target.value}))} placeholder="Ex: IPCeduc, Disciplina Eletiva, Comissão..." style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Observação</label>
+                <textarea value={form.observacao||""} onChange={e=>setForm(f=>({...f,observacao:e.target.value}))} placeholder="Descrição, objetivo ou informações adicionais sobre o grupo..." style={{ ...inputStyle, minHeight:100, resize:"vertical" }}/>
+              </div>
+            </div>
+            <button onClick={salvarGrupo} disabled={salvando||!form.nome} style={{ width:"100%", marginTop:20, background:salvando||!form.nome?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+              {salvando?"Salvando...":"💾 Salvar Grupo"}
+            </button>
           </div>
         </div>
       )}
