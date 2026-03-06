@@ -22,11 +22,14 @@ import AlmoxarifadoModule from "./pages/AlmoxarifadoModule";
 import AlmoxSolicitacoesPage from "./pages/AlmoxSolicitacoesPage";
 import AlmoxDashboardPage from "./pages/AlmoxDashboardPage";
 import AlmoxRelatorioPage from "./pages/AlmoxRelatorioPage";
+import DesignerDashboardPage from "./pages/DesignerDashboardPage";
+import ProcessosDashboardPage from "./pages/ProcessosDashboardPage";
 import PessoasModule from "./pages/PessoasModule";
 import OrganogramaPage from "./pages/OrganogramaPage";
 import AniversariosPage from "./pages/AniversariosPage";
 import EstruturaPessoasPage from "./pages/EstruturaPessoasPage";
 import GestaoEmailsPage from "./pages/GestaoEmailsPage";
+import CalendarioPage from "./pages/CalendarioPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -56,16 +59,18 @@ export default function App() {
   if (currentModule === "dashboard") return <DashboardPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "relatorio") return <RelatorioPage onBack={() => setCurrentModule("tceduc")} eventoId={relatorioEventoId} />;
 
-  if (currentModule === "designer") return <DesignerModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("designer_filtros")} onKanban={() => setCurrentModule("designer_kanban")} onSolicitacoes={() => setCurrentModule("designer_solicitacoes")} />;
+  if (currentModule === "designer") return <DesignerModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("designer_filtros")} onKanban={() => setCurrentModule("designer_kanban")} onSolicitacoes={() => setCurrentModule("designer_solicitacoes")} onDashboard={() => setCurrentModule("designer_dashboard")} />;
   if (currentModule === "designer_filtros") return <FiltrosAdminPage onBack={() => setCurrentModule("designer")} />;
   if (currentModule === "designer_kanban") return <KanbanPage onBack={() => setCurrentModule("designer")} onAbrirAtividade={() => setCurrentModule("designer")} />;
   if (currentModule === "designer_solicitacoes") return <SolicitacoesPage user={user} onBack={() => setCurrentModule("designer")} />;
+  if (currentModule === "designer_dashboard") return <DesignerDashboardPage onBack={() => setCurrentModule("designer")} />;
 
-  if (currentModule === "processos") return <ProcessosModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} />;
+  if (currentModule === "processos") return <ProcessosModule user={user} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} onDashboard={() => setCurrentModule("processos_dashboard")} />;
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_relatorio") return <ProcessosRelatorioPage onBack={() => setCurrentModule("processos")} processoId={processoRelatorioId} />;
+  if (currentModule === "processos_dashboard") return <ProcessosDashboardPage onBack={() => setCurrentModule("processos")} />;
 
   if (currentModule === "almoxarifado") return <AlmoxarifadoModule user={user} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("almox_dashboard")} onRelatorio={() => setCurrentModule("almox_relatorio")} onSolicitacoes={() => setCurrentModule("almox_solicitacoes")} />;
   if (currentModule === "almox_dashboard") return <AlmoxDashboardPage onBack={() => setCurrentModule("almoxarifado")} />;
@@ -77,6 +82,7 @@ export default function App() {
   if (currentModule === "aniversarios") return <AniversariosPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "estrutura_pessoas") return <EstruturaPessoasPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "gestao_emails") return <GestaoEmailsPage onBack={() => setCurrentModule(null)} />;
+  if (currentModule === "calendario") return <CalendarioPage onBack={() => setCurrentModule(null)} user={user} />;
 
   return <HomePage user={user} onOpenModule={setCurrentModule} />;
 }
