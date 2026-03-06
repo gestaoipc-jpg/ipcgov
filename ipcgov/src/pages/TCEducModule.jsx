@@ -93,7 +93,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [filtro, setFiltro] = useState("Todos");
+  const [filtro, setFiltro] = useState("Proximos");
   const [form, setForm] = useState({});
   const [blocoAtivo, setBlocoAtivo] = useState(null);
   const [checklist, setChecklist] = useState({});
@@ -315,8 +315,18 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     return result.sort((a, b) => b.data?.localeCompare(a.data));
   };
 
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const limite10 = new Date(hoje); limite10.setDate(hoje.getDate() + 10);
+
   const filtered = eventos
-    .filter(e => filtro === "Todos" || e.tipo === filtro)
+    .filter(e => {
+      if (filtro === "Proximos") {
+        if (!e.data) return false;
+        const d = new Date(e.data + "T00:00:00");
+        return d >= hoje && d <= limite10;
+      }
+      return filtro === "Todos" || e.tipo === filtro;
+    })
     .sort((a, b) => new Date(a.data) - new Date(b.data));
 
   const municipaisRealizados = eventos.filter(e => e.tipo === "Municipal" && e.status === "Realizado").length;
@@ -379,16 +389,24 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
       {/* CONTENT */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 32px 100px" }}>
-        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
-          {["Todos", "Municipal", "Regional"].map(f => (
-            <div key={f} onClick={() => setFiltro(f)} style={{
-              background: filtro === f ? "#1B3F7A" : "#fff",
-              color: filtro === f ? "#fff" : "#555",
+        <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
+          {[
+            { id: "Proximos", label: "📅 Próximos 10 dias" },
+            { id: "Todos",    label: "Todos" },
+            { id: "Municipal",label: "Municipal" },
+            { id: "Regional", label: "Regional" },
+          ].map(f => (
+            <div key={f.id} onClick={() => setFiltro(f.id)} style={{
+              background: filtro === f.id ? (f.id === "Proximos" ? "#E8730A" : "#1B3F7A") : "#fff",
+              color: filtro === f.id ? "#fff" : "#555",
               borderRadius: 20, padding: "8px 20px",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(27,63,122,0.08)",
-            }}>{f}</div>
+              boxShadow: filtro === f.id && f.id === "Proximos" ? "0 4px 14px rgba(232,115,10,0.35)" : "0 2px 8px rgba(27,63,122,0.08)",
+            }}>{f.label}</div>
           ))}
+          {filtro === "Proximos" && filtered.length === 0 && (
+            <div style={{ alignSelf: "center", fontSize: 12, color: "#aaa", fontWeight: 600 }}>Nenhum evento nos próximos 10 dias</div>
+          )}
         </div>
 
         {loading ? (
