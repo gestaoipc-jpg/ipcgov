@@ -163,6 +163,12 @@ export default function HomePage({ user, onOpenModule }) {
               <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 9, letterSpacing: 3 }}>INSTITUTO PLÁCIDO CASTELO</div>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <div onClick={() => onOpenModule("calendario")} style={{
+                width: 44, height: 44,
+                background: "rgba(255,255,255,0.12)", borderRadius: 13,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontSize: 20,
+              }}>📅</div>
               <div onClick={() => setShowDashboard(true)} style={{
                 width: 44, height: 44,
                 background: "rgba(255,255,255,0.12)", borderRadius: 13,
@@ -412,8 +418,10 @@ export default function HomePage({ user, onOpenModule }) {
               }}>✕</div>
             </div>
             {[
-              { id: "dashboard", modulo: "tceduc", icon: "🎓", nome: "TCEduc", desc: "Eventos, capacitados e municípios", color: "#1B3F7A" },
-              { id: "almox_dashboard", modulo: "almoxarifado", icon: "🗃️", nome: "Almoxarifado", desc: "Estoque, entradas e saídas", color: "#059669" },
+              { id: "dashboard",          modulo: "tceduc",        icon: "🎓", nome: "TCEduc",        desc: "Eventos, capacitados e municípios",     color: "#1B3F7A" },
+              { id: "almox_dashboard",    modulo: "almoxarifado",  icon: "🗃️", nome: "Almoxarifado",  desc: "Estoque, entradas e saídas",            color: "#059669" },
+              { id: "designer_dashboard", modulo: "designer",      icon: "🎨", nome: "IPC Designer",  desc: "Atividades, status e prioridades",      color: "#7c3aed" },
+              { id: "processos_dashboard",modulo: "processos",     icon: "📁", nome: "IPC Processos", desc: "Processos, prazos e andamento",         color: "#0891b2" },
             ].filter(d => canAccess(d.modulo)).map(d => (
               <div key={d.id} onClick={() => { setShowDashboard(false); onOpenModule(d.id); }} style={{
                 display: "flex", alignItems: "center", gap: 16,
@@ -436,6 +444,8 @@ export default function HomePage({ user, onOpenModule }) {
             {[
               { id: "dashboard", modulo: "tceduc" },
               { id: "almox_dashboard", modulo: "almoxarifado" },
+              { id: "designer_dashboard", modulo: "designer" },
+              { id: "processos_dashboard", modulo: "processos" },
             ].filter(d => canAccess(d.modulo)).length === 0 && (
               <div style={{ textAlign: "center", padding: "30px 0", color: "#aaa", fontSize: 14 }}>
                 Nenhum dashboard disponível para o seu perfil.
