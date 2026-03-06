@@ -317,24 +317,36 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
                       ✅ Nenhuma ocorrência registrada
                     </div>
-                  ) : (ev.ocorrencias || []).map((oc, i) => (
-                    <div key={i} style={{ background: "#fff3e0", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: "1px solid #ffe0b2" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700, textTransform: "uppercase" }}>
-                          {oc.tipo === "inscricao" ? "Inscrição/Frequência" : oc.tipo === "equipamento" ? "Equipamentos/Material" : "Logística/Local/Transporte"}
-                        </div>
-                        <div style={{ fontSize: 11, color: oc.resolvido ? "#059669" : "#dc2626", fontWeight: 700 }}>
-                          {oc.resolvido ? "✓ Resolvida" : "⚠ Pendente"}
+                  ) : (ev.ocorrencias || []).map((oc, i) => {
+                    const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
+                    const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
+                    return (
+                    <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: `2px solid ${statusCor}22` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                          <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A", textTransform: "uppercase" }}>
+                            {TIPO_LBL[oc.tipo]||oc.tipo}
+                          </span>
+                          {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
+                          {oc.destinoNome && <span style={{ background: "#f0fdf4", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#059669", fontWeight: 600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
+                          <span style={{ background: statusCor+"22", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status || "Pendente"}</span>
                         </div>
                       </div>
                       {(oc.nome || oc.cpf) && (
-                        <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
+                        <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>
                           👤 {oc.nome}{oc.cpf ? ` · CPF: ${oc.cpf}` : ""}
                         </div>
                       )}
-                      <div style={{ fontSize: 13, color: "#333", fontWeight: 500 }}>{oc.descricao}</div>
+                      <div style={{ fontSize: 13, color: "#333", fontWeight: 500, background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: oc.resposta ? 8 : 0 }}>{oc.descricao}</div>
+                      {oc.resposta && (
+                        <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "10px 14px", marginTop: 6, borderLeft: "3px solid #059669" }}>
+                          <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 3 }}>✅ Respondido por {oc.respondidoPor} {oc.respondidoEm ? `· ${new Date(oc.respondidoEm).toLocaleString("pt-BR")}` : ""}</div>
+                          <div style={{ fontSize: 13, color: "#333" }}>{oc.resposta}</div>
+                        </div>
+                      )}
+                      <div style={{ fontSize: 10, color: "#aaa", marginTop: 6 }}>Registrado por: {oc.autorEmail || "—"} · {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</div>
                     </div>
-                  ))}
+                  )})}
                 </div>
 
                 {/* LIÇÕES APRENDIDAS */}
