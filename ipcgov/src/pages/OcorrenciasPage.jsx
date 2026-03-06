@@ -237,7 +237,7 @@ export default function OcorrenciasPage({ onBack, user }) {
   const email = user?.email || "";
   const meuServidor  = usuarios.find(u => u.id===uid || u.email===email);
   const meusGrupoIds = meuServidor?.grupos || [];
-  const isAdmin = email && ["admin","administrador"].some(a=>email.toLowerCase().includes(a));
+  const isAdmin = ["gestaoipc@tce.ce.gov.br", "fabricio@tce.ce.gov.br"].includes(email);
 
   const minhasOcs = [];
   eventos.forEach(ev => {
