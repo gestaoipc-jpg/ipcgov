@@ -30,6 +30,7 @@ import AniversariosPage from "./pages/AniversariosPage";
 import EstruturaPessoasPage from "./pages/EstruturaPessoasPage";
 import GestaoEmailsPage from "./pages/GestaoEmailsPage";
 import CalendarioPage from "./pages/CalendarioPage";
+import OcorrenciasPage from "./pages/OcorrenciasPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -52,7 +53,8 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
-  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} />;
+  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onOcorrencias={() => setCurrentModule("tceduc_ocorrencias")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} />;
+  if (currentModule === "tceduc_ocorrencias") return <OcorrenciasPage user={user} onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "usuarios") return <UsuariosPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "cadastros") return <CadastrosPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "alertas") return <AlertasPage onBack={() => setCurrentModule("tceduc")} />;
