@@ -78,7 +78,7 @@ function QRModal({ eventos, onClose }) {
         @media print { .page { page-break-after:always; } }
         .marca { font-size:34px; font-weight:900; color:#1B3F7A; letter-spacing:-1px; margin-bottom:4px; }
         .marca span { color:#E8730A; }
-        .subtitulo { color:#aaa; font-size:12px; letter-spacing:3px; margin-bottom:28px; }
+        .subtitulo { color:#1B3F7A; font-size:16px; font-weight:900; letter-spacing:2px; margin-bottom:28px; text-transform:uppercase; }
         .qr-wrap { background:#f0f4ff; border-radius:20px; padding:20px; margin-bottom:24px; }
         .qr { width:220px; height:220px; border-radius:8px; display:block; }
         .municipio-box { background:#1B3F7A; border-radius:16px; padding:16px 32px; margin-bottom:12px; min-width:320px; text-align:center; }
@@ -173,7 +173,7 @@ function QRModal({ eventos, onClose }) {
                   <div style={{ fontFamily:"'Montserrat',sans-serif", color:"#1B3F7A", fontWeight:900, fontSize:26, letterSpacing:-1, marginBottom:2 }}>
                     IPC<span style={{ color:"#E8730A" }}>educ</span>
                   </div>
-                  <div style={{ color:"#aaa", fontSize:11, letterSpacing:3, marginBottom:20 }}>REGISTRO DE OCORRÊNCIA</div>
+                  <div style={{ color:"#1B3F7A", fontSize:14, fontWeight:900, letterSpacing:2, marginBottom:20 }}>REGISTRO DE OCORRÊNCIA</div>
 
                   <div style={{ background:"#f0f4ff", borderRadius:16, padding:16, marginBottom:20, display:"inline-block" }}>
                     <QRImg url={p.url} size={180} />
