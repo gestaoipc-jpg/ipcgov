@@ -37,7 +37,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, podeEditar }) {
+export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", municipiosIds: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
@@ -57,12 +57,32 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
     return isAdmin;
   })();
 
-  // Membros selecionáveis: servidores + usuários do sistema (deduplica por email)
+  // Membros selecionáveis: servidores + usuários + instrutores + motoristas (deduplica por email/id)
   const todosOsMembros = (() => {
     const mapa = {};
-    (servidores || []).forEach(s => { if (s.email) mapa[s.email] = { id: s.id, nome: s.nome || s.email, email: s.email, fonte: "servidor" }; });
-    (usuarios || []).forEach(u => { if (u.email && !mapa[u.email]) mapa[u.email] = { id: u.id, nome: u.nome || u.email, email: u.email, fonte: "usuario" }; });
-    return Object.values(mapa).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+    (servidores || []).forEach(s => {
+      if (s.email) mapa[s.email] = { id: s.id, nome: s.nome || s.email, email: s.email, tipo: "servidor" };
+    });
+    (usuarios || []).forEach(u => {
+      if (u.email && !mapa[u.email]) mapa[u.email] = { id: u.id, nome: u.nome || u.email, email: u.email, tipo: "usuario" };
+    });
+    // Instrutores — usa id como chave pois podem não ter email
+    (instrutores || []).forEach(i => {
+      const chave = i.email || ("inst_" + i.id);
+      if (!mapa[chave]) mapa[chave] = { id: i.id, nome: i.nome || i.email || "Instrutor", email: chave, tipo: "instrutor" };
+    });
+    // Motoristas — idem
+    (motoristas || []).forEach(m => {
+      const chave = m.email || ("mot_" + m.id);
+      if (!mapa[chave]) mapa[chave] = { id: m.id, nome: m.nome || m.email || "Motorista", email: chave, tipo: "motorista" };
+    });
+    return Object.values(mapa).sort((a, b) => {
+      // Ordenar por tipo: servidor/usuario, depois instrutor, depois motorista
+      const ordem = { servidor: 0, usuario: 0, instrutor: 1, motorista: 2 };
+      const diff = (ordem[a.tipo] || 0) - (ordem[b.tipo] || 0);
+      if (diff !== 0) return diff;
+      return (a.nome || "").localeCompare(b.nome || "");
+    });
   })();
 
   // Eventos disponíveis para vincular (municipais e regionais)
@@ -638,8 +658,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                   {form.equipe.map(email => {
                     const m = todosOsMembros.find(x => x.email === email);
                     return (
-                      <div key={email} style={{ background: "#eff6ff", borderRadius: 10, padding: "6px 14px", fontSize: 13, color: "#1B3F7A", fontWeight: 600 }}>
-                        👤 {m?.nome || email}
+                      <div key={email} style={{ background: m?.tipo === "instrutor" ? "#f3e8ff" : m?.tipo === "motorista" ? "#e0f2fe" : "#eff6ff", borderRadius: 10, padding: "6px 14px", fontSize: 13, color: m?.tipo === "instrutor" ? "#7c3aed" : m?.tipo === "motorista" ? "#0891b2" : "#1B3F7A", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                        {m?.tipo === "instrutor" ? "👨‍🏫" : m?.tipo === "motorista" ? "🚗" : "👤"} {m?.nome || email}
                       </div>
                     );
                   })}
