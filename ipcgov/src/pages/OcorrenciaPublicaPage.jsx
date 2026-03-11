@@ -11,7 +11,7 @@ export default function OcorrenciaPublicaPage() {
   const [acao,     setAcao]     = useState(null);
   const [grupo,    setGrupo]    = useState(null);
   const [loading,  setLoading]  = useState(true);
-  const [form,     setForm]     = useState({ nome:"", cpf:"", descricao:"" });
+  const [form,     setForm]     = useState({ nome:"", cpf:"", email:"", descricao:"" });
   const [enviando, setEnviando] = useState(false);
   const [enviado,  setEnviado]  = useState(false);
   const [erro,     setErro]     = useState("");
@@ -44,8 +44,8 @@ export default function OcorrenciaPublicaPage() {
   };
 
   const enviar = async () => {
-    if (!form.nome.trim() || !form.descricao.trim()) {
-      setErro("Preencha pelo menos o nome e a descrição da ocorrência."); return;
+    if (!form.nome.trim() || !form.cpf.trim() || !form.email.trim() || !form.descricao.trim()) {
+      setErro("Preencha todos os campos obrigatórios: nome, CPF, e-mail e descrição."); return;
     }
     if (!evento) { setErro("Evento não encontrado."); return; }
     setErro(""); setEnviando(true);
@@ -57,6 +57,7 @@ export default function OcorrenciaPublicaPage() {
         acaoNome:  acao?.acaoNome || acao?.nome || "",
         nome:      form.nome.trim(),
         cpf:       form.cpf.trim(),
+        email:     form.email.trim(),
         descricao: form.descricao.trim(),
         destinoTipo:  "grupo",
         destinoId:    grupo?.id   || "",
@@ -168,8 +169,13 @@ export default function OcorrenciaPublicaPage() {
           </div>
 
           <div style={{ marginBottom:16 }}>
-            <label style={S.label}>CPF</label>
+            <label style={S.label}>CPF *</label>
             <input value={form.cpf} onChange={e=>setForm(f=>({...f,cpf:e.target.value}))} placeholder="000.000.000-00" style={S.input} />
+          </div>
+
+          <div style={{ marginBottom:16 }}>
+            <label style={S.label}>E-mail *</label>
+            <input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="seu@email.com" type="email" style={S.input} />
           </div>
 
           <div style={{ marginBottom:20 }}>
@@ -186,8 +192,8 @@ export default function OcorrenciaPublicaPage() {
           )}
 
           <button onClick={enviar}
-            disabled={enviando || !form.nome.trim() || !form.descricao.trim()}
-            style={{ width:"100%", background:enviando||!form.nome.trim()||!form.descricao.trim()?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:16, cursor:enviando||!form.nome.trim()||!form.descricao.trim()?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+            disabled={enviando || !form.nome.trim() || !form.cpf.trim() || !form.email.trim() || !form.descricao.trim()}
+            style={{ width:"100%", background:enviando||!form.nome.trim()||!form.cpf.trim()||!form.email.trim()||!form.descricao.trim()?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:16, cursor:enviando||!form.nome.trim()||!form.cpf.trim()||!form.email.trim()||!form.descricao.trim()?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
             {enviando ? "⏳ Enviando..." : "📤 Enviar Ocorrência"}
           </button>
 
