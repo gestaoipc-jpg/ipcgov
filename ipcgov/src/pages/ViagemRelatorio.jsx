@@ -12,10 +12,37 @@ function formatDateTime() {
 const TIPO_OC = { transporte: "Transporte", hotel: "Hotel/Hospedagem", alimentacao: "Alimentação", outro: "Outro" };
 const STATUS_COR = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
 
-export default function ViagemRelatorio({ viagem, eventos, onBack }) {
+export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, usuarios, instrutores, motoristas }) {
   const [tipo, setTipo] = useState("resumido"); // "resumido" | "completo"
 
   if (!viagem) return null;
+
+  // Resolve nome a partir do email/chave armazenado na equipe
+  const resolveMembroNome = (chave) => {
+    if (!chave) return chave;
+    // Instrutores (chave inst_ID)
+    if (chave.startsWith("inst_")) {
+      const id = chave.replace("inst_", "");
+      const m = (instrutores || []).find(x => x.id === id);
+      return m ? { nome: m.nome || m.email || chave, tipo: "instrutor" } : { nome: chave, tipo: "instrutor" };
+    }
+    // Motoristas (chave mot_ID)
+    if (chave.startsWith("mot_")) {
+      const id = chave.replace("mot_", "");
+      const m = (motoristas || []).find(x => x.id === id);
+      return m ? { nome: m.nome || m.email || chave, tipo: "motorista" } : { nome: chave, tipo: "motorista" };
+    }
+    // Por email — busca em todas as listas
+    const srv = (servidores || []).find(x => x.email === chave);
+    if (srv) return { nome: srv.nome || chave, tipo: "servidor" };
+    const usr = (usuarios || []).find(x => x.email === chave);
+    if (usr) return { nome: usr.nome || usr.displayName || chave, tipo: "usuario" };
+    const inst = (instrutores || []).find(x => x.email === chave);
+    if (inst) return { nome: inst.nome || chave, tipo: "instrutor" };
+    const mot = (motoristas || []).find(x => x.email === chave);
+    if (mot) return { nome: mot.nome || chave, tipo: "motorista" };
+    return { nome: chave, tipo: "usuario" };
+  };
 
   const eventosVinculados = (eventos || []).filter(e => (viagem.municipiosIds || []).includes(e.id));
   const totalParticipantes = eventosVinculados.reduce((s, e) =>
@@ -133,9 +160,18 @@ export default function ViagemRelatorio({ viagem, eventos, onBack }) {
                   Equipe da Viagem
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viagem.equipe.map((email, i) => (
-                    <div key={i} style={{ background: "#eff6ff", borderRadius: 10, padding: "6px 14px", fontSize: 13, color: "#1B3F7A", fontWeight: 600, border: "1px solid #1B3F7A33" }}>👤 {email}</div>
-                  ))}
+                  {viagem.equipe.map((chave, i) => {
+                    const m = resolveMembroNome(chave);
+                    const bg = m.tipo === "instrutor" ? "#f3e8ff" : m.tipo === "motorista" ? "#e0f2fe" : "#eff6ff";
+                    const cor = m.tipo === "instrutor" ? "#7c3aed" : m.tipo === "motorista" ? "#0891b2" : "#1B3F7A";
+                    const borda = m.tipo === "instrutor" ? "#e9d5ff" : m.tipo === "motorista" ? "#bae6fd" : "#1B3F7A33";
+                    const icone = m.tipo === "instrutor" ? "👨‍🏫" : m.tipo === "motorista" ? "🚗" : "👤";
+                    return (
+                      <div key={i} style={{ background: bg, borderRadius: 10, padding: "6px 14px", fontSize: 13, color: cor, fontWeight: 600, border: `1px solid ${borda}` }}>
+                        {icone} {m.nome}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -278,9 +314,18 @@ export default function ViagemRelatorio({ viagem, eventos, onBack }) {
                   <div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} /> Equipe da Viagem
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viagem.equipe.map((email, i) => (
-                    <div key={i} style={{ background: "#eff6ff", borderRadius: 10, padding: "6px 14px", fontSize: 13, color: "#1B3F7A", fontWeight: 600, border: "1px solid #1B3F7A33" }}>👤 {email}</div>
-                  ))}
+                  {viagem.equipe.map((chave, i) => {
+                    const m = resolveMembroNome(chave);
+                    const bg = m.tipo === "instrutor" ? "#f3e8ff" : m.tipo === "motorista" ? "#e0f2fe" : "#eff6ff";
+                    const cor = m.tipo === "instrutor" ? "#7c3aed" : m.tipo === "motorista" ? "#0891b2" : "#1B3F7A";
+                    const borda = m.tipo === "instrutor" ? "#e9d5ff" : m.tipo === "motorista" ? "#bae6fd" : "#1B3F7A33";
+                    const icone = m.tipo === "instrutor" ? "👨‍🏫" : m.tipo === "motorista" ? "🚗" : "👤";
+                    return (
+                      <div key={i} style={{ background: bg, borderRadius: 10, padding: "6px 14px", fontSize: 13, color: cor, fontWeight: 600, border: `1px solid ${borda}` }}>
+                        {icone} {m.nome}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
