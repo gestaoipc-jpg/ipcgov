@@ -267,9 +267,12 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const excluirOcorrencia = async (ocId) => {
     const oc = ocorrencias.find(o => o.id === ocId);
     if (!oc) return;
-    const isAdmin = user?.email && ["admin","administrador"].some(a => user.email.toLowerCase().includes(a));
+    const isAdmin = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
     const isCriador = oc.autorId === user?.uid || oc.autorEmail === user?.email;
+    const jaRespondida = !!(oc.resposta && oc.resposta.trim());
+    // Admin pode excluir qualquer ocorrência. Criador só pode se ainda não respondida.
     if (!isAdmin && !isCriador) { alert("Apenas o criador ou administrador pode excluir esta ocorrência."); return; }
+    if (!isAdmin && isCriador && jaRespondida) { alert("Esta ocorrência já foi respondida e não pode mais ser excluída. Solicite ao administrador."); return; }
     if (!window.confirm("Excluir esta ocorrência?")) return;
     const novasOcs = ocorrencias.filter(x => x.id !== ocId);
     setOcorrencias(novasOcs);
@@ -804,9 +807,11 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                       Ocorrências registradas ({ocorrencias.length})
                     </div>
                     {ocorrencias.map((oc, i) => {
-                      const isAdm = user?.email && ["admin","administrador"].some(a => user.email.toLowerCase().includes(a));
+                      const isAdm = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
                       const isCriador = oc.autorId === user?.uid || oc.autorEmail === user?.email;
-                      const podeExcluir = isAdm || isCriador;
+                      const jaRespondida = !!(oc.resposta && oc.resposta.trim());
+                      // Admin sempre pode excluir. Criador só pode se não respondida.
+                      const podeExcluir = isAdm || (isCriador && !jaRespondida);
                       const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
                       const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
                       return (
