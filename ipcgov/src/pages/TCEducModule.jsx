@@ -430,7 +430,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
 
   // Roteamento ViagemRelatorio
   if (viewViagemRelatorio && selectedViagem) {
-    return <ViagemRelatorio viagem={selectedViagem} eventos={eventos} onBack={() => setViewViagemRelatorio(false)} />;
+    return <ViagemRelatorio viagem={selectedViagem} eventos={eventos} onBack={() => setViewViagemRelatorio(false)} servidores={servidores} usuarios={usuarios} instrutores={instrutores} motoristas={motoristas} />;
   }
 
   // Roteamento ViagemPage
