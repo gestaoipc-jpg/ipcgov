@@ -89,6 +89,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [minhasOcorrencias, setMinhasOcorrencias] = useState([]);
   const [respostaOc, setRespostaOc] = useState({});
   const [instrutores, setInstrutores] = useState([]);
+  const [motoristas, setMotoristas] = useState([]);
   const [tiposAcaoEdu, setTiposAcaoEdu] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -114,12 +115,19 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [viewViagemRelatorio, setViewViagemRelatorio] = useState(false);
   const [servidores, setServidores] = useState([]);
 
-  useEffect(() => { loadEventos(); loadUsuarios(); loadInstrutores(); loadTiposAcaoEdu(); loadGrupos(); loadViagens(); loadServidores(); }, []);
+  useEffect(() => { loadEventos(); loadUsuarios(); loadInstrutores(); loadMotoristas(); loadTiposAcaoEdu(); loadGrupos(); loadViagens(); loadServidores(); }, []);
 
   const loadInstrutores = async () => {
     try {
       const snap = await getDocs(collection(db, "tceduc_instrutores"));
       setInstrutores(snap.docs.map(d=>({id:d.id,...d.data()})));
+    } catch(e) { console.error(e); }
+  };
+
+  const loadMotoristas = async () => {
+    try {
+      const snap = await getDocs(collection(db, "tceduc_motoristas"));
+      setMotoristas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch(e) { console.error(e); }
   };
 
@@ -456,6 +464,8 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         eventos={eventos}
         usuarios={usuarios}
         servidores={servidores}
+        instrutores={instrutores}
+        motoristas={motoristas}
         podeEditar={podeCriarViagem}
       />
     );
