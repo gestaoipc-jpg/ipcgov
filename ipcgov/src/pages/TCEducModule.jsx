@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
+import ViagemPage from "./ViagemPage";
+import ViagemRelatorio from "./ViagemRelatorio";
 
 const MUNICIPIOS_CE = [
   "Abaiara","Acaraú","Acopiara","Aiuaba","Alcântaras","Altaneira","Alto Santo","Amontada","Antonina do Norte","Apuiarés",
@@ -42,22 +44,10 @@ const EVENTOS_INICIAIS = [
 ];
 
 const CHECKLIST_ANTES = [
-  "Solicitar viagem",
   "Cadastrar evento no IPCeduc e liberar inscrição",
-  "Solicitar diária terceirizados",
-  "Solicitar divulgação site/redes sociais",
-  "Reunião de alinhamento",
   "Alocar instrutores",
   "Alocar apoio IPC município",
   "Alocar apoio IPC salas Fortaleza",
-  "Organizar material e equipamentos",
-];
-
-const CHECKLIST_VIAGEM = [
-  "Hotel e hospedagem confirmados",
-  "Horários de saída definidos",
-  "Alimentação organizada",
-  "Documentos e materiais separados",
 ];
 
 function formatDate(d) {
@@ -105,8 +95,16 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [salvando, setSalvando] = useState(false);
   const [itemOcorrencia, setItemOcorrencia] = useState(null);
   const [novaOcorrenciaItem, setNovaOcorrenciaItem] = useState("");
+  const [itensCustomEvento, setItensCustomEvento] = useState([]);
+  const [novoItemEvento, setNovoItemEvento] = useState("");
+  // Viagens
+  const [viagens, setViagens] = useState([]);
+  const [selectedViagem, setSelectedViagem] = useState(null);
+  const [viewViagem, setViewViagem] = useState(false);
+  const [viewViagemRelatorio, setViewViagemRelatorio] = useState(false);
+  const [servidores, setServidores] = useState([]);
 
-  useEffect(() => { loadEventos(); loadUsuarios(); loadInstrutores(); loadTiposAcaoEdu(); loadGrupos(); }, []);
+  useEffect(() => { loadEventos(); loadUsuarios(); loadInstrutores(); loadTiposAcaoEdu(); loadGrupos(); loadViagens(); loadServidores(); }, []);
 
   const loadInstrutores = async () => {
     try {
@@ -154,6 +152,44 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     } catch (e) { console.error(e); }
   };
 
+  const loadViagens = async () => {
+    try {
+      const snap = await getDocs(collection(db, "tceduc_viagens"));
+      const vs = snap.docs.map(d => {
+        const data = { id: d.id, ...d.data() };
+        // Recalculate status dynamically
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const ini = data.dataInicio ? new Date(data.dataInicio) : null;
+        const fim = data.dataFim ? new Date(data.dataFim) : null;
+        let status = "Programada";
+        if (ini && hoje >= ini) status = "Em Execução";
+        if (fim && hoje > fim) status = "Concluída";
+        return { ...data, status };
+      });
+      setViagens(vs.sort((a, b) => (a.dataInicio || "").localeCompare(b.dataInicio || "")));
+    } catch (e) { console.error(e); }
+  };
+
+  const loadServidores = async () => {
+    try {
+      const snap = await getDocs(collection(db, "ipc_servidores"));
+      setServidores(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { console.error(e); }
+  };
+
+  // Verifica se o usuário logado pertence ao grupo "TCEduc Administrativo"
+  const podeCriarEvento = (() => {
+    const isAdmin = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
+    if (isAdmin) return true;
+    const email = user?.email || "";
+    const uid = user?.uid || "";
+    const meuServidor = usuarios.find(u => u.id === uid || u.email === email);
+    const meusGrupoIds = meuServidor?.grupos || [];
+    const grupoTCEduc = grupos.find(g => g.nome?.toLowerCase().includes("tceduc administrativo"));
+    if (!grupoTCEduc) return false;
+    return meusGrupoIds.includes(grupoTCEduc.id);
+  })();
+
   const saveEvento = async () => {
     if (selected) {
       await updateDoc(doc(db, "tceduc_eventos", selected.id), form);
@@ -177,6 +213,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     setChecklist(ev.checklist || {});
     setOcorrencias(ev.ocorrencias || []);
     setLicoesAprendidas(ev.licoesAprendidas || "");
+    setItensCustomEvento(ev.itensCustom || []);
     // Carrega participantes de cada ação educacional
     const partic = {};
     (ev.acoesEducacionais || []).forEach((a, idx) => {
@@ -197,6 +234,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     });
     const updates = {
       checklist,
+      itensCustom: itensCustomEvento,
       ocorrencias,
       licoesAprendidas,
       infoViagem,
@@ -342,6 +380,11 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         const d = new Date(e.data + "T00:00:00");
         return d >= hoje && d <= limite10;
       }
+      if (filtro.startsWith("viagem_")) {
+        const vId = filtro.replace("viagem_", "");
+        const v = viagens.find(x => x.id === vId);
+        return v ? (v.municipiosIds || []).includes(e.id) : false;
+      }
       return filtro === "Todos" || e.tipo === filtro;
     })
     .sort((a, b) => new Date(a.data) - new Date(b.data));
@@ -382,11 +425,11 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
-              <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
+              {podeCriarEvento && <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
                 color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
                 boxShadow: "0 4px 14px rgba(232,115,10,0.4)",
-              }}>+ Novo Evento</div>
+              }}>+ Novo Evento</div>}
             </div>
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -404,14 +447,63 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         </div>
       </div>
 
+      {/* VIAGENS BLOCK */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 32px 0" }}>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 18, color: "#1B3F7A" }}>🗺️ Viagens</div>
+            {podeCriarEvento && (
+              <div onClick={() => { setSelectedViagem(null); setViewViagem(true); }}
+                style={{ background: "#E8730A", borderRadius: 12, padding: "8px 18px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                + Nova Viagem
+              </div>
+            )}
+          </div>
+          {viagens.length === 0 ? (
+            <div style={{ background: "#fff", borderRadius: 16, padding: "24px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
+              Nenhuma viagem cadastrada ainda
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {viagens.map(v => {
+                const corStatus = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
+                const cor = corStatus[v.status] || "#888";
+                const eventsVinc = eventos.filter(e => (v.municipiosIds || []).includes(e.id));
+                const totalCap = eventsVinc.reduce((s, e) => s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
+                return (
+                  <div key={v.id} onClick={() => { setSelectedViagem(v); setViewViagem(true); }}
+                    style={{ background: "#fff", borderRadius: 16, padding: "18px 20px", cursor: "pointer", border: `2px solid ${cor}22`, boxShadow: "0 2px 12px rgba(27,63,122,0.07)", transition: "all .15s" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                      <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", flex: 1, paddingRight: 8 }}>{v.titulo}</div>
+                      <div style={{ background: cor, borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{v.status}</div>
+                    </div>
+                    {(v.dataInicio || v.dataFim) && (
+                      <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+                        📅 {v.dataInicio ? v.dataInicio.split("-").reverse().join("/") : "—"}{v.dataFim ? ` → ${v.dataFim.split("-").reverse().join("/")}` : ""}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ fontSize: 12, color: "#888" }}>📍 {eventsVinc.length} município{eventsVinc.length !== 1 ? "s" : ""}</div>
+                      <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>👥 {totalCap} capacitados</div>
+                      {(v.ocorrencias || []).length > 0 && <div style={{ fontSize: 12, color: "#E8730A", fontWeight: 700 }}>⚠️ {v.ocorrencias.length} ocorr.</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* CONTENT */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 32px 100px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px 100px" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
           {[
             { id: "Proximos", label: "📅 Próximos 10 dias" },
             { id: "Todos",    label: "Todos" },
             { id: "Municipal",label: "Municipal" },
             { id: "Regional", label: "Regional" },
+            ...viagens.map(v => ({ id: "viagem_" + v.id, label: "🗺️ " + v.titulo })),
           ].map(f => (
             <div key={f.id} onClick={() => setFiltro(f.id)} style={{
               background: filtro === f.id ? (f.id === "Proximos" ? "#E8730A" : "#1B3F7A") : "#fff",
@@ -557,8 +649,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             <div style={{ fontWeight: 700, fontSize: 15, color: "#1B3F7A", marginBottom: 14 }}>Gestão do Evento</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
               {[
-                { id: "antes", icon: "📋", label: "Logística Antes", sub: "Checklist de preparação", color: "#1B3F7A", prog: progressoChecklist(selected, CHECKLIST_ANTES) },
-                { id: "viagem", icon: "🚗", label: "Logística em Viagem", sub: "Hotel, horários, alimentação", color: "#2a5ba8", prog: progressoChecklist(selected, CHECKLIST_VIAGEM) },
+                { id: "antes", icon: "📋", label: "Logística Antes do Evento", sub: "Checklist de preparação", color: "#1B3F7A", prog: progressoChecklist(selected, CHECKLIST_ANTES) },
                 { id: "durante", icon: "⚡", label: "Durante o Evento", sub: `${(selected.ocorrencias || []).length} ocorrências`, color: "#E8730A", prog: null },
                 { id: "pos", icon: "✅", label: "Pós Evento", sub: selected.licoesAprendidas ? "Lições registradas" : "Sem registros", color: "#059669", prog: null },
               ].map((b) => (
@@ -586,7 +677,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => { setForm({ ...selected }); setModal("form"); }} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Evento</button>
+              {podeCriarEvento && <button onClick={() => { setForm({ ...selected }); setModal("form"); }} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Evento</button>}
               <button onClick={() => onRelatorio(selected.id)} style={{ flex: 1, background: "#f0f4ff", border: "none", borderRadius: 14, padding: 14, color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>📄 Relatório</button>
               <button onClick={() => deleteEvento(selected.id)} style={{ width: 52, background: "#fee2e2", border: "none", borderRadius: 14, color: "#dc2626", fontSize: 20, cursor: "pointer" }}>🗑</button>
             </div>
@@ -603,7 +694,6 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div>
                 <div style={{ fontWeight: 900, fontSize: 18, color: "#1B3F7A" }}>
                   {blocoAtivo === "antes" && "📋 Logística Antes do Evento"}
-                  {blocoAtivo === "viagem" && "🚗 Logística em Viagem"}
                   {blocoAtivo === "durante" && "⚡ Durante o Evento"}
                   {blocoAtivo === "pos" && "✅ Pós Evento"}
                 </div>
@@ -666,30 +756,31 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                     </div>
                   );
                 })}
-              </div>
-            )}
-
-            {/* BLOCO VIAGEM */}
-            {blocoAtivo === "viagem" && (
-              <div>
-                {CHECKLIST_VIAGEM.map((item, i) => {
+                {/* Items customizados do evento */}
+                {(itensCustomEvento || []).map((item, i) => {
                   const val = checklist[item] || {};
                   const venceEm = val.dataLimite ? Math.ceil((new Date(val.dataLimite) - new Date()) / 86400000) : null;
                   const atrasado = venceEm !== null && venceEm < 0 && !val.feito;
                   const urgente = venceEm !== null && venceEm <= 2 && venceEm >= 0 && !val.feito;
                   return (
-                    <div key={i} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
+                    <div key={"custom_"+i} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => toggleCheck(item)}>
                         <div style={{ width: 24, height: 24, borderRadius: 8, background: val.feito ? "#059669" : "#fff", border: `2px solid ${val.feito ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
+                            <span style={{ background: "#eff6ff", borderRadius: 5, padding: "1px 6px", fontSize: 10, color: "#1B3F7A", fontWeight: 700 }}>custom</span>
+                          </div>
                           <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
                             {val.responsavel && <div style={{ fontSize: 11, color: "#888" }}>👤 {val.responsavel}</div>}
                             {val.dataLimite && <div style={{ fontSize: 11, color: atrasado ? "#dc2626" : urgente ? "#E8730A" : "#888", fontWeight: atrasado || urgente ? 700 : 400 }}>📅 {formatDate(val.dataLimite)}{atrasado ? " ⚠️ ATRASADO" : urgente ? ` ⏰ ${venceEm === 0 ? "HOJE" : `${venceEm}d`}` : ""}</div>}
                             {(val.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {val.ocorrencias.length} ocorrência{val.ocorrencias.length !== 1 ? "s" : ""}</div>}
                           </div>
                         </div>
-                        <div onClick={e => { e.stopPropagation(); setItemOcorrencia(itemOcorrencia === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <div onClick={e => { e.stopPropagation(); setItensCustomEvento(prev => prev.filter(x => x !== item)); setChecklist(ch => { const n={...ch}; delete n[item]; return n; }); }} style={{ fontSize: 13, color: "#dc2626", cursor: "pointer", padding: "4px 6px" }}>🗑</div>
+                          <div onClick={e => { e.stopPropagation(); setItemOcorrencia(itemOcorrencia === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
+                        </div>
                       </div>
                       {itemOcorrencia === item && (
                         <div style={{ padding: "0 16px 14px", borderTop: "1px solid #e8edf2" }} onClick={e => e.stopPropagation()}>
@@ -722,10 +813,13 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                     </div>
                   );
                 })}
-                <div style={{ marginTop: 20 }}>
-                  <label style={labelStyle}>Avisos gerais de viagem</label>
-                  <textarea value={infoViagem.avisos || ""} onChange={e => setInfoViagem(v => ({ ...v, avisos: e.target.value }))}
-                    placeholder="Informações sobre hotel, horários, alimentação..." style={{ ...inputStyle, minHeight: 100, resize: "vertical" }} />
+                {/* Adicionar item personalizado */}
+                <div style={{ marginTop: 16, background: "#f0f4ff", borderRadius: 12, padding: 14, border: "2px dashed #1B3F7A33" }}>
+                  <label style={labelStyle}>Adicionar item personalizado</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input value={novoItemEvento} onChange={e => setNovoItemEvento(e.target.value)} onKeyDown={e => e.key === "Enter" && (novoItemEvento.trim() && (setItensCustomEvento(prev => [...prev, novoItemEvento.trim()]), setNovoItemEvento("")))} placeholder="Nome do novo item..." style={{ ...inputStyle, flex: 1, padding: "8px 12px" }} />
+                    <button onClick={() => { if (novoItemEvento.trim()) { setItensCustomEvento(prev => [...prev, novoItemEvento.trim()]); setNovoItemEvento(""); } }} disabled={!novoItemEvento.trim()} style={{ background: novoItemEvento.trim() ? "#1B3F7A" : "#ccc", border: "none", borderRadius: 10, padding: "8px 16px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: novoItemEvento.trim() ? "pointer" : "not-allowed", fontFamily: "'Montserrat', sans-serif" }}>+ Add</button>
+                  </div>
                 </div>
               </div>
             )}
