@@ -178,17 +178,18 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   };
 
   // Verifica se o usuário logado pertence ao grupo "TCEduc Administrativo"
-  const podeCriarEvento = (() => {
-    const isAdmin = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
-    if (isAdmin) return true;
-    const email = user?.email || "";
-    const uid = user?.uid || "";
-    const meuServidor = usuarios.find(u => u.id === uid || u.email === email);
-    const meusGrupoIds = meuServidor?.grupos || [];
-    const grupoTCEduc = grupos.find(g => g.nome?.toLowerCase().includes("tceduc administrativo"));
-    if (!grupoTCEduc) return false;
-    return meusGrupoIds.includes(grupoTCEduc.id);
-  })();
+  const _isAdminGlobal = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
+  const _meuServidor = usuarios.find(u => u.id === user?.uid || u.email === user?.email);
+  const _meusGrupoIds = _meuServidor?.grupos || [];
+  const _grupoAdmTCEduc = grupos.find(g => g.nome?.toLowerCase().includes("tceduc administrativo"));
+  const _grupoTCEduc = grupos.find(g => g.nome?.toLowerCase().replace(/\s/g,"") === "tceduc");
+
+  // Pode criar/editar EVENTOS: admin ou TCEduc Administrativo
+  const podeCriarEvento = _isAdminGlobal || (_grupoAdmTCEduc ? _meusGrupoIds.includes(_grupoAdmTCEduc.id) : false);
+
+  // Pode criar VIAGEM: admin ou TCEduc Administrativo
+  // Se grupos ainda não carregaram (loading), mostra para admin pelo menos
+  const podeCriarViagem = _isAdminGlobal || (_grupoAdmTCEduc ? _meusGrupoIds.includes(_grupoAdmTCEduc.id) : _isAdminGlobal);
 
   const saveEvento = async () => {
     if (selected) {
@@ -452,7 +453,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontWeight: 800, fontSize: 18, color: "#1B3F7A" }}>🗺️ Viagens</div>
-            {podeCriarEvento && (
+            {podeCriarViagem && (
               <div onClick={() => { setSelectedViagem(null); setViewViagem(true); }}
                 style={{ background: "#E8730A", borderRadius: 12, padding: "8px 18px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
                 + Nova Viagem
