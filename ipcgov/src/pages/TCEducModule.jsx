@@ -420,6 +420,18 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           setSelectedViagem(v);
         }}
         onRelatorio={() => { setViewViagemRelatorio(true); }}
+        onVerEvento={(ev, acao) => {
+          setViewViagem(false);
+          setSelectedViagem(null);
+          const evObj = eventos.find(e => e.id === ev.id);
+          if (evObj) {
+            setSelected(evObj);
+            if (acao === "editar") { setForm({ ...evObj }); setModal("form"); }
+            else if (acao === "ocorrencias") { abrirBloco(evObj, "durante"); }
+            else if (acao === "relatorio") { onRelatorio && onRelatorio(evObj.id); }
+            else { setModal("detalhe"); }
+          }
+        }}
         eventos={eventos}
         usuarios={usuarios}
         servidores={servidores}
