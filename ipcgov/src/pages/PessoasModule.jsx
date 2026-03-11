@@ -204,6 +204,37 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         if (enviarEmail && form.email) enviarEmailCadastro({...dados, id:docRef.id}).catch(()=>{});
       }
 
+      // Sincronizar com tceduc_instrutores
+      const servidorId = selected?.id || dados.servidorId || null;
+      if (form.isInstrutor && form.nomeInstrutor?.trim()) {
+        try {
+          // Verifica se já existe instrutor vinculado a este servidor
+          const instSnap = await getDocs(collection(db, "tceduc_instrutores"));
+          const instExist = instSnap.docs.find(d => d.data().servidorId === (selected?.id || "") || d.data().email === (form.email || ""));
+          const dadosInst = {
+            nome: form.nomeInstrutor.trim(),
+            email: form.email || "",
+            servidorId: selected?.id || "",
+            servidorNome: form.nome || "",
+            atualizadoEm: new Date().toISOString(),
+          };
+          if (instExist) {
+            await updateDoc(doc(db, "tceduc_instrutores", instExist.id), dadosInst);
+          } else {
+            await addDoc(collection(db, "tceduc_instrutores"), { ...dadosInst, criadoEm: new Date().toISOString() });
+          }
+        } catch(e) { console.error("Erro ao sincronizar instrutor:", e); }
+      } else if (!form.isInstrutor && selected) {
+        // Se desmarcou isInstrutor, remove o cadastro de instrutor vinculado
+        try {
+          const instSnap = await getDocs(collection(db, "tceduc_instrutores"));
+          const instExist = instSnap.docs.find(d => d.data().servidorId === selected.id || (form.email && d.data().email === form.email));
+          if (instExist) {
+            await deleteDoc(doc(db, "tceduc_instrutores", instExist.id));
+          }
+        } catch(e) { console.error("Erro ao remover instrutor:", e); }
+      }
+
       // Toast de sucesso
       setErroLogin("");
       setSalvando(false);
@@ -431,7 +462,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                       </div>
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                         {s.setor && <div style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{s.setor}</div>}
-                        {s.criarAcesso && <div style={{ background:"#e8f5e9", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>🔑 {s.isAdmin?"admin":"colaborador"}</div>}
+                        {s.criarAcesso && <div style={{ background:"#e8f5e9", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>🔑 {s.isAdmin?"admin":"colaborador"}</div>}{s.isInstrutor && <div style={{ background:"#f3e8ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#7c3aed" }}>👨‍🏫 instrutor</div>}
                       </div>
                       {s.dataAniversario && (() => {
                         const hoje = new Date(); const [,mes,dia] = s.dataAniversario.split("-");
@@ -694,6 +725,31 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                   )}
                 </div>
 
+                {/* INSTRUTOR TCEDUC */}
+                <div style={{ gridColumn:"1/-1", background:"#f3e8ff", borderRadius:16, padding:"18px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom: form.isInstrutor ? 16 : 0 }}>
+                    <div onClick={()=>setForm(f=>({...f, isInstrutor:!f.isInstrutor, nomeInstrutor: !f.isInstrutor ? f.nome : f.nomeInstrutor}))} style={{ width:44, height:24, borderRadius:12, background:form.isInstrutor?"#7c3aed":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                      <div style={{ position:"absolute", top:3, left:form.isInstrutor?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14, color:"#7c3aed" }}>👨‍🏫 Também é Instrutor (TCEduc)</div>
+                      <div style={{ fontSize:11, color:"#888" }}>Cadastra automaticamente na lista de instrutores do TCEduc</div>
+                    </div>
+                  </div>
+                  {form.isInstrutor && (
+                    <div>
+                      <label style={labelStyle}>Como identificar na lista de instrutores *</label>
+                      <input
+                        value={form.nomeInstrutor||""}
+                        onChange={e=>setForm(f=>({...f, nomeInstrutor:e.target.value}))}
+                        placeholder="Ex: Dr. João Silva, Prof. João, João Silva (TCE)"
+                        style={inputStyle}
+                      />
+                      <div style={{ fontSize:11, color:"#888", marginTop:4 }}>Nome que aparecerá ao alocar o instrutor em eventos e viagens</div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ gridColumn:"1/-1" }}>
                   <label style={labelStyle}>Observações Iniciais</label>
                   <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
@@ -804,6 +860,13 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
                   <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                     {(servidor.grupos||[]).map(gId=>{ const g=(grupos||[]).find(x=>x.id===gId); return g?<div key={gId} style={{ background:"#059669", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>👥 {g.nome}</div>:null; })}
                   </div>
+                </div>
+              )}
+              {servidor.isInstrutor && (
+                <div style={{ background:"#f3e8ff", borderRadius:12, padding:"12px 14px", marginBottom:16, border:"1px solid #e9d5ff" }}>
+                  <div style={{ color:"#7c3aed", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>👨‍🏫 Instrutor TCEduc</div>
+                  <div style={{ color:"#7c3aed", fontWeight:700, fontSize:14 }}>{servidor.nomeInstrutor || servidor.nome}</div>
+                  <div style={{ color:"#888", fontSize:11, marginTop:2 }}>Identificado assim na lista de instrutores</div>
                 </div>
               )}
               {servidor.observacoes && (
