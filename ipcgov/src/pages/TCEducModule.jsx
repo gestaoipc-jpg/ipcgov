@@ -59,7 +59,17 @@ function daysUntil(d) {
   return Math.ceil((new Date(d) - new Date()) / 86400000);
 }
 
-const statusColors = { Pendente: "#E8730A", Programado: "#7c3aed", Realizado: "#059669", Cancelado: "#dc2626" };
+const statusColors = { Programado: "#7c3aed", "Em Execução": "#E8730A", Realizado: "#059669", Cancelado: "#dc2626" };
+
+function calcStatusEvento(data) {
+  if (!data) return "Programado";
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const dEvento = new Date(data + "T00:00:00");
+  const dAmanha = new Date(dEvento); dAmanha.setDate(dEvento.getDate() + 1);
+  if (hoje < dEvento) return "Programado";
+  if (hoje.getTime() === dEvento.getTime()) return "Em Execução";
+  return "Realizado";
+}
 
 const inputStyle = {
   width: "100%", background: "#f8f9fb", border: "1px solid #e8edf2",
@@ -130,9 +140,18 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           const ref = await addDoc(collection(db, "tceduc_eventos"), { ...ev, criadoEm: new Date().toISOString() });
           saved.push({ id: ref.id, ...ev });
         }
-        setEventos(saved);
+        setEventos(saved.map(ev => ({
+          ...ev,
+          status: ev.status !== "Cancelado" ? calcStatusEvento(ev.data) : ev.status,
+        })));
       } else {
-        setEventos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setEventos(snap.docs.map(d => {
+          const ev = { id: d.id, ...d.data() };
+          if (ev.status !== "Cancelado") {
+            ev.status = calcStatusEvento(ev.data);
+          }
+          return ev;
+        }));
       }
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -192,12 +211,14 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const podeCriarViagem = _isAdminGlobal || (_grupoAdmTCEduc ? _meusGrupoIds.includes(_grupoAdmTCEduc.id) : _isAdminGlobal);
 
   const saveEvento = async () => {
+    const statusCalculado = form.status === "Cancelado" ? "Cancelado" : calcStatusEvento(form.data);
+    const formComStatus = { ...form, status: statusCalculado };
     if (selected) {
-      await updateDoc(doc(db, "tceduc_eventos", selected.id), form);
-      setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ...form } : e));
+      await updateDoc(doc(db, "tceduc_eventos", selected.id), formComStatus);
+      setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ...formComStatus } : e));
     } else {
-      const ref = await addDoc(collection(db, "tceduc_eventos"), { ...form, criadoEm: new Date().toISOString() });
-      setEventos(ev => [...ev, { id: ref.id, ...form }]);
+      const ref = await addDoc(collection(db, "tceduc_eventos"), { ...formComStatus, criadoEm: new Date().toISOString() });
+      setEventos(ev => [...ev, { id: ref.id, ...formComStatus }]);
     }
     setModal(null); setSelected(null); setForm({});
   };
@@ -467,7 +488,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
-              {podeCriarEvento && <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Pendente" }); setModal("form"); }} style={{
+              {podeCriarEvento && <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Programado" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
                 color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
                 boxShadow: "0 4px 14px rgba(232,115,10,0.4)",
@@ -1092,9 +1113,13 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               <div><label style={labelStyle}>Motorista</label><input value={form.motorista || ""} onChange={e => setForm(p => ({ ...p, motorista: e.target.value }))} style={inputStyle} /></div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelStyle}>Status</label>
-                <select value={form.status || "Pendente"} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={inputStyle}>
-                  <option>Pendente</option><option>Programado</option><option>Realizado</option><option>Cancelado</option>
+                <select value={form.status || "Programado"} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={inputStyle}>
+                  <option value="Programado">Programado</option>
+                  <option value="Em Execução">Em Execução</option>
+                  <option value="Realizado">Realizado</option>
+                  <option value="Cancelado">Cancelado</option>
                 </select>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>* Status atualizado automaticamente pela data. Somente "Cancelado" é manual.</div>
               </div>
               <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Observações</label><textarea value={form.observacoes || ""} onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} /></div>
 
