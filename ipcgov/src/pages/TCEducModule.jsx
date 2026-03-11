@@ -399,6 +399,35 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     return { done, total: items.length, pct: Math.round((done / items.length) * 100) };
   };
 
+  // Roteamento ViagemRelatorio
+  if (viewViagemRelatorio && selectedViagem) {
+    return <ViagemRelatorio viagem={selectedViagem} eventos={eventos} onBack={() => setViewViagemRelatorio(false)} />;
+  }
+
+  // Roteamento ViagemPage
+  if (viewViagem) {
+    return (
+      <ViagemPage
+        user={user}
+        viagem={selectedViagem}
+        onBack={() => { setViewViagem(false); setSelectedViagem(null); }}
+        onSaved={(v) => {
+          setViagens(prev => {
+            const idx = prev.findIndex(x => x.id === v.id);
+            if (idx >= 0) { const n = [...prev]; n[idx] = v; return n; }
+            return [...prev, v];
+          });
+          setSelectedViagem(v);
+        }}
+        onRelatorio={() => { setViewViagemRelatorio(true); }}
+        eventos={eventos}
+        usuarios={usuarios}
+        servidores={servidores}
+        podeEditar={podeCriarViagem}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#E8EDF2", fontFamily: "'Montserrat', sans-serif" }}>
       <style>{`
