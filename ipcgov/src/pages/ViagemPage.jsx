@@ -37,7 +37,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, eventos, usuarios, servidores, podeEditar }) {
+export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", municipiosIds: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
@@ -49,6 +49,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [blocoAtivo, setBlocoAtivo] = useState(null); // null | "checklist" | "ocorrencias" | "municipios"
   const [salvando, setSalvando] = useState(false);
   const [modoEdicao, setModoEdicao] = useState(!viagem);
+  const [menuEvento, setMenuEvento] = useState(null); // id do evento com menu aberto
 
   const isAdmin = ["gestaoipc@tce.ce.gov.br", "fabricio@tce.ce.gov.br"].includes(user?.email);
   const isAdmTCEduc = (() => {
@@ -201,7 +202,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const TIPO_OC = { transporte: "🚌 Transporte", hotel: "🏨 Hotel/Hospedagem", alimentacao: "🍽️ Alimentação", outro: "📌 Outro" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#E8EDF2", fontFamily: "'Montserrat', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#E8EDF2", fontFamily: "'Montserrat', sans-serif" }} onClick={() => menuEvento && setMenuEvento(null)}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); * { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
 
       {/* HEADER */}
@@ -518,6 +519,116 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 })}
               </div>
             )}
+
+            {/* MUNICÍPIOS CARDS */}
+            <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+              <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16 }}>📍 Municípios da Viagem</div>
+              {eventosVinculados.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#aaa", padding: 16, fontSize: 13 }}>Nenhum município vinculado</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                  {eventosVinculados.map(ev => {
+                    const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+                    const nOcs = (ev.ocorrencias || []).length;
+                    const statusCores = { Pendente: "#E8730A", Realizado: "#059669", Cancelado: "#dc2626" };
+                    const cor = statusCores[ev.status] || "#888";
+                    const aberto = menuEvento === ev.id;
+                    return (
+                      <div key={ev.id} style={{ position: "relative" }}>
+                        {/* CARD */}
+                        <div
+                          onClick={() => setMenuEvento(aberto ? null : ev.id)}
+                          style={{ background: aberto ? "#f0f4ff" : "#f8f9fb", borderRadius: 14, padding: "14px 16px", cursor: "pointer", border: `2px solid ${aberto ? "#1B3F7A" : cor + "33"}`, transition: "all .15s" }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", flex: 1, paddingRight: 4 }}>
+                              {ev.tipo === "Municipal" ? ev.municipio : ev.regiao}
+                            </div>
+                            <div style={{ background: cor, borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{ev.status}</div>
+                          </div>
+                          <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>📅 {formatDate(ev.data)}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div>
+                            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 600 }}>participantes</div>
+                          </div>
+                          {nOcs > 0 && (
+                            <div style={{ marginTop: 6, background: "#fff3e0", borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "#E8730A", fontWeight: 700, display: "inline-block" }}>
+                              ⚠️ {nOcs} ocorr.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* MENU DROPDOWN */}
+                        {aberto && (
+                          <div
+                            style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", borderRadius: 14, boxShadow: "0 8px 32px rgba(27,63,122,0.18)", border: "1px solid #e8edf2", zIndex: 50, overflow: "hidden" }}
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {/* Ver detalhes */}
+                            <div
+                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev); }}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👁️</div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#1B3F7A" }}>Ver Evento</div>
+                                <div style={{ fontSize: 11, color: "#888" }}>Detalhes completos</div>
+                              </div>
+                            </div>
+
+                            {/* Gerenciar (apenas TCEduc Administrativo) */}
+                            {podeEditar !== false && (
+                              <div
+                                onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "editar"); }}
+                                style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
+                                onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff0e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✏️</div>
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#E8730A" }}>Gerenciar</div>
+                                  <div style={{ fontSize: 11, color: "#888" }}>Editar evento</div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Ocorrências (TCEduc + TCEduc Administrativo) */}
+                            <div
+                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "ocorrencias"); }}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff3e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⚠️</div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8730A" }}>Ocorrências</div>
+                                <div style={{ fontSize: 11, color: "#888" }}>{nOcs > 0 ? `${nOcs} registradas` : "Sem ocorrências"}</div>
+                              </div>
+                            </div>
+
+                            {/* Relatório */}
+                            <div
+                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "relatorio"); }}
+                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📄</div>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#059669" }}>Relatório</div>
+                                <div style={{ fontSize: 11, color: "#888" }}>Gerar PDF do evento</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* EQUIPE */}
             {form.equipe.length > 0 && (
