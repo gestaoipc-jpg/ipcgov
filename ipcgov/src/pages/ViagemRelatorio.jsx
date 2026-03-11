@@ -8,31 +8,48 @@ function formatDate(d) {
 function formatDateTime() {
   return new Date().toLocaleString("pt-BR");
 }
+function fmtWhats(num) {
+  const d = (num || "").replace(/\D/g, "");
+  if (d.length >= 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+  return num;
+}
 
-const TIPO_OC = { transporte: "Transporte", hotel: "Hotel/Hospedagem", alimentacao: "Alimentação", outro: "Outro" };
+const TIPO_OC = { transporte: "🚌 Transporte", hotel: "🏨 Hotel/Hospedagem", alimentacao: "🍽️ Alimentação", outro: "📌 Outro" };
+const TIPO_OC_SHORT = { transporte: "Transporte", hotel: "Hotel", alimentacao: "Alimentação", outro: "Outro" };
 const STATUS_COR = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
 
+const sec = (cor = "#1B3F7A") => ({
+  fontWeight: 800, fontSize: 15, color: cor, marginBottom: 14,
+  display: "flex", alignItems: "center", gap: 8,
+});
+const bar = (cor = "#1B3F7A") => ({
+  width: 4, height: 18, background: cor, borderRadius: 2, flexShrink: 0,
+});
+const card = {
+  background: "#fff", borderRadius: 20, padding: "24px 32px",
+  marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)",
+};
+const tag = (bg, cor) => ({
+  display: "inline-flex", alignItems: "center", gap: 4,
+  background: bg, borderRadius: 8, padding: "3px 10px",
+  fontSize: 12, fontWeight: 700, color: cor, textDecoration: "none",
+});
+
 export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, usuarios, instrutores, motoristas }) {
-  const [tipo, setTipo] = useState("resumido"); // "resumido" | "completo"
+  const [tipo, setTipo] = useState("resumido");
 
   if (!viagem) return null;
 
-  // Resolve nome a partir do email/chave armazenado na equipe
   const resolveMembroNome = (chave) => {
-    if (!chave) return chave;
-    // Instrutores (chave inst_ID)
+    if (!chave) return { nome: "—", tipo: "usuario" };
     if (chave.startsWith("inst_")) {
-      const id = chave.replace("inst_", "");
-      const m = (instrutores || []).find(x => x.id === id);
+      const m = (instrutores || []).find(x => x.id === chave.replace("inst_", ""));
       return m ? { nome: m.nome || m.email || chave, tipo: "instrutor" } : { nome: chave, tipo: "instrutor" };
     }
-    // Motoristas (chave mot_ID)
     if (chave.startsWith("mot_")) {
-      const id = chave.replace("mot_", "");
-      const m = (motoristas || []).find(x => x.id === id);
+      const m = (motoristas || []).find(x => x.id === chave.replace("mot_", ""));
       return m ? { nome: m.nome || m.email || chave, tipo: "motorista" } : { nome: chave, tipo: "motorista" };
     }
-    // Por email — busca em todas as listas
     const srv = (servidores || []).find(x => x.email === chave);
     if (srv) return { nome: srv.nome || chave, tipo: "servidor" };
     const usr = (usuarios || []).find(x => x.email === chave);
@@ -47,10 +64,15 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
   const eventosVinculados = (eventos || []).filter(e => (viagem.municipiosIds || []).includes(e.id));
   const totalParticipantes = eventosVinculados.reduce((s, e) =>
     s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
-  const totalOcorrencias = eventosVinculados.reduce((s, e) => s + (e.ocorrencias || []).length, 0);
+  const totalOcEventos = eventosVinculados.reduce((s, e) => s + (e.ocorrencias || []).length, 0);
   const totalOcViagem = (viagem.ocorrencias || []).length;
+  const totalHospedagens = (viagem.hospedagens || []).length;
+  const totalHorarios = (viagem.horarios || []).length;
+  const totalContatos = (viagem.contatos || []).length;
+  const totalAlimentacao = (viagem.alimentacao || []).length;
+  const totalAgenda = (viagem.agenda || []).length;
 
-  // Consolidar participantes por ação educacional
+  // Consolidar por ação educacional
   const porAcao = {};
   eventosVinculados.forEach(e => {
     (e.acoesEducacionais || []).forEach(a => {
@@ -61,9 +83,42 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
   });
   const acoesOrdenadas = Object.entries(porAcao).sort((a, b) => b[1] - a[1]);
 
-  const gerarPDF = () => {
-    window.print();
-  };
+  // Ocorrências viagem agrupadas por tipo
+  const ocPorTipo = (viagem.ocorrencias || []).reduce((acc, oc) => {
+    acc[oc.tipo] = (acc[oc.tipo] || 0) + 1; return acc;
+  }, {});
+
+  // Agenda ordenada
+  const agendaOrdenada = [...(viagem.agenda || [])].sort((a, b) =>
+    (a.data + (a.hora || "")).localeCompare(b.data + (b.hora || ""))
+  );
+
+  // Horários ordenados
+  const horariosOrdenados = [...(viagem.horarios || [])].sort((a, b) =>
+    (a.data + (a.hora || "")).localeCompare(b.data + (b.hora || ""))
+  );
+
+  // Checklist stats
+  const todosItensChecklist = [
+    "Solicitar viagem", "Solicitar diária terceirizados", "Solicitar divulgação site/redes sociais",
+    "Organizar material e equipamentos", "Reunião de alinhamento",
+    ...(viagem.itensCustom || [])
+  ];
+  const checkFeitos = todosItensChecklist.filter(i => viagem.checklist?.[i]?.feito).length;
+
+  // Render equipe badges
+  const renderEquipe = () => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {(viagem.equipe || []).map((chave, i) => {
+        const m = resolveMembroNome(chave);
+        const bg = m.tipo === "instrutor" ? "#f3e8ff" : m.tipo === "motorista" ? "#e0f2fe" : "#eff6ff";
+        const cor = m.tipo === "instrutor" ? "#7c3aed" : m.tipo === "motorista" ? "#0891b2" : "#1B3F7A";
+        const borda = m.tipo === "instrutor" ? "#e9d5ff" : m.tipo === "motorista" ? "#bae6fd" : "#1B3F7A33";
+        const ico = m.tipo === "instrutor" ? "👨‍🏫" : m.tipo === "motorista" ? "🚗" : "👤";
+        return <div key={i} style={{ background: bg, borderRadius: 10, padding: "6px 14px", fontSize: 13, color: cor, fontWeight: 600, border: `1px solid ${borda}` }}>{ico} {m.nome}</div>;
+      })}
+    </div>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#E8EDF2", fontFamily: "'Montserrat', sans-serif" }}>
@@ -73,32 +128,22 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
         @media print {
           .no-print { display: none !important; }
           body { background: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          .print-area { padding: 0 !important; background: #fff !important; margin: 0 !important; max-width: 100% !important; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          @page { margin: 12mm; }
-          .page-break { page-break-before: always; }
+          .print-area { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
         }
       `}</style>
 
-      {/* HEADER - no print */}
-      <div className="no-print" style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "20px 24px 28px" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-            <div onClick={onBack} style={{ width: 38, height: 38, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 18 }}>←</div>
-            <div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, letterSpacing: 3 }}>TCEDUC · VIAGEM</div>
-              <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>📄 Relatório de Viagem</div>
-            </div>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-              {["resumido", "completo"].map(t => (
-                <div key={t} onClick={() => setTipo(t)} style={{ background: tipo === t ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)", border: `1px solid ${tipo === t ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)"}`, borderRadius: 12, padding: "8px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
-                  {t === "resumido" ? "📋 Resumido" : "📑 Completo"}
-                </div>
-              ))}
-              <div onClick={gerarPDF} style={{ background: "#E8730A", borderRadius: 12, padding: "8px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                🖨️ Gerar PDF
+      {/* CONTROLES */}
+      <div className="no-print" style={{ background: "linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding: "16px 24px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div onClick={onBack} style={{ width: 36, height: 36, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 16 }}>←</div>
+          <div style={{ flex: 1, color: "#fff", fontWeight: 700, fontSize: 15 }}>{viagem.titulo} — Relatório</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["resumido", "completo"].map(t => (
+              <div key={t} onClick={() => setTipo(t)} style={{ background: tipo === t ? "#fff" : "rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 16px", cursor: "pointer", color: tipo === t ? "#1B3F7A" : "#fff", fontWeight: 700, fontSize: 13 }}>
+                {t === "resumido" ? "📋 Resumido" : "📑 Completo"}
               </div>
-            </div>
+            ))}
+            <div onClick={() => window.print()} style={{ background: "#E8730A", borderRadius: 10, padding: "8px 16px", cursor: "pointer", color: "#fff", fontWeight: 700, fontSize: 13 }}>🖨️ PDF</div>
           </div>
         </div>
       </div>
@@ -106,89 +151,69 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
       {/* ÁREA DE IMPRESSÃO */}
       <div className="print-area" style={{ maxWidth: 900, margin: "32px auto", padding: "0 24px 80px" }}>
 
-        {/* ===== CABEÇALHO DO RELATÓRIO ===== */}
+        {/* CABEÇALHO */}
         <div style={{ background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 4px 24px rgba(27,63,122,0.1)", marginBottom: 24 }}>
           <div style={{ background: "#1B3F7A", padding: "32px 40px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 3, marginBottom: 6, fontWeight: 700 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
+                <div style={{ color: "#fff", fontSize: 11, letterSpacing: 3, marginBottom: 6, fontWeight: 700 }}>INSTITUTO PLÁCIDO CASTELO — TCEDUC</div>
                 <div style={{ color: "#fff", fontWeight: 900, fontSize: 28, letterSpacing: -1 }}>IPC<span style={{ color: "#E8730A" }}>gov</span></div>
-                <div style={{ color: "#ffffff", fontSize: 14, marginTop: 4, fontWeight: 600 }}>
-                  Relatório de Viagem — {tipo === "resumido" ? "Resumido" : "Completo"}
-                </div>
+                <div style={{ color: "#fff", fontSize: 14, marginTop: 4, fontWeight: 600 }}>Relatório de Viagem — {tipo === "resumido" ? "Resumido" : "Completo"}</div>
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ background: STATUS_COR[viagem.status] || "#1B3F7A", borderRadius: 10, padding: "5px 14px", color: "#fff", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{viagem.status || "—"}</div>
-                <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 600 }}>Gerado em {formatDateTime()}</div>
+                <div style={{ background: STATUS_COR[viagem.status] || "#888", borderRadius: 10, padding: "5px 14px", color: "#fff", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{viagem.status || "—"}</div>
+                <div style={{ color: "#fff", fontSize: 11, fontWeight: 600 }}>Gerado em {formatDateTime()}</div>
               </div>
             </div>
             <div style={{ marginTop: 24, borderTop: "1px solid #2d5a9e", paddingTop: 18 }}>
-              <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 2, fontWeight: 700 }}>VIAGEM</div>
+              <div style={{ color: "#fff", fontSize: 11, letterSpacing: 2, fontWeight: 700 }}>VIAGEM</div>
               <div style={{ color: "#fff", fontWeight: 900, fontSize: 32, letterSpacing: -1, marginTop: 4 }}>{viagem.titulo}</div>
-              <div style={{ color: "#ffffff", fontSize: 14, marginTop: 6, fontWeight: 600 }}>
+              <div style={{ color: "#fff", fontSize: 14, marginTop: 6, fontWeight: 600 }}>
                 📅 {formatDate(viagem.dataInicio)}{viagem.dataFim ? ` → ${formatDate(viagem.dataFim)}` : ""}
                 {" · "}📍 {eventosVinculados.length} município{eventosVinculados.length !== 1 ? "s" : ""}
               </div>
             </div>
           </div>
 
-          {/* CARDS ESTATÍSTICAS */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", background: "#f8f9fb", borderTop: "1px solid #e8edf2" }}>
+          {/* CARDS ESTATÍSTICAS — 8 cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: "#f8f9fb", borderTop: "1px solid #e8edf2" }}>
             {[
               { label: "Municípios", value: eventosVinculados.length, icon: "📍", cor: "#1B3F7A" },
-              { label: "Total Capacitados", value: totalParticipantes, icon: "👥", cor: "#059669" },
-              { label: "Ocorr. Eventos", value: totalOcorrencias, icon: "⚠️", cor: "#E8730A" },
+              { label: "Capacitados", value: totalParticipantes, icon: "👥", cor: "#059669" },
+              { label: "Ocorr. Eventos", value: totalOcEventos, icon: "⚠️", cor: "#E8730A" },
               { label: "Ocorr. Viagem", value: totalOcViagem, icon: "🚌", cor: "#7c3aed" },
+              { label: "Hospedagens", value: totalHospedagens, icon: "🏨", cor: "#0891b2" },
+              { label: "Horários", value: totalHorarios, icon: "🕐", cor: "#059669" },
+              { label: "Contatos", value: totalContatos, icon: "📞", cor: "#1B3F7A" },
+              { label: "Agenda", value: totalAgenda, icon: "📅", cor: "#7c3aed" },
             ].map((s, i) => (
-              <div key={i} style={{ padding: "20px 16px", textAlign: "center", borderRight: i < 3 ? "1px solid #e8edf2" : "none" }}>
-                <div style={{ fontSize: 24, marginBottom: 4 }}>{s.icon}</div>
-                <div style={{ fontWeight: 900, fontSize: 24, color: s.cor }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2, fontWeight: 600 }}>{s.label}</div>
+              <div key={i} style={{ padding: "16px 12px", textAlign: "center", borderRight: i % 4 < 3 ? "1px solid #e8edf2" : "none", borderBottom: i < 4 ? "1px solid #e8edf2" : "none" }}>
+                <div style={{ fontSize: 20, marginBottom: 3 }}>{s.icon}</div>
+                <div style={{ fontWeight: 900, fontSize: 22, color: s.cor }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: "#888", marginTop: 2, fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ===== RELATÓRIO RESUMIDO ===== */}
+        {/* ==================== RESUMIDO ==================== */}
         {tipo === "resumido" && (
           <>
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />
-                  Equipe da Viagem
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viagem.equipe.map((chave, i) => {
-                    const m = resolveMembroNome(chave);
-                    const bg = m.tipo === "instrutor" ? "#f3e8ff" : m.tipo === "motorista" ? "#e0f2fe" : "#eff6ff";
-                    const cor = m.tipo === "instrutor" ? "#7c3aed" : m.tipo === "motorista" ? "#0891b2" : "#1B3F7A";
-                    const borda = m.tipo === "instrutor" ? "#e9d5ff" : m.tipo === "motorista" ? "#bae6fd" : "#1B3F7A33";
-                    const icone = m.tipo === "instrutor" ? "👨‍🏫" : m.tipo === "motorista" ? "🚗" : "👤";
-                    return (
-                      <div key={i} style={{ background: bg, borderRadius: 10, padding: "6px 14px", fontSize: 13, color: cor, fontWeight: 600, border: `1px solid ${borda}` }}>
-                        {icone} {m.nome}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
             )}
 
-            {/* TABELA MUNICÍPIOS */}
-            <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />
-                Municípios da Viagem ({eventosVinculados.length})
-              </div>
+            {/* MUNICÍPIOS */}
+            <div style={card}>
+              <div style={sec()}>📍 Municípios da Viagem ({eventosVinculados.length})</div>
               {eventosVinculados.length === 0 ? (
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
                     {["Município/Região", "Data", "Capacitados", "Ocorrências"].map(h => (
-                      <div key={h} style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                      <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
@@ -202,56 +227,36 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                       </div>
                     );
                   })}
-                  {/* Totais */}
                   <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
                     <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL</div>
                     <div />
                     <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalParticipantes}</div>
-                    <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalOcorrencias}</div>
+                    <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalOcEventos}</div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* PARTICIPANTES POR CURSO */}
+            {/* CAPACITADOS POR AÇÃO */}
             {acoesOrdenadas.length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />
-                  Capacitados por Ação Educacional
-                </div>
+              <div style={card}>
+                <div style={{ ...sec(), ...{ color: "#059669" } }}>📚 Capacitados por Ação Educacional</div>
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#059669", padding: "12px 18px" }}>
-                    <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Ação Educacional</div>
-                    <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Total</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", background: "#059669", padding: "12px 18px" }}>
+                    {["Ação Educacional", "Total", "%"].map(h => <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>)}
                   </div>
-                  {acoesOrdenadas.map(([nome, total], i) => (
-                    <div key={nome} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 18px", borderBottom: i < acoesOrdenadas.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{nome}</div>
-                      <div style={{ fontWeight: 900, fontSize: 15, color: "#059669" }}>{total}</div>
-                    </div>
-                  ))}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "13px 18px", background: "#E8730A" }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL GERAL</div>
-                    <div style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>{totalParticipantes}</div>
-                  </div>
-                </div>
-
-                {/* GRÁFICO DE BARRAS SIMPLES */}
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>📊 Distribuição por Curso</div>
                   {acoesOrdenadas.map(([nome, total], i) => {
                     const pct = totalParticipantes > 0 ? Math.round((total / totalParticipantes) * 100) : 0;
                     const cores = ["#1B3F7A", "#059669", "#E8730A", "#7c3aed", "#0891b2", "#dc2626"];
-                    const cor = cores[i % cores.length];
                     return (
-                      <div key={nome} style={{ marginBottom: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <div style={{ fontSize: 12, color: "#333", fontWeight: 600 }}>{nome}</div>
-                          <div style={{ fontSize: 12, color: "#555", fontWeight: 700 }}>{total} ({pct}%)</div>
+                      <div key={nome} style={{ padding: "12px 18px", borderBottom: i < acoesOrdenadas.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", marginBottom: 6 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{nome}</div>
+                          <div style={{ fontWeight: 800, fontSize: 13, color: "#059669", paddingRight: 16 }}>{total}</div>
+                          <div style={{ fontSize: 12, color: "#888" }}>{pct}%</div>
                         </div>
-                        <div style={{ height: 8, background: "#e8edf2", borderRadius: 4 }}>
-                          <div style={{ height: 8, background: cor, borderRadius: 4, width: `${pct}%`, transition: "width .3s" }} />
+                        <div style={{ height: 4, background: "#e8edf2", borderRadius: 2 }}>
+                          <div style={{ height: 4, background: cores[i % cores.length], borderRadius: 2, width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -260,241 +265,360 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               </div>
             )}
 
-            {/* OCORRÊNCIAS DE VIAGEM RESUMO */}
-            {(viagem.ocorrencias || []).length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#E8730A", borderRadius: 2 }} />
-                  Ocorrências de Viagem ({viagem.ocorrencias.length})
+            {/* LOGÍSTICA — RESUMO */}
+            {(totalHospedagens + totalHorarios + totalContatos + totalAlimentacao + totalAgenda) > 0 && (
+              <div style={card}>
+                <div style={sec("#2a5ba8")}>🗺️ Logística de Viagem — Resumo</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                  {[
+                    { icon: "🏨", label: "Hospedagens", val: totalHospedagens, cor: "#0891b2" },
+                    { icon: "🕐", label: "Horários", val: totalHorarios, cor: "#059669" },
+                    { icon: "📞", label: "Contatos", val: totalContatos, cor: "#1B3F7A" },
+                    { icon: "🍽️", label: "Restaurantes", val: totalAlimentacao, cor: "#E8730A" },
+                    { icon: "📅", label: "Agendas", val: totalAgenda, cor: "#7c3aed" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ textAlign: "center", background: "#f8f9fb", borderRadius: 12, padding: "14px 8px", border: `1px solid ${s.cor}22` }}>
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
+                      <div style={{ fontWeight: 900, fontSize: 20, color: s.cor }}>{s.val}</div>
+                      <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{s.label}</div>
+                    </div>
+                  ))}
                 </div>
-                {/* Agrupado por tipo */}
-                {Object.entries(
-                  viagem.ocorrencias.reduce((acc, oc) => { acc[oc.tipo] = (acc[oc.tipo] || 0) + 1; return acc; }, {})
-                ).map(([tipo, count]) => (
-                  <div key={tipo} style={{ display: "flex", justifyContent: "space-between", padding: "8px 14px", background: "#f8f9fb", borderRadius: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>{TIPO_OC[tipo] || tipo}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#E8730A" }}>{count}</span>
-                  </div>
-                ))}
+                {/* Hospedagem total financeiro se houver */}
+                {totalHospedagens > 0 && (() => {
+                  const totalH = (viagem.hospedagens || []).reduce((s, h) => s + (parseFloat(h.valorDiaria || 0) * parseInt(h.qtdDiaria || 0)), 0);
+                  return totalH > 0 ? (
+                    <div style={{ marginTop: 12, background: "#e0f2fe", borderRadius: 10, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#0891b2" }}>💰 Total estimado hospedagens</span>
+                      <span style={{ fontSize: 15, fontWeight: 900, color: "#0891b2" }}>R$ {totalH.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* OCORRÊNCIAS VIAGEM — resumo por tipo */}
+            {totalOcViagem > 0 && (
+              <div style={card}>
+                <div style={sec("#E8730A")}>⚠️ Ocorrências de Viagem ({totalOcViagem})</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
+                  {Object.entries(ocPorTipo).map(([tipo_oc, qtd]) => (
+                    <div key={tipo_oc} style={{ textAlign: "center", background: "#fff3e0", borderRadius: 10, padding: "10px 6px", border: "1px solid #fed7aa" }}>
+                      <div style={{ fontSize: 18, marginBottom: 3 }}>{TIPO_OC[tipo_oc]?.split(" ")[0] || "📌"}</div>
+                      <div style={{ fontWeight: 900, fontSize: 18, color: "#E8730A" }}>{qtd}</div>
+                      <div style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{TIPO_OC_SHORT[tipo_oc] || tipo_oc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* LIÇÕES APRENDIDAS — resumo */}
+            {viagem.licoesAprendidas && (
+              <div style={card}>
+                <div style={sec("#059669")}>✅ Lições Aprendidas</div>
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
           </>
         )}
 
-        {/* ===== RELATÓRIO COMPLETO ===== */}
+        {/* ==================== COMPLETO ==================== */}
         {tipo === "completo" && (
           <>
-            {/* CHECKLIST LOGÍSTICA */}
-            <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />
-                Logística Antes da Viagem
-              </div>
+            {/* CHECKLIST */}
+            <div style={card}>
+              <div style={sec()}>📋 Logística Antes da Viagem ({checkFeitos}/{todosItensChecklist.length})</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[...Object.keys(viagem.checklist || {})].map((item, i) => {
-                  const val = (viagem.checklist || {})[item] || {};
+                {todosItensChecklist.map((item, i) => {
+                  const v = viagem.checklist?.[item] || {};
                   return (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: val.feito ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, border: `1px solid ${val.feito ? "#059669" : "#b0b8c8"}` }}>
-                      <div style={{ width: 20, height: 20, borderRadius: 6, background: val.feito ? "#059669" : "#e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, background: v.feito ? "#e8f5e9" : "#f8f9fb", borderRadius: 10, padding: "10px 14px", border: `1px solid ${v.feito ? "#c8e6c9" : "#e8edf2"}` }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 6, background: v.feito ? "#059669" : "#ddd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", flexShrink: 0, marginTop: 1 }}>{v.feito ? "✓" : ""}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 500, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
-                        {val.responsavel && <div style={{ fontSize: 10, color: "#666" }}>👤 {val.responsavel}</div>}
-                        {val.dataLimite && <div style={{ fontSize: 10, color: "#666" }}>📅 {formatDate(val.dataLimite)}</div>}
+                        <div style={{ fontSize: 13, color: v.feito ? "#059669" : "#333", fontWeight: v.feito ? 600 : 400, textDecoration: v.feito ? "line-through" : "none" }}>{item}</div>
+                        {v.responsavel && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>👤 {v.responsavel}</div>}
+                        {v.dataLimite && <div style={{ fontSize: 11, color: "#888" }}>📅 {formatDate(v.dataLimite)}</div>}
+                        {(v.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {v.ocorrencias.length} ocorrência{v.ocorrencias.length !== 1 ? "s" : ""}</div>}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+              <div style={{ marginTop: 12, height: 5, background: "#e8edf2", borderRadius: 3 }}>
+                <div style={{ height: 5, background: checkFeitos === todosItensChecklist.length ? "#059669" : "#1B3F7A", borderRadius: 3, width: `${todosItensChecklist.length > 0 ? Math.round((checkFeitos / todosItensChecklist.length) * 100) : 0}%` }} />
               </div>
             </div>
 
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} /> Equipe da Viagem
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {viagem.equipe.map((chave, i) => {
-                    const m = resolveMembroNome(chave);
-                    const bg = m.tipo === "instrutor" ? "#f3e8ff" : m.tipo === "motorista" ? "#e0f2fe" : "#eff6ff";
-                    const cor = m.tipo === "instrutor" ? "#7c3aed" : m.tipo === "motorista" ? "#0891b2" : "#1B3F7A";
-                    const borda = m.tipo === "instrutor" ? "#e9d5ff" : m.tipo === "motorista" ? "#bae6fd" : "#1B3F7A33";
-                    const icone = m.tipo === "instrutor" ? "👨‍🏫" : m.tipo === "motorista" ? "🚗" : "👤";
-                    return (
-                      <div key={i} style={{ background: bg, borderRadius: 10, padding: "6px 14px", fontSize: 13, color: cor, fontWeight: 600, border: `1px solid ${borda}` }}>
-                        {icone} {m.nome}
+              <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
+            )}
+
+            {/* HOSPEDAGEM */}
+            {(viagem.hospedagens || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#0891b2")}>🏨 Hospedagem</div>
+                {(viagem.hospedagens || []).map((h, i) => (
+                  <div key={i} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 18px", marginBottom: 10, border: "1px solid #e0f2fe" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: "#0891b2" }}>🏨 {h.nome}</div>
+                        <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+                          📍 {h.municipio}{h.tipoQuarto ? ` · ${h.tipoQuarto}` : ""}
+                        </div>
                       </div>
-                    );
-                  })}
+                      {h.valorDiaria && (
+                        <div style={{ textAlign: "right", background: "#e0f2fe", borderRadius: 8, padding: "6px 12px" }}>
+                          <div style={{ fontSize: 11, color: "#0891b2", fontWeight: 600 }}>R$ {h.valorDiaria} × {h.qtdDiaria} diárias</div>
+                          <div style={{ fontWeight: 900, fontSize: 15, color: "#0891b2" }}>R$ {(parseFloat(h.valorDiaria||0)*parseInt(h.qtdDiaria||0)).toFixed(2)}</div>
+                        </div>
+                      )}
+                    </div>
+                    {h.infoPagamento && (
+                      <div style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#555", border: "1px solid #bae6fd", marginTop: 8 }}>
+                        <span style={{ fontWeight: 700, color: "#0891b2" }}>Pagamento: </span>{h.infoPagamento}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Total hospedagem */}
+                {(() => {
+                  const total = (viagem.hospedagens || []).reduce((s, h) => s + (parseFloat(h.valorDiaria||0)*parseInt(h.qtdDiaria||0)), 0);
+                  return total > 0 ? (
+                    <div style={{ background: "#0891b2", borderRadius: 10, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>💰 Total estimado</span>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>R$ {total.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* HORÁRIOS */}
+            {horariosOrdenados.length > 0 && (
+              <div style={card}>
+                <div style={sec("#059669")}>🕐 Horários de Deslocamento</div>
+                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 1fr 1fr", background: "#059669", padding: "12px 18px" }}>
+                    {["Data", "Hora", "Origem", "Destino"].map(h => <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>)}
+                  </div>
+                  {horariosOrdenados.map((h, i) => (
+                    <div key={i}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 1fr 1fr", padding: "12px 18px", borderBottom: "1px solid #f0f0f0", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A" }}>{formatDate(h.data)}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "#E8730A" }}>{h.hora}</div>
+                        <div style={{ fontSize: 13, color: "#333" }}>{h.origem}</div>
+                        <div style={{ fontSize: 13, color: "#333" }}>{h.destino}</div>
+                      </div>
+                      {h.extra && (
+                        <div style={{ padding: "6px 18px 10px", background: i % 2 === 0 ? "#fff" : "#f8f9fb", borderBottom: i < horariosOrdenados.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                          <div style={{ fontSize: 11, color: "#888", background: "#f0f4ff", borderRadius: 6, padding: "4px 10px", display: "inline-block" }}>{h.extra}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* DETALHAMENTO POR MUNICÍPIO */}
-            {eventosVinculados.map((ev, idx) => {
-              const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
-              return (
-                <div key={ev.id} className={idx > 0 ? "page-break" : ""} style={{ background: "#fff", borderRadius: 20, overflow: "hidden", marginBottom: 24, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                  {/* Header município */}
-                  <div style={{ background: "#1B3F7A", padding: "20px 32px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ color: "#a8bdd8", fontSize: 10, letterSpacing: 2, fontWeight: 700 }}>EVENTO {idx + 1} / {eventosVinculados.length}</div>
-                        <div style={{ color: "#fff", fontWeight: 900, fontSize: 24, marginTop: 4 }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
-                        <div style={{ color: "#d0e0f0", fontSize: 13, marginTop: 4, fontWeight: 600 }}>📅 {formatDate(ev.data)}{ev.local ? ` · 📍 ${ev.local}` : ""}</div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ color: "#fff", fontWeight: 900, fontSize: 36 }}>{cap}</div>
-                        <div style={{ color: "#a8bdd8", fontSize: 11, fontWeight: 600 }}>capacitados</div>
-                      </div>
+            {/* CONTATOS */}
+            {(viagem.contatos || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#1B3F7A")}>📞 Contatos Importantes</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
+                  {(viagem.contatos || []).map((c, i) => (
+                    <div key={i} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 16px", border: "1px solid #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 8 }}>👤 {c.nome}</div>
+                      {c.whatsapp && (
+                        <a href={`https://wa.me/55${c.whatsapp.replace(/\D/g,"")}`} target="_blank" rel="noreferrer"
+                          style={{ ...tag("#dcfce7", "#16a34a"), marginBottom: 6, display: "inline-flex" }}>
+                          💬 {fmtWhats(c.whatsapp)}
+                        </a>
+                      )}
+                      {c.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 6, lineHeight: 1.5 }}>{c.extra}</div>}
                     </div>
-                  </div>
-
-                  <div style={{ padding: "20px 32px" }}>
-                    {/* Ações educacionais */}
-                    {(ev.acoesEducacionais || []).length > 0 && (
-                      <div style={{ marginBottom: 20 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 10 }}>Ações Educacionais</div>
-                        <div style={{ border: "1px solid #e8edf2", borderRadius: 12, overflow: "hidden" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#1B3F7A", padding: "10px 16px" }}>
-                            <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Curso</div>
-                            <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Participantes</div>
-                          </div>
-                          {ev.acoesEducacionais.map((a, i) => (
-                            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "10px 16px", borderBottom: i < ev.acoesEducacionais.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.acaoNome || a.nome || "—"}</div>
-                              <div style={{ fontWeight: 900, fontSize: 14, color: "#1B3F7A" }}>{a.participantes || 0}</div>
-                            </div>
-                          ))}
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "11px 16px", background: "#E8730A" }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>TOTAL</div>
-                            <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{cap}</div>
-                          </div>
-                        </div>
-
-                        {/* Mini gráfico de barras */}
-                        <div style={{ marginTop: 12 }}>
-                          {ev.acoesEducacionais.map((a, i) => {
-                            const pct = cap > 0 ? Math.round(((parseInt(a.participantes) || 0) / cap) * 100) : 0;
-                            const cores = ["#1B3F7A", "#059669", "#E8730A", "#7c3aed"];
-                            return (
-                              <div key={i} style={{ marginBottom: 6 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
-                                  <div style={{ fontSize: 11, color: "#555" }}>{a.acaoNome || a.nome || "—"}</div>
-                                  <div style={{ fontSize: 11, color: "#555", fontWeight: 700 }}>{pct}%</div>
-                                </div>
-                                <div style={{ height: 6, background: "#e8edf2", borderRadius: 3 }}>
-                                  <div style={{ height: 6, background: cores[i % cores.length], borderRadius: 3, width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Ocorrências do evento */}
-                    {(ev.ocorrencias || []).length > 0 && (
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#E8730A", marginBottom: 10 }}>⚠️ Ocorrências ({ev.ocorrencias.length})</div>
-                        {ev.ocorrencias.map((oc, i) => {
-                          const TIPO_LBL = { inscricao: "Inscrição/Frequência", equipamento: "Equipamentos/Material", logistica: "Logística/Local/Transporte" };
-                          return (
-                            <div key={i} style={{ background: "#fff3e0", borderRadius: 10, padding: "10px 14px", marginBottom: 8, borderLeft: "3px solid #E8730A" }}>
-                              <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                                <span style={{ background: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A", border: "1px solid #E8730A" }}>{TIPO_LBL[oc.tipo] || oc.tipo}</span>
-                                {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
-                                <span style={{ background: oc.status === "Resolvido" ? "#e8f5e9" : "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: oc.status === "Resolvido" ? "#059669" : "#E8730A", border: `1px solid ${oc.status === "Resolvido" ? "#059669" : "#E8730A"}` }}>{oc.status || "Pendente"}</span>
-                              </div>
-                              {oc.nome && <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>👤 {oc.nome}{oc.cpf ? ` · CPF: ${oc.cpf}` : ""}{oc.email ? ` · ${oc.email}` : ""}</div>}
-                              <div style={{ fontSize: 12, color: "#333" }}>{oc.descricao}</div>
-                              {oc.resposta && (
-                                <div style={{ marginTop: 6, background: "#e8f5e9", borderRadius: 8, padding: "8px 10px", borderLeft: "2px solid #059669" }}>
-                                  <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 2 }}>✅ Resposta: {oc.respondidoPor}</div>
-                                  <div style={{ fontSize: 12, color: "#333" }}>{oc.resposta}</div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            )}
 
-            {/* OCORRÊNCIAS DE VIAGEM DETALHADAS */}
-            {(viagem.ocorrencias || []).length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#E8730A", borderRadius: 2 }} />
-                  Ocorrências de Viagem ({viagem.ocorrencias.length})
-                </div>
-                {viagem.ocorrencias.map((oc, i) => (
-                  <div key={i} style={{ background: "#f8f9fb", borderRadius: 12, padding: "12px 16px", marginBottom: 10, borderLeft: "3px solid #E8730A" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A" }}>{TIPO_OC[oc.tipo] || oc.tipo}</span>
-                      <span style={{ fontSize: 10, color: "#888" }}>{oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</span>
+            {/* ALIMENTAÇÃO */}
+            {(viagem.alimentacao || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#E8730A")}>🍽️ Locais de Alimentação</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                  {(viagem.alimentacao || []).map((a, i) => (
+                    <div key={i} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 16px", border: "1px solid #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#E8730A", marginBottom: 8 }}>🍽️ {a.nome}</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                        {a.endereco && (
+                          <a href={`https://waze.com/ul?q=${encodeURIComponent(a.endereco)}`} target="_blank" rel="noreferrer"
+                            style={{ ...tag("#dbeafe", "#1d4ed8") }}>
+                            📍 {a.endereco}
+                          </a>
+                        )}
+                        {a.whatsapp && (
+                          <a href={`https://wa.me/55${a.whatsapp.replace(/\D/g,"")}`} target="_blank" rel="noreferrer"
+                            style={{ ...tag("#dcfce7", "#16a34a") }}>
+                            💬 {fmtWhats(a.whatsapp)}
+                          </a>
+                        )}
+                      </div>
+                      {a.extra && <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>{a.extra}</div>}
                     </div>
-                    <div style={{ fontSize: 13, color: "#333", marginBottom: 4 }}>{oc.descricao}</div>
-                    <div style={{ fontSize: 10, color: "#888" }}>Registrado por: {oc.autorEmail}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AGENDA */}
+            {agendaOrdenada.length > 0 && (
+              <div style={card}>
+                <div style={sec("#7c3aed")}>📅 Agenda da Viagem</div>
+                {agendaOrdenada.map((a, i) => (
+                  <div key={i} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 18px", marginBottom: 10, border: "1px solid #e8edf2", borderLeft: "4px solid #7c3aed" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                      <span style={{ background: "#7c3aed", color: "#fff", borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>{formatDate(a.data)}</span>
+                      {a.hora && <span style={{ background: "#E8730A", color: "#fff", borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 700 }}>{a.hora}</span>}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 6 }}>{a.descricao}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {a.destino && <span style={{ fontSize: 12, color: "#555", background: "#fff", borderRadius: 6, padding: "3px 10px", border: "1px solid #e8edf2" }}>📍 {a.destino}</span>}
+                      {a.motorista && (
+                        <span style={{ fontSize: 12, color: "#0891b2", background: "#e0f2fe", borderRadius: 6, padding: "3px 10px", fontWeight: 700 }}>
+                          🚗 {resolveMembroNome(a.motorista).nome}
+                        </span>
+                      )}
+                      {(a.pessoas || []).map((p, j) => (
+                        <span key={j} style={{ fontSize: 12, color: "#1B3F7A", background: "#eff6ff", borderRadius: 6, padding: "3px 10px", fontWeight: 600 }}>
+                          👤 {resolveMembroNome(p).nome}
+                        </span>
+                      ))}
+                    </div>
+                    {a.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 8, background: "#fff", borderRadius: 8, padding: "6px 12px", border: "1px solid #e8edf2" }}>{a.extra}</div>}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* CONSOLIDADO GERAL */}
-            {acoesOrdenadas.length > 0 && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: "24px 32px", marginBottom: 20, boxShadow: "0 2px 12px rgba(27,63,122,0.07)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />
-                  Consolidado — Capacitados por Ação Educacional
-                </div>
-                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", background: "#059669", padding: "12px 18px" }}>
-                    <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Ação Educacional</div>
-                    <div style={{ color: "#ffffff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>Total</div>
+            {/* DETALHAMENTO POR MUNICÍPIO */}
+            <div style={{ background: "#fff", borderRadius: 20, overflow: "hidden", boxShadow: "0 2px 12px rgba(27,63,122,0.07)", marginBottom: 20 }}>
+              <div style={{ background: "#059669", padding: "18px 32px" }}>
+                <div style={{ color: "#fff", fontWeight: 900, fontSize: 18 }}>📍 Detalhamento por Município</div>
+                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 2 }}>{eventosVinculados.length} municípios · {totalParticipantes} capacitados</div>
+              </div>
+              {eventosVinculados.map((ev, idx) => {
+                const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+                return (
+                  <div key={ev.id} style={{ padding: "24px 32px", borderBottom: idx < eventosVinculados.length - 1 ? "2px solid #e8edf2" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                      <div>
+                        <div style={{ fontWeight: 900, fontSize: 18, color: "#1B3F7A" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
+                        <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local ? ` · 📍 ${ev.local}` : ""}</div>
+                        <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>{ev.status}</div>
+                      </div>
+                      <div style={{ background: "#059669", borderRadius: 12, padding: "8px 16px", textAlign: "center" }}>
+                        <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>{cap}</div>
+                        <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>capacitados</div>
+                      </div>
+                    </div>
+                    {/* Ações educacionais */}
+                    {(ev.acoesEducacionais || []).length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Ações Educacionais</div>
+                        {(ev.acoesEducacionais || []).map((a, j) => {
+                          const pct = cap > 0 ? Math.round(((parseInt(a.participantes)||0) / cap) * 100) : 0;
+                          const cores = ["#1B3F7A", "#059669", "#E8730A", "#7c3aed"];
+                          return (
+                            <div key={j} style={{ marginBottom: 10 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                <span style={{ fontSize: 13, color: "#333" }}>{a.acaoNome || a.nome || "—"}</span>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "#1B3F7A" }}>{a.participantes || 0} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: 5, background: "#e8edf2", borderRadius: 3 }}>
+                                <div style={{ height: 5, background: cores[j % cores.length], borderRadius: 3, width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {/* Ocorrências do evento */}
+                    {(ev.ocorrencias || []).length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#E8730A", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>⚠️ Ocorrências do Evento ({ev.ocorrencias.length})</div>
+                        {(ev.ocorrencias || []).map((oc, j) => (
+                          <div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, border: "1px solid #fed7aa" }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 3 }}>
+                              <span style={{ background: "#E8730A", color: "#fff", borderRadius: 4, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>{oc.tipo || "Outro"}</span>
+                              <span style={{ fontSize: 10, color: "#aaa" }}>{oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#333" }}>{oc.descricao || oc.texto}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {acoesOrdenadas.map(([nome, total], i) => (
-                    <div key={nome} style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "12px 18px", borderBottom: i < acoesOrdenadas.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{nome}</div>
-                      <div style={{ fontWeight: 900, fontSize: 15, color: "#059669" }}>{total}</div>
+                );
+              })}
+            </div>
+
+            {/* OCORRÊNCIAS DE VIAGEM — detalhadas */}
+            {(viagem.ocorrencias || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#E8730A")}>⚠️ Ocorrências de Viagem ({viagem.ocorrencias.length})</div>
+                {/* Resumo por tipo */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                  {Object.entries(ocPorTipo).map(([tp, qtd]) => (
+                    <div key={tp} style={{ background: "#fff3e0", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: "#E8730A", border: "1px solid #fed7aa" }}>
+                      {TIPO_OC[tp] || tp} ({qtd})
                     </div>
                   ))}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", padding: "13px 18px", background: "#E8730A" }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL GERAL</div>
-                    <div style={{ fontWeight: 900, fontSize: 18, color: "#fff" }}>{totalParticipantes}</div>
-                  </div>
                 </div>
-                {/* Gráfico comparativo */}
-                <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 10 }}>📊 Gráfico Comparativo</div>
-                {acoesOrdenadas.map(([nome, total], i) => {
-                  const max = acoesOrdenadas[0]?.[1] || 1;
-                  const pct = Math.round((total / max) * 100);
-                  const cores = ["#1B3F7A", "#059669", "#E8730A", "#7c3aed", "#0891b2", "#dc2626"];
-                  return (
-                    <div key={nome} style={{ marginBottom: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <div style={{ fontSize: 12, color: "#333", fontWeight: 600 }}>{nome}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#555" }}>{total}</div>
-                      </div>
-                      <div style={{ height: 10, background: "#e8edf2", borderRadius: 5 }}>
-                        <div style={{ height: 10, background: cores[i % cores.length], borderRadius: 5, width: `${pct}%` }} />
-                      </div>
+                {/* Lista completa */}
+                {(viagem.ocorrencias || []).map((oc, i) => (
+                  <div key={oc.id || i} style={{ background: "#f8f9fb", borderRadius: 12, padding: "12px 16px", marginBottom: 8, borderLeft: "4px solid #E8730A" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700, color: "#E8730A" }}>{TIPO_OC[oc.tipo] || oc.tipo}</span>
+                      <span style={{ fontSize: 11, color: "#aaa" }}>{oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</span>
                     </div>
-                  );
-                })}
+                    <div style={{ fontSize: 13, color: "#333", background: "#fff", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>{oc.descricao}</div>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>Por: {oc.autorEmail}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CONSOLIDADO FINAL */}
+            <div style={{ background: "#1B3F7A", borderRadius: 20, padding: "24px 32px", marginBottom: 20 }}>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 16, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 4, height: 20, background: "#E8730A", borderRadius: 2 }} />📊 Consolidado Geral
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                {[
+                  { label: "Municípios atendidos", value: eventosVinculados.length, cor: "#93c5fd" },
+                  { label: "Total capacitados", value: totalParticipantes, cor: "#6ee7b7" },
+                  { label: "Ocorr. registradas", value: totalOcEventos + totalOcViagem, cor: "#fcd34d" },
+                  { label: "Logística checklist", value: `${checkFeitos}/${todosItensChecklist.length}`, cor: "#c4b5fd" },
+                ].map((s, i) => (
+                  <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 8px" }}>
+                    <div style={{ fontWeight: 900, fontSize: 26, color: s.cor }}>{s.value}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: 600 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* LIÇÕES APRENDIDAS */}
+            {viagem.licoesAprendidas && (
+              <div style={card}>
+                <div style={sec("#059669")}>✅ Pós Viagem — Lições Aprendidas</div>
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
           </>
         )}
-
-        {/* RODAPÉ */}
-        <div style={{ background: "#fff", borderRadius: 16, padding: "16px 24px", display: "flex", justifyContent: "space-between", boxShadow: "0 2px 8px rgba(27,63,122,0.06)" }}>
-          <div style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>IPCgov — Instituto Plácido Castelo · TCEduc</div>
-          <div style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>Relatório gerado em {formatDateTime()}</div>
-        </div>
       </div>
     </div>
   );
