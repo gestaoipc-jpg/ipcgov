@@ -16,6 +16,23 @@ function calcStatus(dataInicio, dataFim) {
   if (fim && hoje > fim) return "Concluída";
   return "Em Execução";
 }
+function gerarDatasNoPeriodo(dataInicio, dataFim) {
+  if (!dataInicio) return [];
+  const datas = [];
+  const ini = new Date(dataInicio + "T00:00:00");
+  const fim = dataFim ? new Date(dataFim + "T00:00:00") : ini;
+  const cur = new Date(ini);
+  while (cur <= fim) {
+    datas.push(cur.toISOString().split("T")[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return datas;
+}
+function fmtWhats(num) {
+  const d = (num || "").replace(/\D/g, "");
+  if (d.length >= 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+  return num;
+}
 
 const CHECKLIST_VIAGEM_ITENS = [
   "Solicitar viagem",
@@ -24,17 +41,29 @@ const CHECKLIST_VIAGEM_ITENS = [
   "Organizar material e equipamentos",
   "Reunião de alinhamento",
 ];
-
 const STATUS_COR = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
 
-const inputStyle = {
+const inp = {
   width: "100%", background: "#f8f9fb", border: "1px solid #e8edf2",
-  borderRadius: 12, padding: "12px 14px", fontSize: 14, color: "#1B3F7A",
+  borderRadius: 12, padding: "10px 14px", fontSize: 14, color: "#1B3F7A",
   outline: "none", fontFamily: "'Montserrat', sans-serif",
 };
-const labelStyle = {
+const lbl = {
   display: "block", color: "#888", fontSize: 11, letterSpacing: 1,
-  textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
+  textTransform: "uppercase", marginBottom: 5, fontWeight: 600,
+};
+const cardItem = {
+  background: "#f8f9fb", borderRadius: 14, padding: "14px 16px",
+  marginBottom: 10, border: "1px solid #e8edf2",
+};
+const btnAdd = {
+  background: "#1B3F7A", border: "none", borderRadius: 10, padding: "8px 16px",
+  color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer",
+  fontFamily: "'Montserrat', sans-serif", whiteSpace: "nowrap",
+};
+const btnDel = {
+  background: "none", border: "none", color: "#dc2626", fontSize: 20,
+  cursor: "pointer", padding: "0 4px", lineHeight: 1, flexShrink: 0,
 };
 
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, podeEditar }) {
@@ -42,170 +71,76 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
-  const [ocorrencias, setOcorrencias] = useState([]);
-  const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
   const [itemAberto, setItemAberto] = useState(null);
   const [novaOcItem, setNovaOcItem] = useState("");
-  const [blocoAtivo, setBlocoAtivo] = useState(null); // null | "checklist" | "ocorrencias" | "municipios"
+  // Logística de Viagem
+  const [hospedagens, setHospedagens] = useState([]);
+  const [horarios, setHorarios] = useState([]);
+  const [contatos, setContatos] = useState([]);
+  const [alimentacao, setAlimentacao] = useState([]);
+  const [agenda, setAgenda] = useState([]);
+  const [novaHosp, setNovaHosp] = useState({ municipio: "", nome: "", tipoQuarto: "", valorDiaria: "", qtdDiaria: "", infoPagamento: "" });
+  const [novoHor, setNovoHor] = useState({ data: "", hora: "", origem: "", destino: "", extra: "" });
+  const [novoContato, setNovoContato] = useState({ nome: "", whatsapp: "", extra: "" });
+  const [novoAlim, setNovoAlim] = useState({ nome: "", endereco: "", whatsapp: "", extra: "" });
+  const [novaAgenda, setNovaAgenda] = useState({ data: "", hora: "", descricao: "", destino: "", motorista: "", pessoas: [], extra: "" });
+  const [subBloco, setSubBloco] = useState(null);
+  // Ocorrências
+  const [ocorrencias, setOcorrencias] = useState([]);
+  const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
+  // Pós Viagem
+  const [licoesAprendidas, setLicoesAprendidas] = useState("");
+  // UI
+  const [blocoAtivo, setBlocoAtivo] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [modoEdicao, setModoEdicao] = useState(!viagem);
-  const [menuEvento, setMenuEvento] = useState(null); // id do evento com menu aberto
+  const [menuEvento, setMenuEvento] = useState(null);
 
   const isAdmin = ["gestaoipc@tce.ce.gov.br", "fabricio@tce.ce.gov.br"].includes(user?.email);
-  const isAdmTCEduc = (() => {
-    // verificado no pai, mas redundância
-    return isAdmin;
-  })();
 
-  // Membros selecionáveis: servidores + usuários + instrutores + motoristas (deduplica por email/id)
   const todosOsMembros = (() => {
     const mapa = {};
-    (servidores || []).forEach(s => {
-      if (s.email) mapa[s.email] = { id: s.id, nome: s.nome || s.email, email: s.email, tipo: "servidor" };
-    });
-    (usuarios || []).forEach(u => {
-      if (u.email && !mapa[u.email]) mapa[u.email] = { id: u.id, nome: u.nome || u.email, email: u.email, tipo: "usuario" };
-    });
-    // Instrutores — usa id como chave pois podem não ter email
-    (instrutores || []).forEach(i => {
-      const chave = i.email || ("inst_" + i.id);
-      if (!mapa[chave]) mapa[chave] = { id: i.id, nome: i.nome || i.email || "Instrutor", email: chave, tipo: "instrutor" };
-    });
-    // Motoristas — idem
-    (motoristas || []).forEach(m => {
-      const chave = m.email || ("mot_" + m.id);
-      if (!mapa[chave]) mapa[chave] = { id: m.id, nome: m.nome || m.email || "Motorista", email: chave, tipo: "motorista" };
-    });
+    (servidores || []).forEach(s => { if (s.email) mapa[s.email] = { id: s.id, nome: s.nome || s.email, email: s.email, tipo: "servidor" }; });
+    (usuarios || []).forEach(u => { if (u.email && !mapa[u.email]) mapa[u.email] = { id: u.id, nome: u.nome || u.email, email: u.email, tipo: "usuario" }; });
+    (instrutores || []).forEach(i => { const k = i.email || ("inst_" + i.id); if (!mapa[k]) mapa[k] = { id: i.id, nome: i.nome || i.email || "Instrutor", email: k, tipo: "instrutor" }; });
+    (motoristas || []).forEach(m => { const k = m.email || ("mot_" + m.id); if (!mapa[k]) mapa[k] = { id: m.id, nome: m.nome || m.email || "Motorista", email: k, tipo: "motorista" }; });
     return Object.values(mapa).sort((a, b) => {
-      // Ordenar por tipo: servidor/usuario, depois instrutor, depois motorista
-      const ordem = { servidor: 0, usuario: 0, instrutor: 1, motorista: 2 };
-      const diff = (ordem[a.tipo] || 0) - (ordem[b.tipo] || 0);
-      if (diff !== 0) return diff;
-      return (a.nome || "").localeCompare(b.nome || "");
+      const ord = { servidor: 0, usuario: 0, instrutor: 1, motorista: 2 };
+      const d = (ord[a.tipo] || 0) - (ord[b.tipo] || 0);
+      return d !== 0 ? d : (a.nome || "").localeCompare(b.nome || "");
     });
   })();
-
-  // Eventos disponíveis para vincular (municipais e regionais)
+  const apenasMotoristas = todosOsMembros.filter(m => m.tipo === "motorista");
   const eventosDisponiveis = (eventos || []).filter(e => e.tipo === "Municipal" || e.tipo === "Regional");
+  const datasNoPeriodo = gerarDatasNoPeriodo(form.dataInicio, form.dataFim);
 
   useEffect(() => {
     if (viagem) {
-      setForm({
-        titulo: viagem.titulo || "",
-        dataInicio: viagem.dataInicio || "",
-        dataFim: viagem.dataFim || "",
-        municipiosIds: viagem.municipiosIds || [],
-        equipe: viagem.equipe || [],
-      });
+      setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", municipiosIds: viagem.municipiosIds || [], equipe: viagem.equipe || [] });
       setChecklist(viagem.checklist || {});
       setItensCustom(viagem.itensCustom || []);
       setOcorrencias(viagem.ocorrencias || []);
+      setHospedagens(viagem.hospedagens || []);
+      setHorarios(viagem.horarios || []);
+      setContatos(viagem.contatos || []);
+      setAlimentacao(viagem.alimentacao || []);
+      setAgenda(viagem.agenda || []);
+      setLicoesAprendidas(viagem.licoesAprendidas || "");
     }
   }, [viagem]);
 
   const status = calcStatus(form.dataInicio, form.dataFim);
-
-  // ---- CHECKLIST ----
   const todosItens = [...CHECKLIST_VIAGEM_ITENS, ...itensCustom];
+  const eventosVinculados = eventosDisponiveis.filter(e => form.municipiosIds.includes(e.id));
 
-  const toggleCheck = (item) => {
-    setChecklist(c => ({ ...c, [item]: { ...c[item], feito: !c[item]?.feito } }));
-  };
-  const setItemResponsavel = (item, val) => setChecklist(c => ({ ...c, [item]: { ...c[item], responsavel: val } }));
-  const setItemDataLimite = (item, val) => setChecklist(c => ({ ...c, [item]: { ...c[item], dataLimite: val } }));
-
+  const toggleCheck = (item) => setChecklist(c => ({ ...c, [item]: { ...c[item], feito: !c[item]?.feito } }));
+  const setItemResp = (item, v) => setChecklist(c => ({ ...c, [item]: { ...c[item], responsavel: v } }));
+  const setItemData = (item, v) => setChecklist(c => ({ ...c, [item]: { ...c[item], dataLimite: v } }));
   const adicionarOcItem = (item) => {
     if (!novaOcItem.trim()) return;
     const ocs = checklist[item]?.ocorrencias || [];
     setChecklist(c => ({ ...c, [item]: { ...c[item], ocorrencias: [...ocs, { texto: novaOcItem.trim(), data: new Date().toISOString(), autor: user?.email || "sistema" }] } }));
     setNovaOcItem("");
-  };
-
-  const adicionarItemCustom = () => {
-    if (!novoItem.trim()) return;
-    setItensCustom(prev => [...prev, novoItem.trim()]);
-    setChecklist(c => ({ ...c, [novoItem.trim()]: {} }));
-    setNovoItem("");
-  };
-
-  const removerItemCustom = (item) => {
-    setItensCustom(prev => prev.filter(i => i !== item));
-    setChecklist(c => { const n = { ...c }; delete n[item]; return n; });
-  };
-
-  // ---- OCORRÊNCIAS DE VIAGEM ----
-  const adicionarOcorrencia = () => {
-    if (!novaOc.descricao.trim()) return;
-    const oc = {
-      id: Date.now().toString(),
-      tipo: novaOc.tipo,
-      descricao: novaOc.descricao.trim(),
-      autorEmail: user?.email || "sistema",
-      autorNome: user?.displayName || user?.email || "sistema",
-      data: new Date().toISOString(),
-    };
-    setOcorrencias(prev => [...prev, oc]);
-    setNovaOc({ tipo: "transporte", descricao: "" });
-  };
-
-  const excluirOcorrencia = (id) => {
-    const oc = ocorrencias.find(o => o.id === id);
-    if (!oc) return;
-    const isCriador = oc.autorEmail === user?.email;
-    if (!isAdmin && !isCriador) { alert("Apenas o criador ou administrador pode excluir."); return; }
-    if (!window.confirm("Excluir esta ocorrência?")) return;
-    setOcorrencias(prev => prev.filter(o => o.id !== id));
-  };
-
-  // ---- SALVAR ----
-  const salvar = async () => {
-    if (!form.titulo.trim()) { alert("Informe o título da viagem."); return; }
-    setSalvando(true);
-    const dados = {
-      titulo: form.titulo.trim(),
-      dataInicio: form.dataInicio,
-      dataFim: form.dataFim,
-      municipiosIds: form.municipiosIds,
-      equipe: form.equipe,
-      checklist,
-      itensCustom,
-      ocorrencias,
-      status,
-      atualizadoEm: new Date().toISOString(),
-    };
-    try {
-      if (viagem?.id) {
-        await updateDoc(doc(db, "tceduc_viagens", viagem.id), dados);
-        onSaved({ ...viagem, ...dados });
-      } else {
-        dados.criadoEm = new Date().toISOString();
-        dados.criadoPor = user?.email || "";
-        const ref = await addDoc(collection(db, "tceduc_viagens"), dados);
-        onSaved({ id: ref.id, ...dados });
-      }
-      setModoEdicao(false);
-    } catch (e) { console.error(e); alert("Erro ao salvar."); }
-    setSalvando(false);
-  };
-
-  // ---- TOGGLE MUNICÍPIO ----
-  const toggleMunicipio = (id) => {
-    setForm(f => ({
-      ...f,
-      municipiosIds: f.municipiosIds.includes(id)
-        ? f.municipiosIds.filter(x => x !== id)
-        : [...f.municipiosIds, id],
-    }));
-  };
-
-  // ---- TOGGLE MEMBRO EQUIPE ----
-  const toggleMembro = (email) => {
-    setForm(f => ({
-      ...f,
-      equipe: f.equipe.includes(email)
-        ? f.equipe.filter(x => x !== email)
-        : [...f.equipe, email],
-    }));
   };
 
   const progChecklist = () => {
@@ -216,10 +151,96 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  // Eventos vinculados
-  const eventosVinculados = eventosDisponiveis.filter(e => form.municipiosIds.includes(e.id));
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, atualizadoEm: new Date().toISOString() });
+
+  const salvarBloco = async () => {
+    if (!viagem?.id) return;
+    setSalvando(true);
+    try {
+      const dados = todosOsDados();
+      await updateDoc(doc(db, "tceduc_viagens", viagem.id), dados);
+      onSaved({ ...viagem, ...dados });
+    } catch (e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const salvar = async () => {
+    if (!form.titulo.trim()) { alert("Informe o título da viagem."); return; }
+    setSalvando(true);
+    const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, municipiosIds: form.municipiosIds, equipe: form.equipe, status, ...todosOsDados() };
+    try {
+      if (viagem?.id) { await updateDoc(doc(db, "tceduc_viagens", viagem.id), dados); onSaved({ ...viagem, ...dados }); }
+      else { dados.criadoEm = new Date().toISOString(); dados.criadoPor = user?.email || ""; const ref = await addDoc(collection(db, "tceduc_viagens"), dados); onSaved({ id: ref.id, ...dados }); }
+      setModoEdicao(false);
+    } catch (e) { console.error(e); alert("Erro ao salvar."); }
+    setSalvando(false);
+  };
+
+  const toggleMunicipio = (id) => setForm(f => ({ ...f, municipiosIds: f.municipiosIds.includes(id) ? f.municipiosIds.filter(x => x !== id) : [...f.municipiosIds, id] }));
+  const toggleMembro = (email) => setForm(f => ({ ...f, equipe: f.equipe.includes(email) ? f.equipe.filter(x => x !== email) : [...f.equipe, email] }));
+  const excluirOcorrencia = (id) => {
+    const oc = ocorrencias.find(o => o.id === id);
+    if (!oc || (!isAdmin && oc.autorEmail !== user?.email)) { alert("Sem permissão para excluir."); return; }
+    if (!window.confirm("Excluir esta ocorrência?")) return;
+    setOcorrencias(p => p.filter(o => o.id !== id));
+  };
+  const resolveMembro = (chave) => {
+    if (!chave) return "—";
+    if (chave.startsWith("inst_")) { const m = (instrutores||[]).find(x=>x.id===chave.replace("inst_","")); return m?.nome || chave; }
+    if (chave.startsWith("mot_")) { const m = (motoristas||[]).find(x=>x.id===chave.replace("mot_","")); return m?.nome || chave; }
+    return todosOsMembros.find(x => x.email === chave)?.nome || chave;
+  };
 
   const TIPO_OC = { transporte: "🚌 Transporte", hotel: "🏨 Hotel/Hospedagem", alimentacao: "🍽️ Alimentação", outro: "📌 Outro" };
+
+  const BtnSalvar = () => (
+    <button onClick={salvarBloco} disabled={salvando} style={{ width: "100%", marginTop: 16, background: salvando ? "#ccc" : "linear-gradient(135deg,#1B3F7A,#2a5ba8)", border: "none", borderRadius: 12, padding: 13, color: "#fff", fontWeight: 700, fontSize: 14, cursor: salvando ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif" }}>
+      {salvando ? "Salvando..." : "💾 Salvar"}
+    </button>
+  );
+
+  const renderCheckItem = (item, isCustom = false) => {
+    const val = checklist[item] || {};
+    const venceEm = val.dataLimite ? Math.ceil((new Date(val.dataLimite) - new Date()) / 86400000) : null;
+    const atrasado = venceEm !== null && venceEm < 0 && !val.feito;
+    const urgente = venceEm !== null && venceEm <= 2 && venceEm >= 0 && !val.feito;
+    return (
+      <div key={item} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => toggleCheck(item)}>
+          <div style={{ width: 24, height: 24, borderRadius: 8, background: val.feito ? "#059669" : "#fff", border: `2px solid ${val.feito ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</span>
+              {isCustom && <span style={{ background: "#eff6ff", borderRadius: 5, padding: "1px 6px", fontSize: 10, color: "#1B3F7A", fontWeight: 700 }}>custom</span>}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+              {val.responsavel && <span style={{ fontSize: 11, color: "#888" }}>👤 {val.responsavel}</span>}
+              {val.dataLimite && <span style={{ fontSize: 11, color: atrasado ? "#dc2626" : urgente ? "#E8730A" : "#888", fontWeight: atrasado || urgente ? 700 : 400 }}>📅 {formatDate(val.dataLimite)}{atrasado ? " ⚠️ ATRASADO" : urgente ? ` ⏰ ${venceEm === 0 ? "HOJE" : `${venceEm}d`}` : ""}</span>}
+              {(val.ocorrencias || []).length > 0 && <span style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {val.ocorrencias.length} ocorrência{val.ocorrencias.length !== 1 ? "s" : ""}</span>}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {isCustom && <button style={{ ...btnDel, fontSize: 15 }} onClick={e => { e.stopPropagation(); setItensCustom(p => p.filter(x => x !== item)); setChecklist(c => { const n = { ...c }; delete n[item]; return n; }); }}>🗑</button>}
+            <div onClick={e => { e.stopPropagation(); setItemAberto(itemAberto === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
+          </div>
+        </div>
+        {itemAberto === item && (
+          <div style={{ padding: "0 16px 14px", borderTop: "1px solid #e8edf2" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12, marginBottom: 12 }}>
+              <div><label style={lbl}>Responsável</label><select value={val.responsavel || ""} onChange={e => setItemResp(item, e.target.value)} style={{ ...inp, padding: "8px 12px" }}><option value="">Selecione...</option>{todosOsMembros.map(m => <option key={m.email} value={m.email}>{m.nome}</option>)}</select></div>
+              <div><label style={lbl}>Data Limite</label><input type="date" value={val.dataLimite || ""} onChange={e => setItemData(item, e.target.value)} style={{ ...inp, padding: "8px 12px" }} /></div>
+            </div>
+            <label style={lbl}>Ocorrências do item</label>
+            {(val.ocorrencias || []).map((oc, j) => (<div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, fontSize: 12, color: "#333", borderLeft: "3px solid #E8730A" }}><div style={{ color: "#aaa", fontSize: 10, marginBottom: 2 }}>{new Date(oc.data).toLocaleString("pt-BR")} · {oc.autor}</div>{oc.texto}</div>))}
+            <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+              <input value={novaOcItem} onChange={e => setNovaOcItem(e.target.value)} placeholder="Registrar ocorrência neste item..." style={{ ...inp, flex: 1, padding: "8px 12px" }} />
+              <div onClick={() => adicionarOcItem(item)} style={{ background: "#E8730A", borderRadius: 10, padding: "8px 14px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#E8EDF2", fontFamily: "'Montserrat', sans-serif" }} onClick={() => menuEvento && setMenuEvento(null)}>
@@ -232,18 +253,10 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
             <div onClick={onBack} style={{ width: 38, height: 38, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 18 }}>←</div>
             <div style={{ flex: 1 }}>
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, letterSpacing: 3, textTransform: "uppercase" }}>TCEduc</div>
-              <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>
-                {viagem ? (form.titulo || "Viagem") : "Nova Viagem"}
-              </div>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>{viagem ? (form.titulo || "Viagem") : "Nova Viagem"}</div>
             </div>
-            {viagem && (
-              <div style={{ background: STATUS_COR[status], borderRadius: 10, padding: "5px 14px", color: "#fff", fontWeight: 700, fontSize: 12 }}>
-                {status}
-              </div>
-            )}
+            {viagem && <div style={{ background: STATUS_COR[status], borderRadius: 10, padding: "5px 14px", color: "#fff", fontWeight: 700, fontSize: 12 }}>{status}</div>}
           </div>
-
-          {/* Datas e municípios summary */}
           {viagem && !modoEdicao && (
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
               {form.dataInicio && <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>📅 {formatDate(form.dataInicio)}{form.dataFim ? ` → ${formatDate(form.dataFim)}` : ""}</div>}
@@ -256,412 +269,432 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 20px 80px" }}>
 
-        {/* MODO EDIÇÃO - FORM */}
+        {/* ===== MODO EDIÇÃO ===== */}
         {modoEdicao && (
           <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
             <div style={{ fontWeight: 800, fontSize: 16, color: "#1B3F7A", marginBottom: 20 }}>✏️ {viagem ? "Editar Viagem" : "Criar Viagem"}</div>
-
-            {/* Título + Datas */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Título da Viagem *</label>
-              <input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: TCEduc Municipal 1" style={inputStyle} />
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Título *</label><input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: TCEduc Municipal 1" style={inp} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+              <div><label style={lbl}>Início</label><input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} style={inp} /></div>
+              <div><label style={lbl}>Fim</label><input type="date" value={form.dataFim} onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))} style={inp} /></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>Data de Início</label>
-                <input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Data de Fim</label>
-                <input type="date" value={form.dataFim} onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))} style={inputStyle} />
-              </div>
-            </div>
-
-            {/* Preview status */}
-            {form.dataInicio && (
-              <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ background: STATUS_COR[status] + "20", border: `1px solid ${STATUS_COR[status]}`, borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: STATUS_COR[status] }}>
-                  Status previsto: {status}
-                </div>
-              </div>
-            )}
-
-            {/* Equipe */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Equipe da Viagem ({form.equipe.length} selecionados)</label>
-              <div style={{ background: "#f8f9fb", borderRadius: 12, padding: 12, maxHeight: 200, overflowY: "auto", border: "1px solid #e8edf2" }}>
+            {form.dataInicio && <div style={{ marginBottom: 14 }}><span style={{ background: (STATUS_COR[status]||"#888")+"22", border:`1px solid ${STATUS_COR[status]||"#888"}`, borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: STATUS_COR[status]||"#888" }}>Status previsto: {status}</span></div>}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Equipe ({form.equipe.length} selecionados)</label>
+              <div style={{ background: "#f8f9fb", borderRadius: 12, padding: 10, maxHeight: 180, overflowY: "auto", border: "1px solid #e8edf2" }}>
                 {todosOsMembros.map(m => (
-                  <div key={m.email} onClick={() => toggleMembro(m.email)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: form.equipe.includes(m.email) ? "#eff6ff" : "transparent", marginBottom: 2 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: 5, background: form.equipe.includes(m.email) ? "#1B3F7A" : "#fff", border: `2px solid ${form.equipe.includes(m.email) ? "#1B3F7A" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, flexShrink: 0 }}>
-                      {form.equipe.includes(m.email) ? "✓" : ""}
-                    </div>
+                  <div key={m.email} onClick={() => toggleMembro(m.email)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: form.equipe.includes(m.email) ? "#eff6ff" : "transparent", marginBottom: 2 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, background: form.equipe.includes(m.email) ? "#1B3F7A" : "#fff", border: `2px solid ${form.equipe.includes(m.email) ? "#1B3F7A" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, flexShrink: 0 }}>{form.equipe.includes(m.email) ? "✓" : ""}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{m.nome}</div>
-                      <div style={{ fontSize: 11, color: "#888" }}>{m.email}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{m.nome}</span>
+                        {m.tipo === "instrutor" && <span style={{ background: "#f3e8ff", borderRadius: 4, padding: "1px 5px", fontSize: 10, color: "#7c3aed", fontWeight: 700 }}>Instrutor</span>}
+                        {m.tipo === "motorista" && <span style={{ background: "#e0f2fe", borderRadius: 4, padding: "1px 5px", fontSize: 10, color: "#0891b2", fontWeight: 700 }}>Motorista</span>}
+                      </div>
+                      {m.email && !m.email.startsWith("inst_") && !m.email.startsWith("mot_") && <div style={{ fontSize: 11, color: "#888" }}>{m.email}</div>}
                     </div>
                   </div>
                 ))}
-                {todosOsMembros.length === 0 && <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: 12 }}>Nenhum membro disponível</div>}
+                {todosOsMembros.length === 0 && <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: 10 }}>Nenhum membro disponível</div>}
               </div>
             </div>
-
-            {/* Municípios / Eventos */}
             <div style={{ marginBottom: 20 }}>
-              <label style={labelStyle}>Eventos / Municípios da Viagem ({form.municipiosIds.length} selecionados)</label>
-              <div style={{ background: "#f8f9fb", borderRadius: 12, padding: 12, maxHeight: 220, overflowY: "auto", border: "1px solid #e8edf2" }}>
-                {eventosDisponiveis.length === 0 && <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: 12 }}>Nenhum evento cadastrado</div>}
+              <label style={lbl}>Municípios / Eventos ({form.municipiosIds.length} selecionados)</label>
+              <div style={{ background: "#f8f9fb", borderRadius: 12, padding: 10, maxHeight: 200, overflowY: "auto", border: "1px solid #e8edf2" }}>
+                {eventosDisponiveis.length === 0 && <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: 10 }}>Nenhum evento cadastrado</div>}
                 {eventosDisponiveis.map(ev => (
-                  <div key={ev.id} onClick={() => toggleMunicipio(ev.id)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, cursor: "pointer", background: form.municipiosIds.includes(ev.id) ? "#eff6ff" : "transparent", marginBottom: 2 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: 5, background: form.municipiosIds.includes(ev.id) ? "#1B3F7A" : "#fff", border: `2px solid ${form.municipiosIds.includes(ev.id) ? "#1B3F7A" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, flexShrink: 0 }}>
-                      {form.municipiosIds.includes(ev.id) ? "✓" : ""}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
-                      <div style={{ fontSize: 11, color: "#888" }}>{ev.tipo} · {formatDate(ev.data)} · {ev.status}</div>
-                    </div>
+                  <div key={ev.id} onClick={() => toggleMunicipio(ev.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: form.municipiosIds.includes(ev.id) ? "#eff6ff" : "transparent", marginBottom: 2 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, background: form.municipiosIds.includes(ev.id) ? "#1B3F7A" : "#fff", border: `2px solid ${form.municipiosIds.includes(ev.id) ? "#1B3F7A" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, flexShrink: 0 }}>{form.municipiosIds.includes(ev.id) ? "✓" : ""}</div>
+                    <div><div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div><div style={{ fontSize: 11, color: "#888" }}>{ev.tipo} · {formatDate(ev.data)} · {ev.status}</div></div>
                   </div>
                 ))}
               </div>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={salvar} disabled={salvando || !form.titulo.trim()} style={{ flex: 1, background: salvando || !form.titulo.trim() ? "#ccc" : "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 12, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: salvando || !form.titulo.trim() ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif" }}>
-                {salvando ? "Salvando..." : "💾 Salvar Viagem"}
-              </button>
+              <button onClick={salvar} disabled={salvando || !form.titulo.trim()} style={{ flex: 1, background: salvando || !form.titulo.trim() ? "#ccc" : "linear-gradient(135deg,#1B3F7A,#2a5ba8)", border: "none", borderRadius: 12, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>{salvando ? "Salvando..." : "💾 Salvar Viagem"}</button>
               {viagem && <button onClick={() => setModoEdicao(false)} style={{ background: "#f0f4ff", border: "none", borderRadius: 12, padding: "14px 20px", color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>Cancelar</button>}
             </div>
           </div>
         )}
 
-        {/* MODO VISUALIZAÇÃO */}
+        {/* ===== MODO VISUALIZAÇÃO ===== */}
         {!modoEdicao && viagem && (
           <>
-            {/* CARDS DE BLOCOS */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+            {/* CARDS BLOCOS — grid 3+2 */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
               {[
-                { id: "checklist", icon: "📋", label: "Logística Antes da Viagem", sub: `${prog.done}/${prog.total} — ${prog.pct}%`, color: "#1B3F7A" },
-                { id: "ocorrencias", icon: "⚠️", label: "Ocorrências de Viagem", sub: `${ocorrencias.length} registradas`, color: "#E8730A" },
-                { id: "municipios", icon: "📍", label: "Municípios / Eventos", sub: `${eventosVinculados.length} vinculados`, color: "#059669" },
+                { id: "checklist", icon: "📋", label: "Logística Antes", sub: `${prog.done}/${prog.total} — ${prog.pct}%`, color: "#1B3F7A", prog: true },
+                { id: "logviagem",  icon: "🗺️", label: "Logística de Viagem", sub: `${hospedagens.length + horarios.length + contatos.length + alimentacao.length + agenda.length} itens`, color: "#2a5ba8" },
+                { id: "ocorrencias", icon: "⚠️", label: "Ocorrências", sub: `${ocorrencias.length} registradas`, color: "#E8730A" },
               ].map(b => (
-                <div key={b.id} onClick={() => setBlocoAtivo(blocoAtivo === b.id ? null : b.id)}
-                  style={{ background: blocoAtivo === b.id ? "#fff" : "#f8f9fb", borderRadius: 16, padding: 16, cursor: "pointer", border: `2px solid ${blocoAtivo === b.id ? b.color : "transparent"}`, transition: "all .15s" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: b.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 8 }}>{b.icon}</div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 2 }}>{b.label}</div>
+                <div key={b.id} onClick={() => setBlocoAtivo(blocoAtivo === b.id ? null : b.id)} style={{ background: blocoAtivo === b.id ? "#fff" : "#f8f9fb", borderRadius: 16, padding: 14, cursor: "pointer", border: `2px solid ${blocoAtivo === b.id ? b.color : "transparent"}`, transition: "all .15s" }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 11, background: b.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 7 }}>{b.icon}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: "#1B3F7A", marginBottom: 2 }}>{b.label}</div>
                   <div style={{ fontSize: 11, color: "#888" }}>{b.sub}</div>
-                  {b.id === "checklist" && (
-                    <div style={{ marginTop: 8, height: 3, background: "#e8edf2", borderRadius: 3 }}>
-                      <div style={{ height: 3, background: prog.pct === 100 ? "#059669" : "#1B3F7A", borderRadius: 3, width: `${prog.pct}%` }} />
-                    </div>
-                  )}
+                  {b.prog && <div style={{ marginTop: 7, height: 3, background: "#e8edf2", borderRadius: 3 }}><div style={{ height: 3, background: prog.pct === 100 ? "#059669" : b.color, borderRadius: 3, width: `${prog.pct}%` }} /></div>}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {[
+                { id: "municipios", icon: "📍", label: "Municípios / Eventos", sub: `${eventosVinculados.length} vinculados`, color: "#059669" },
+                { id: "posviagem", icon: "✅", label: "Pós Viagem", sub: licoesAprendidas ? "Lições registradas" : "Sem registros", color: "#059669" },
+              ].map(b => (
+                <div key={b.id} onClick={() => setBlocoAtivo(blocoAtivo === b.id ? null : b.id)} style={{ background: blocoAtivo === b.id ? "#fff" : "#f8f9fb", borderRadius: 16, padding: 14, cursor: "pointer", border: `2px solid ${blocoAtivo === b.id ? b.color : "transparent"}`, transition: "all .15s" }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 11, background: b.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 7 }}>{b.icon}</div>
+                  <div style={{ fontWeight: 700, fontSize: 12, color: "#1B3F7A", marginBottom: 2 }}>{b.label}</div>
+                  <div style={{ fontSize: 11, color: "#888" }}>{b.sub}</div>
                 </div>
               ))}
             </div>
 
-            {/* ---- BLOCO CHECKLIST ---- */}
+            {/* ===== BLOCO CHECKLIST ANTES ===== */}
             {blocoAtivo === "checklist" && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16 }}>📋 Logística Antes da Viagem</div>
-                {todosItens.map((item, i) => {
-                  const val = checklist[item] || {};
-                  const venceEm = val.dataLimite ? Math.ceil((new Date(val.dataLimite) - new Date()) / 86400000) : null;
-                  const atrasado = venceEm !== null && venceEm < 0 && !val.feito;
-                  const urgente = venceEm !== null && venceEm <= 2 && venceEm >= 0 && !val.feito;
-                  const isCustom = itensCustom.includes(item);
-                  return (
-                    <div key={i} style={{ background: val.feito ? "#e8f5e9" : atrasado ? "#fee2e2" : urgente ? "#fff3e0" : "#f8f9fb", borderRadius: 14, marginBottom: 10, border: `1px solid ${val.feito ? "#c8e6c9" : atrasado ? "#fecaca" : urgente ? "#fed7aa" : "#e8edf2"}`, overflow: "hidden" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }} onClick={() => toggleCheck(item)}>
-                        <div style={{ width: 24, height: 24, borderRadius: 8, background: val.feito ? "#059669" : "#fff", border: `2px solid ${val.feito ? "#059669" : "#ddd"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#fff", flexShrink: 0 }}>{val.feito ? "✓" : ""}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div style={{ fontSize: 14, color: val.feito ? "#059669" : "#333", fontWeight: val.feito ? 600 : 400, textDecoration: val.feito ? "line-through" : "none" }}>{item}</div>
-                            {isCustom && <span style={{ background: "#eff6ff", borderRadius: 5, padding: "1px 6px", fontSize: 10, color: "#1B3F7A", fontWeight: 700 }}>custom</span>}
-                          </div>
-                          <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-                            {val.responsavel && <div style={{ fontSize: 11, color: "#888" }}>👤 {val.responsavel}</div>}
-                            {val.dataLimite && <div style={{ fontSize: 11, color: atrasado ? "#dc2626" : urgente ? "#E8730A" : "#888", fontWeight: atrasado || urgente ? 700 : 400 }}>📅 {formatDate(val.dataLimite)}{atrasado ? " ⚠️ ATRASADO" : urgente ? ` ⏰ ${venceEm === 0 ? "HOJE" : `${venceEm}d`}` : ""}</div>}
-                            {(val.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {val.ocorrencias.length} ocorrência{val.ocorrencias.length !== 1 ? "s" : ""}</div>}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          {isCustom && <div onClick={e => { e.stopPropagation(); removerItemCustom(item); }} style={{ fontSize: 14, color: "#dc2626", cursor: "pointer", padding: "4px 6px" }}>🗑</div>}
-                          <div onClick={e => { e.stopPropagation(); setItemAberto(itemAberto === item ? null : item); }} style={{ fontSize: 16, color: "#aaa", cursor: "pointer", padding: "4px 8px" }}>⋮</div>
-                        </div>
-                      </div>
-                      {itemAberto === item && (
-                        <div style={{ padding: "0 16px 14px", borderTop: "1px solid #e8edf2" }} onClick={e => e.stopPropagation()}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12, marginBottom: 12 }}>
-                            <div>
-                              <label style={labelStyle}>Responsável</label>
-                              <select value={val.responsavel || ""} onChange={e => setItemResponsavel(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }}>
-                                <option value="">Selecione...</option>
-                                {todosOsMembros.map(m => <option key={m.email} value={m.email}>{m.nome}</option>)}
-                              </select>
-                            </div>
-                            <div>
-                              <label style={labelStyle}>Data Limite</label>
-                              <input type="date" value={val.dataLimite || ""} onChange={e => setItemDataLimite(item, e.target.value)} style={{ ...inputStyle, padding: "8px 12px" }} />
-                            </div>
-                          </div>
-                          <label style={labelStyle}>Ocorrências do item</label>
-                          {(val.ocorrencias || []).map((oc, j) => (
-                            <div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, fontSize: 12, color: "#333", borderLeft: "3px solid #E8730A" }}>
-                              <div style={{ color: "#aaa", fontSize: 10, marginBottom: 2 }}>{new Date(oc.data).toLocaleString("pt-BR")} · {oc.autor}</div>
-                              {oc.texto}
-                            </div>
-                          ))}
-                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                            <input value={novaOcItem} onChange={e => setNovaOcItem(e.target.value)} placeholder="Registrar ocorrência neste item..." style={{ ...inputStyle, flex: 1, padding: "8px 12px" }} />
-                            <div onClick={() => adicionarOcItem(item)} style={{ background: "#E8730A", borderRadius: 10, padding: "8px 14px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>+ Add</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Adicionar item customizado */}
-                <div style={{ marginTop: 16, background: "#f0f4ff", borderRadius: 12, padding: 14, border: "2px dashed #1B3F7A33" }}>
-                  <label style={labelStyle}>Adicionar item personalizado</label>
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />📋 Logística Antes da Viagem</div>
+                {todosItens.map(item => renderCheckItem(item, itensCustom.includes(item)))}
+                <div style={{ marginTop: 14, background: "#f0f4ff", borderRadius: 12, padding: 14, border: "2px dashed #1B3F7A33" }}>
+                  <label style={lbl}>Adicionar item personalizado</label>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <input value={novoItem} onChange={e => setNovoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && adicionarItemCustom()} placeholder="Nome do novo item..." style={{ ...inputStyle, flex: 1, padding: "8px 12px" }} />
-                    <button onClick={adicionarItemCustom} disabled={!novoItem.trim()} style={{ background: novoItem.trim() ? "#1B3F7A" : "#ccc", border: "none", borderRadius: 10, padding: "8px 16px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: novoItem.trim() ? "pointer" : "not-allowed", fontFamily: "'Montserrat', sans-serif" }}>+ Adicionar</button>
+                    <input value={novoItem} onChange={e => setNovoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && novoItem.trim() && (setItensCustom(p => [...p, novoItem.trim()]), setNovoItem(""))} placeholder="Nome do novo item..." style={{ ...inp, flex: 1, padding: "8px 12px" }} />
+                    <button onClick={() => { if (novoItem.trim()) { setItensCustom(p => [...p, novoItem.trim()]); setNovoItem(""); } }} disabled={!novoItem.trim()} style={{ ...btnAdd, background: novoItem.trim() ? "#1B3F7A" : "#ccc" }}>+ Add</button>
                   </div>
                 </div>
-
-                <button onClick={async () => {
-                  setSalvando(true);
-                  try {
-                    await updateDoc(doc(db, "tceduc_viagens", viagem.id), { checklist, itensCustom, atualizadoEm: new Date().toISOString() });
-                    onSaved({ ...viagem, checklist, itensCustom });
-                  } catch (e) { console.error(e); }
-                  setSalvando(false);
-                }} style={{ width: "100%", marginTop: 16, background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 12, padding: 13, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>
-                  {salvando ? "Salvando..." : "💾 Salvar Checklist"}
-                </button>
+                <BtnSalvar />
               </div>
             )}
 
-            {/* ---- BLOCO OCORRÊNCIAS ---- */}
-            {blocoAtivo === "ocorrencias" && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16 }}>⚠️ Ocorrências de Viagem</div>
+            {/* ===== BLOCO LOGÍSTICA DE VIAGEM ===== */}
+            {blocoAtivo === "logviagem" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#2a5ba8", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#2a5ba8", borderRadius: 2 }} />🗺️ Logística de Viagem</div>
 
-                {/* Form nova ocorrência */}
-                <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, marginBottom: 20, border: "1px solid #e8edf2" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-                    <div>
-                      <label style={labelStyle}>Tipo</label>
-                      <select value={novaOc.tipo} onChange={e => setNovaOc(o => ({ ...o, tipo: e.target.value }))} style={inputStyle}>
-                        <option value="transporte">🚌 Transporte</option>
-                        <option value="hotel">🏨 Hotel/Hospedagem</option>
-                        <option value="alimentacao">🍽️ Alimentação</option>
-                        <option value="outro">📌 Outro</option>
-                      </select>
+                {/* ABAS INTERNAS */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                  {[
+                    { id: "hosp",    icon: "🏨", label: "Hospedagem",  count: hospedagens.length },
+                    { id: "hor",     icon: "🕐", label: "Horários",    count: horarios.length },
+                    { id: "contato", icon: "📞", label: "Contatos",    count: contatos.length },
+                    { id: "alim",    icon: "🍽️", label: "Alimentação", count: alimentacao.length },
+                    { id: "agenda",  icon: "📅", label: "Agenda",      count: agenda.length },
+                  ].map(a => (
+                    <div key={a.id} onClick={() => setSubBloco(subBloco === a.id ? null : a.id)} style={{ display: "flex", alignItems: "center", gap: 6, background: subBloco === a.id ? "#1B3F7A" : "#f8f9fb", borderRadius: 10, padding: "7px 14px", cursor: "pointer", border: `1px solid ${subBloco === a.id ? "#1B3F7A" : "#e8edf2"}` }}>
+                      <span>{a.icon}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: subBloco === a.id ? "#fff" : "#1B3F7A" }}>{a.label}</span>
+                      {a.count > 0 && <span style={{ background: subBloco === a.id ? "rgba(255,255,255,0.3)" : "#1B3F7A", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>{a.count}</span>}
                     </div>
-                    <div>
-                      <label style={labelStyle}>Descrição *</label>
-                      <textarea value={novaOc.descricao} onChange={e => setNovaOc(o => ({ ...o, descricao: e.target.value }))} placeholder="Descreva a ocorrência..." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
-                    </div>
-                  </div>
-                  <button onClick={adicionarOcorrencia} disabled={!novaOc.descricao.trim()} style={{ marginTop: 12, background: !novaOc.descricao.trim() ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: !novaOc.descricao.trim() ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif" }}>
-                    + Registrar Ocorrência
-                  </button>
+                  ))}
                 </div>
 
-                {/* Lista */}
-                {ocorrencias.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#aaa", padding: 24, fontSize: 13 }}>✅ Nenhuma ocorrência registrada</div>
-                ) : ocorrencias.map(oc => (
-                  <div key={oc.id} style={{ background: "#fff", borderRadius: 14, padding: "14px 16px", marginBottom: 10, border: "1px solid #fee2e2" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                      <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A" }}>{TIPO_OC[oc.tipo] || oc.tipo}</span>
-                      {(isAdmin || oc.autorEmail === user?.email) && (
-                        <div onClick={() => excluirOcorrencia(oc.id)} style={{ cursor: "pointer", color: "#dc2626", fontSize: 18, padding: "0 4px" }}>×</div>
-                      )}
+                {/* HOSPEDAGEM */}
+                {subBloco === "hosp" && (
+                  <div>
+                    {hospedagens.map((h, i) => (
+                      <div key={i} style={cardItem}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A" }}>🏨 {h.nome}</div>
+                            <div style={{ fontSize: 12, color: "#666", marginTop: 3 }}>📍 {h.municipio}{h.tipoQuarto ? ` · ${h.tipoQuarto}` : ""}</div>
+                            {h.valorDiaria && <div style={{ fontSize: 12, color: "#059669", fontWeight: 700, marginTop: 4 }}>R$ {h.valorDiaria} × {h.qtdDiaria} diárias = R$ {(parseFloat(h.valorDiaria||0)*parseInt(h.qtdDiaria||0)).toFixed(2)}</div>}
+                            {h.infoPagamento && <div style={{ fontSize: 12, color: "#555", marginTop: 6, background: "#f0f4ff", borderRadius: 8, padding: "6px 10px" }}>{h.infoPagamento}</div>}
+                          </div>
+                          <button style={btnDel} onClick={() => setHospedagens(p => p.filter((_,j)=>j!==i))}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "2px dashed #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>+ Nova Hospedagem</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                        <div><label style={lbl}>Município *</label><input value={novaHosp.municipio} onChange={e=>setNovaHosp(h=>({...h,municipio:e.target.value}))} placeholder="Ex: Sobral" style={inp}/></div>
+                        <div><label style={lbl}>Nome do Hotel *</label><input value={novaHosp.nome} onChange={e=>setNovaHosp(h=>({...h,nome:e.target.value}))} placeholder="Nome do hotel" style={inp}/></div>
+                        <div><label style={lbl}>Tipo de Quarto</label><input value={novaHosp.tipoQuarto} onChange={e=>setNovaHosp(h=>({...h,tipoQuarto:e.target.value}))} placeholder="Duplo, Solteiro..." style={inp}/></div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                          <div><label style={lbl}>Valor Diária (R$)</label><input type="number" value={novaHosp.valorDiaria} onChange={e=>setNovaHosp(h=>({...h,valorDiaria:e.target.value}))} placeholder="0,00" style={inp}/></div>
+                          <div><label style={lbl}>Qtd Diárias</label><input type="number" value={novaHosp.qtdDiaria} onChange={e=>setNovaHosp(h=>({...h,qtdDiaria:e.target.value}))} placeholder="1" style={inp}/></div>
+                        </div>
+                      </div>
+                      <div style={{marginBottom:10}}><label style={lbl}>Pagamento / Antecipação</label><textarea value={novaHosp.infoPagamento} onChange={e=>setNovaHosp(h=>({...h,infoPagamento:e.target.value}))} placeholder="Reserva confirmada? Antecipado? Nota fiscal?..." style={{...inp,minHeight:60,resize:"vertical"}}/></div>
+                      <button onClick={()=>{if(!novaHosp.municipio||!novaHosp.nome)return;setHospedagens(p=>[...p,{...novaHosp}]);setNovaHosp({municipio:"",nome:"",tipoQuarto:"",valorDiaria:"",qtdDiaria:"",infoPagamento:""}); }} disabled={!novaHosp.municipio||!novaHosp.nome} style={{...btnAdd,background:!novaHosp.municipio||!novaHosp.nome?"#ccc":"#1B3F7A"}}>+ Adicionar</button>
                     </div>
-                    <div style={{ fontSize: 13, color: "#333", background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>{oc.descricao}</div>
-                    <div style={{ fontSize: 10, color: "#aaa" }}>Registrado por: {oc.autorEmail} · {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</div>
+                  </div>
+                )}
+
+                {/* HORÁRIOS */}
+                {subBloco === "hor" && (
+                  <div>
+                    {[...horarios].sort((a,b)=>(a.data+(a.hora||"")).localeCompare(b.data+(b.hora||""))).map((h, i) => (
+                      <div key={i} style={cardItem}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                              <span style={{ background: "#1B3F7A", color: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{formatDate(h.data)}</span>
+                              <span style={{ background: "#E8730A", color: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{h.hora}</span>
+                            </div>
+                            <div style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>{h.origem} → {h.destino}</div>
+                            {h.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 5, background: "#f8f9fb", borderRadius: 8, padding: "5px 10px" }}>{h.extra}</div>}
+                          </div>
+                          <button style={btnDel} onClick={()=>setHorarios(p=>p.filter((_,j)=>j!==i))}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "2px dashed #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>+ Novo Horário de Deslocamento</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <label style={lbl}>Data *</label>
+                          <select value={novoHor.data} onChange={e=>setNovoHor(h=>({...h,data:e.target.value}))} style={inp}>
+                            <option value="">Selecione...</option>
+                            {datasNoPeriodo.map(d=><option key={d} value={d}>{formatDate(d)}</option>)}
+                            {datasNoPeriodo.length===0 && <option disabled>Defina o período da viagem</option>}
+                          </select>
+                        </div>
+                        <div><label style={lbl}>Hora *</label><input type="time" value={novoHor.hora} onChange={e=>setNovoHor(h=>({...h,hora:e.target.value}))} style={inp}/></div>
+                        <div><label style={lbl}>Origem *</label><input value={novoHor.origem} onChange={e=>setNovoHor(h=>({...h,origem:e.target.value}))} placeholder="De onde partem" style={inp}/></div>
+                        <div><label style={lbl}>Destino *</label><input value={novoHor.destino} onChange={e=>setNovoHor(h=>({...h,destino:e.target.value}))} placeholder="Para onde vão" style={inp}/></div>
+                      </div>
+                      <div style={{marginBottom:10}}><label style={lbl}>Informações Extras</label><textarea value={novoHor.extra} onChange={e=>setNovoHor(h=>({...h,extra:e.target.value}))} placeholder="Ponto de encontro, nº veículo, observações..." style={{...inp,minHeight:55,resize:"vertical"}}/></div>
+                      <button onClick={()=>{if(!novoHor.data||!novoHor.hora||!novoHor.origem||!novoHor.destino)return;setHorarios(p=>[...p,{...novoHor}]);setNovoHor({data:"",hora:"",origem:"",destino:"",extra:""}); }} disabled={!novoHor.data||!novoHor.hora||!novoHor.origem||!novoHor.destino} style={{...btnAdd,background:!novoHor.data||!novoHor.hora||!novoHor.origem||!novoHor.destino?"#ccc":"#1B3F7A"}}>+ Adicionar</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CONTATOS */}
+                {subBloco === "contato" && (
+                  <div>
+                    {contatos.map((c, i) => (
+                      <div key={i} style={cardItem}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A" }}>👤 {c.nome}</div>
+                            {c.whatsapp && <a href={`https://wa.me/55${c.whatsapp.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 5, background: "#dcfce7", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#16a34a", textDecoration: "none" }}>💬 {fmtWhats(c.whatsapp)}</a>}
+                            {c.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 6, background: "#f8f9fb", borderRadius: 8, padding: "5px 10px" }}>{c.extra}</div>}
+                          </div>
+                          <button style={btnDel} onClick={()=>setContatos(p=>p.filter((_,j)=>j!==i))}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "2px dashed #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>+ Novo Contato Importante</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                        <div><label style={lbl}>Nome *</label><input value={novoContato.nome} onChange={e=>setNovoContato(c=>({...c,nome:e.target.value}))} placeholder="Nome do contato" style={inp}/></div>
+                        <div><label style={lbl}>WhatsApp</label><input value={novoContato.whatsapp} onChange={e=>setNovoContato(c=>({...c,whatsapp:e.target.value}))} placeholder="85 99999-0000" style={inp}/></div>
+                      </div>
+                      <div style={{marginBottom:10}}><label style={lbl}>Informações Extras</label><textarea value={novoContato.extra} onChange={e=>setNovoContato(c=>({...c,extra:e.target.value}))} placeholder="Cargo, empresa, quando acionar..." style={{...inp,minHeight:55,resize:"vertical"}}/></div>
+                      <button onClick={()=>{if(!novoContato.nome)return;setContatos(p=>[...p,{...novoContato}]);setNovoContato({nome:"",whatsapp:"",extra:""}); }} disabled={!novoContato.nome} style={{...btnAdd,background:!novoContato.nome?"#ccc":"#1B3F7A"}}>+ Adicionar</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ALIMENTAÇÃO */}
+                {subBloco === "alim" && (
+                  <div>
+                    {alimentacao.map((a, i) => (
+                      <div key={i} style={cardItem}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A" }}>🍽️ {a.nome}</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 5 }}>
+                              {a.endereco && <a href={`https://waze.com/ul?q=${encodeURIComponent(a.endereco)}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#dbeafe", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#1d4ed8", textDecoration: "none" }}>📍 {a.endereco}</a>}
+                              {a.whatsapp && <a href={`https://wa.me/55${a.whatsapp.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#dcfce7", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#16a34a", textDecoration: "none" }}>💬 {fmtWhats(a.whatsapp)}</a>}
+                            </div>
+                            {a.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 6, background: "#f8f9fb", borderRadius: 8, padding: "5px 10px" }}>{a.extra}</div>}
+                          </div>
+                          <button style={btnDel} onClick={()=>setAlimentacao(p=>p.filter((_,j)=>j!==i))}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "2px dashed #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>+ Novo Local de Alimentação</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                        <div><label style={lbl}>Nome do Restaurante *</label><input value={novoAlim.nome} onChange={e=>setNovoAlim(a=>({...a,nome:e.target.value}))} placeholder="Nome" style={inp}/></div>
+                        <div><label style={lbl}>WhatsApp</label><input value={novoAlim.whatsapp} onChange={e=>setNovoAlim(a=>({...a,whatsapp:e.target.value}))} placeholder="85 99999-0000" style={inp}/></div>
+                        <div style={{gridColumn:"1/-1"}}><label style={lbl}>Endereço (abre no Waze)</label><input value={novoAlim.endereco} onChange={e=>setNovoAlim(a=>({...a,endereco:e.target.value}))} placeholder="Rua, nº, Cidade" style={inp}/></div>
+                      </div>
+                      <div style={{marginBottom:10}}><label style={lbl}>Informações Extras</label><textarea value={novoAlim.extra} onChange={e=>setNovoAlim(a=>({...a,extra:e.target.value}))} placeholder="Cardápio, horário, observações..." style={{...inp,minHeight:55,resize:"vertical"}}/></div>
+                      <button onClick={()=>{if(!novoAlim.nome)return;setAlimentacao(p=>[...p,{...novoAlim}]);setNovoAlim({nome:"",endereco:"",whatsapp:"",extra:""}); }} disabled={!novoAlim.nome} style={{...btnAdd,background:!novoAlim.nome?"#ccc":"#1B3F7A"}}>+ Adicionar</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* AGENDA */}
+                {subBloco === "agenda" && (
+                  <div>
+                    {[...agenda].sort((a,b)=>(a.data+(a.hora||"")).localeCompare(b.data+(b.hora||""))).map((a, i) => (
+                      <div key={i} style={{ ...cardItem, borderLeft: "3px solid #7c3aed" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                              <span style={{ background: "#7c3aed", color: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{formatDate(a.data)}</span>
+                              {a.hora && <span style={{ background: "#E8730A", color: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>{a.hora}</span>}
+                            </div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 4 }}>{a.descricao}</div>
+                            {a.destino && <div style={{ fontSize: 12, color: "#555", marginBottom: 3 }}>📍 {a.destino}</div>}
+                            {a.motorista && <div style={{ fontSize: 12, color: "#0891b2", fontWeight: 600, marginBottom: 3 }}>🚗 {resolveMembro(a.motorista)}</div>}
+                            {(a.pessoas||[]).length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 4 }}>{a.pessoas.map((p,j)=><span key={j} style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 11, color: "#1B3F7A", fontWeight: 600 }}>👤 {resolveMembro(p)}</span>)}</div>}
+                            {a.extra && <div style={{ fontSize: 12, color: "#555", background: "#f8f9fb", borderRadius: 8, padding: "5px 10px" }}>{a.extra}</div>}
+                          </div>
+                          <button style={btnDel} onClick={()=>setAgenda(p=>p.filter((_,j)=>j!==i))}>×</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "2px dashed #e8edf2" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>+ Nova Agenda</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <label style={lbl}>Data *</label>
+                          <select value={novaAgenda.data} onChange={e=>setNovaAgenda(a=>({...a,data:e.target.value}))} style={inp}>
+                            <option value="">Selecione...</option>
+                            {datasNoPeriodo.map(d=><option key={d} value={d}>{formatDate(d)}</option>)}
+                            {datasNoPeriodo.length===0 && <option disabled>Defina o período da viagem</option>}
+                          </select>
+                        </div>
+                        <div><label style={lbl}>Horário</label><input type="time" value={novaAgenda.hora} onChange={e=>setNovaAgenda(a=>({...a,hora:e.target.value}))} style={inp}/></div>
+                        <div style={{gridColumn:"1/-1"}}><label style={lbl}>Descrição *</label><input value={novaAgenda.descricao} onChange={e=>setNovaAgenda(a=>({...a,descricao:e.target.value}))} placeholder="Ex: Visita Escola XXX, Reunião com prefeito..." style={inp}/></div>
+                        <div style={{gridColumn:"1/-1"}}><label style={lbl}>Destino / Local</label><input value={novaAgenda.destino} onChange={e=>setNovaAgenda(a=>({...a,destino:e.target.value}))} placeholder="Endereço ou local" style={inp}/></div>
+                        <div>
+                          <label style={lbl}>Motorista</label>
+                          <select value={novaAgenda.motorista} onChange={e=>setNovaAgenda(a=>({...a,motorista:e.target.value}))} style={inp}>
+                            <option value="">Sem motorista</option>
+                            {form.equipe.map(email=>{const m=todosOsMembros.find(x=>x.email===email);if(!m||m.tipo!=="motorista")return null;return <option key={email} value={email}>🚗 {m.nome}</option>;})}
+                            {apenasMotoristas.filter(m=>!form.equipe.includes(m.email)).map(m=><option key={m.email} value={m.email}>{m.nome}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={lbl}>Pessoas ({(novaAgenda.pessoas||[]).length})</label>
+                          <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e8edf2", maxHeight: 120, overflowY: "auto", padding: "3px 0" }}>
+                            {form.equipe.length === 0 && <div style={{ fontSize: 12, color: "#aaa", padding: "8px 12px" }}>Adicione membros à equipe primeiro</div>}
+                            {form.equipe.map(email=>{
+                              const m=todosOsMembros.find(x=>x.email===email);
+                              const sel=(novaAgenda.pessoas||[]).includes(email);
+                              return <div key={email} onClick={()=>setNovaAgenda(a=>({...a,pessoas:sel?(a.pessoas||[]).filter(x=>x!==email):[...(a.pessoas||[]),email]}))} style={{ display:"flex",alignItems:"center",gap:7,padding:"6px 10px",cursor:"pointer",background:sel?"#eff6ff":"transparent" }}><div style={{ width:13,height:13,borderRadius:3,background:sel?"#1B3F7A":"#fff",border:`2px solid ${sel?"#1B3F7A":"#ddd"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#fff",flexShrink:0 }}>{sel?"✓":""}</div><span style={{ fontSize:12,fontWeight:600,color:"#333" }}>{m?.nome||email}</span></div>;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{marginBottom:10}}><label style={lbl}>Informações Extras</label><textarea value={novaAgenda.extra} onChange={e=>setNovaAgenda(a=>({...a,extra:e.target.value}))} placeholder="Documentos, detalhes adicionais..." style={{...inp,minHeight:55,resize:"vertical"}}/></div>
+                      <button onClick={()=>{if(!novaAgenda.data||!novaAgenda.descricao)return;setAgenda(p=>[...p,{...novaAgenda}]);setNovaAgenda({data:"",hora:"",descricao:"",destino:"",motorista:"",pessoas:[],extra:""}); }} disabled={!novaAgenda.data||!novaAgenda.descricao} style={{...btnAdd,background:!novaAgenda.data||!novaAgenda.descricao?"#ccc":"#1B3F7A"}}>+ Adicionar</button>
+                    </div>
+                  </div>
+                )}
+
+                {!subBloco && <div style={{ textAlign: "center", color: "#aaa", fontSize: 13, padding: "20px 0" }}>Selecione uma categoria acima para gerenciar</div>}
+                <BtnSalvar />
+              </div>
+            )}
+
+            {/* ===== BLOCO OCORRÊNCIAS ===== */}
+            {blocoAtivo === "ocorrencias" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#E8730A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#E8730A", borderRadius: 2 }} />⚠️ Ocorrências de Viagem</div>
+                <div style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, marginBottom: 16, border: "1px solid #e8edf2" }}>
+                  <div style={{ marginBottom: 10 }}><label style={lbl}>Tipo</label><select value={novaOc.tipo} onChange={e=>setNovaOc(o=>({...o,tipo:e.target.value}))} style={inp}><option value="transporte">🚌 Transporte</option><option value="hotel">🏨 Hotel/Hospedagem</option><option value="alimentacao">🍽️ Alimentação</option><option value="outro">📌 Outro</option></select></div>
+                  <div style={{ marginBottom: 10 }}><label style={lbl}>Descrição *</label><textarea value={novaOc.descricao} onChange={e=>setNovaOc(o=>({...o,descricao:e.target.value}))} placeholder="Descreva a ocorrência..." style={{...inp,minHeight:75,resize:"vertical"}}/></div>
+                  <button onClick={()=>{if(!novaOc.descricao.trim())return;setOcorrencias(p=>[...p,{id:Date.now().toString(),tipo:novaOc.tipo,descricao:novaOc.descricao.trim(),autorEmail:user?.email||"sistema",autorNome:user?.displayName||user?.email||"sistema",data:new Date().toISOString()}]);setNovaOc({tipo:"transporte",descricao:""}); }} disabled={!novaOc.descricao.trim()} style={{...btnAdd,background:!novaOc.descricao.trim()?"#ccc":"#E8730A"}}>+ Registrar Ocorrência</button>
+                </div>
+                {ocorrencias.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", padding: 20, fontSize: 13 }}>✅ Nenhuma ocorrência registrada</div> : ocorrencias.map(oc => (
+                  <div key={oc.id} style={{ ...cardItem, borderLeft: "3px solid #E8730A" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A" }}>{TIPO_OC[oc.tipo]||oc.tipo}</span>
+                      {(isAdmin||oc.autorEmail===user?.email) && <button style={{...btnDel,fontSize:18}} onClick={()=>excluirOcorrencia(oc.id)}>×</button>}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#333", background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: 5 }}>{oc.descricao}</div>
+                    <div style={{ fontSize: 10, color: "#aaa" }}>Por: {oc.autorEmail} · {oc.data?new Date(oc.data).toLocaleString("pt-BR"):""}</div>
                   </div>
                 ))}
-
-                <button onClick={async () => {
-                  setSalvando(true);
-                  try {
-                    await updateDoc(doc(db, "tceduc_viagens", viagem.id), { ocorrencias, atualizadoEm: new Date().toISOString() });
-                    onSaved({ ...viagem, ocorrencias });
-                  } catch (e) { console.error(e); }
-                  setSalvando(false);
-                }} style={{ width: "100%", marginTop: 8, background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 12, padding: 13, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>
-                  {salvando ? "Salvando..." : "💾 Salvar Ocorrências"}
-                </button>
+                <BtnSalvar />
               </div>
             )}
 
-            {/* ---- BLOCO MUNICÍPIOS ---- */}
+            {/* ===== BLOCO MUNICÍPIOS ===== */}
             {blocoAtivo === "municipios" && (
-              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16 }}>📍 Municípios / Eventos da Viagem</div>
-                {eventosVinculados.length === 0 ? (
-                  <div style={{ textAlign: "center", color: "#aaa", padding: 24, fontSize: 13 }}>Nenhum evento vinculado a esta viagem</div>
-                ) : eventosVinculados.map((ev, i) => {
-                  const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />📍 Municípios / Eventos da Viagem</div>
+                {eventosVinculados.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", padding: 24 }}>Nenhum evento vinculado</div> : eventosVinculados.map((ev) => {
+                  const cap = (ev.acoesEducacionais||[]).reduce((s,a)=>s+(parseInt(a.participantes)||0),0);
                   return (
-                    <div key={ev.id} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 16px", marginBottom: 10, border: "1px solid #e8edf2" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: "#1B3F7A" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
-                          <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local ? ` · 📍 ${ev.local}` : ""}</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div>
-                          <div style={{ fontSize: 10, color: "#aaa" }}>participantes</div>
-                        </div>
+                    <div key={ev.id} style={cardItem}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <div><div style={{ fontWeight: 700, fontSize: 15, color: "#1B3F7A" }}>{ev.tipo==="Municipal"?ev.municipio:ev.regiao}</div><div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local?` · 📍 ${ev.local}`:""}</div></div>
+                        <div style={{ textAlign: "right" }}><div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div><div style={{ fontSize: 10, color: "#aaa" }}>participantes</div></div>
                       </div>
-                      {(ev.acoesEducacionais || []).length > 0 && (
-                        <div style={{ marginTop: 8 }}>
-                          {ev.acoesEducacionais.map((a, j) => (
-                            <div key={j} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#555", padding: "3px 0", borderBottom: j < ev.acoesEducacionais.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                              <span>{a.acaoNome || a.nome || "—"}</span>
-                              <span style={{ fontWeight: 700, color: "#1B3F7A" }}>{a.participantes || 0}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {(ev.ocorrencias || []).length > 0 && (
-                        <div style={{ marginTop: 8, background: "#fff3e0", borderRadius: 8, padding: "5px 10px", fontSize: 11, color: "#E8730A", fontWeight: 700 }}>
-                          ⚠️ {ev.ocorrencias.length} ocorrência{ev.ocorrencias.length !== 1 ? "s" : ""}
-                        </div>
-                      )}
+                      {(ev.acoesEducacionais||[]).length>0 && <div style={{ marginTop: 8 }}>{ev.acoesEducacionais.map((a,j)=><div key={j} style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"#555",padding:"3px 0",borderBottom:j<ev.acoesEducacionais.length-1?"1px solid #f0f0f0":"none" }}><span>{a.acaoNome||a.nome||"—"}</span><span style={{ fontWeight:700,color:"#1B3F7A" }}>{a.participantes||0}</span></div>)}</div>}
+                      {(ev.ocorrencias||[]).length>0 && <div style={{ marginTop:8,background:"#fff3e0",borderRadius:8,padding:"5px 10px",fontSize:11,color:"#E8730A",fontWeight:700 }}>⚠️ {ev.ocorrencias.length} ocorrência{ev.ocorrencias.length!==1?"s":""}</div>}
                     </div>
                   );
                 })}
               </div>
             )}
 
-            {/* MUNICÍPIOS CARDS */}
-            <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
-              <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16 }}>📍 Municípios da Viagem</div>
-              {eventosVinculados.length === 0 ? (
-                <div style={{ textAlign: "center", color: "#aaa", padding: 16, fontSize: 13 }}>Nenhum município vinculado</div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-                  {eventosVinculados.map(ev => {
-                    const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
-                    const nOcs = (ev.ocorrencias || []).length;
-                    const statusCores = { Pendente: "#E8730A", Realizado: "#059669", Cancelado: "#dc2626" };
-                    const cor = statusCores[ev.status] || "#888";
-                    const aberto = menuEvento === ev.id;
-                    return (
-                      <div key={ev.id} style={{ position: "relative" }}>
-                        {/* CARD */}
-                        <div
-                          onClick={() => setMenuEvento(aberto ? null : ev.id)}
-                          style={{ background: aberto ? "#f0f4ff" : "#f8f9fb", borderRadius: 14, padding: "14px 16px", cursor: "pointer", border: `2px solid ${aberto ? "#1B3F7A" : cor + "33"}`, transition: "all .15s" }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", flex: 1, paddingRight: 4 }}>
-                              {ev.tipo === "Municipal" ? ev.municipio : ev.regiao}
+            {/* ===== PÓS VIAGEM ===== */}
+            {blocoAtivo === "posviagem" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />✅ Pós Viagem</div>
+                <label style={lbl}>💡 Lições Aprendidas</label>
+                <textarea value={licoesAprendidas} onChange={e=>setLicoesAprendidas(e.target.value)} placeholder="O que funcionou bem? O que pode melhorar? Insights da equipe para as próximas viagens..." style={{ ...inp, minHeight: 160, resize: "vertical", lineHeight: 1.6 }} />
+                <BtnSalvar />
+              </div>
+            )}
+
+            {/* CARDS MUNICÍPIOS resumo (sempre visível quando bloco não ativo) */}
+            {blocoAtivo !== "municipios" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />📍 Municípios da Viagem</div>
+                {eventosVinculados.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", padding: 14, fontSize: 13 }}>Nenhum município vinculado</div> : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                    {eventosVinculados.map(ev => {
+                      const cap = (ev.acoesEducacionais||[]).reduce((s,a)=>s+(parseInt(a.participantes)||0),0);
+                      const nOcs = (ev.ocorrencias||[]).length;
+                      const statusCores = { Programado:"#7c3aed","Em Execução":"#E8730A",Realizado:"#059669",Cancelado:"#dc2626" };
+                      const cor = statusCores[ev.status]||"#888";
+                      const aberto = menuEvento===ev.id;
+                      return (
+                        <div key={ev.id} style={{ position:"relative" }}>
+                          <div onClick={()=>setMenuEvento(aberto?null:ev.id)} style={{ background:aberto?"#f0f4ff":"#f8f9fb",borderRadius:14,padding:"14px 16px",cursor:"pointer",border:`2px solid ${aberto?"#1B3F7A":cor+"33"}`,transition:"all .15s" }}>
+                            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6 }}>
+                              <div style={{ fontWeight:700,fontSize:14,color:"#1B3F7A",flex:1,paddingRight:4 }}>{ev.tipo==="Municipal"?ev.municipio:ev.regiao}</div>
+                              <div style={{ background:cor,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:700,color:"#fff",whiteSpace:"nowrap" }}>{ev.status}</div>
                             </div>
-                            <div style={{ background: cor, borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{ev.status}</div>
+                            <div style={{ fontSize:11,color:"#888",marginBottom:8 }}>📅 {formatDate(ev.data)}</div>
+                            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                              <div style={{ fontWeight:900,fontSize:18,color:"#059669" }}>{cap}</div>
+                              <div style={{ fontSize:10,color:"#aaa",fontWeight:600 }}>participantes</div>
+                            </div>
+                            {nOcs>0 && <div style={{ marginTop:6,background:"#fff3e0",borderRadius:6,padding:"3px 8px",fontSize:11,color:"#E8730A",fontWeight:700,display:"inline-block" }}>⚠️ {nOcs} ocorr.</div>}
                           </div>
-                          <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>📅 {formatDate(ev.data)}</div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div>
-                            <div style={{ fontSize: 10, color: "#aaa", fontWeight: 600 }}>participantes</div>
-                          </div>
-                          {nOcs > 0 && (
-                            <div style={{ marginTop: 6, background: "#fff3e0", borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "#E8730A", fontWeight: 700, display: "inline-block" }}>
-                              ⚠️ {nOcs} ocorr.
+                          {aberto && (
+                            <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:"#fff",borderRadius:14,boxShadow:"0 8px 32px rgba(27,63,122,0.18)",border:"1px solid #e8edf2",zIndex:50,overflow:"hidden" }} onClick={e=>e.stopPropagation()}>
+                              {[
+                                { acao:undefined, icon:"👁️", label:"Ver Evento", sub:"Detalhes completos", bg:"#eff6ff", cor:"#1B3F7A", sempre:true },
+                                { acao:"editar", icon:"✏️", label:"Gerenciar", sub:"Editar evento", bg:"#fff0e0", cor:"#E8730A", soAdmin:true },
+                                { acao:"ocorrencias", icon:"⚠️", label:"Ocorrências", sub:(ev.ocorrencias||[]).length>0?`${ev.ocorrencias.length} registradas`:"Sem ocorrências", bg:"#fff3e0", cor:"#E8730A", sempre:true },
+                                { acao:"relatorio", icon:"📄", label:"Relatório", sub:"Gerar PDF do evento", bg:"#e8f5e9", cor:"#059669", sempre:true },
+                              ].filter(m=>m.sempre||(m.soAdmin&&podeEditar!==false)).map((m,idx,arr)=>(
+                                <div key={m.label} onClick={()=>{setMenuEvento(null);onVerEvento&&onVerEvento(ev,m.acao);}} style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 16px",cursor:"pointer",borderBottom:idx<arr.length-1?"1px solid #f0f0f0":"none" }} onMouseEnter={e=>e.currentTarget.style.background="#f8f9fb"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                                  <div style={{ width:32,height:32,borderRadius:10,background:m.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>{m.icon}</div>
+                                  <div><div style={{ fontSize:13,fontWeight:700,color:m.cor }}>{m.label}</div><div style={{ fontSize:11,color:"#888" }}>{m.sub}</div></div>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
-
-                        {/* MENU DROPDOWN */}
-                        {aberto && (
-                          <div
-                            style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", borderRadius: 14, boxShadow: "0 8px 32px rgba(27,63,122,0.18)", border: "1px solid #e8edf2", zIndex: 50, overflow: "hidden" }}
-                            onClick={e => e.stopPropagation()}
-                          >
-                            {/* Ver detalhes */}
-                            <div
-                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev); }}
-                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
-                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            >
-                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👁️</div>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#1B3F7A" }}>Ver Evento</div>
-                                <div style={{ fontSize: 11, color: "#888" }}>Detalhes completos</div>
-                              </div>
-                            </div>
-
-                            {/* Gerenciar (apenas TCEduc Administrativo) */}
-                            {podeEditar !== false && (
-                              <div
-                                onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "editar"); }}
-                                style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
-                                onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
-                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                              >
-                                <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff0e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✏️</div>
-                                <div>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#E8730A" }}>Gerenciar</div>
-                                  <div style={{ fontSize: 11, color: "#888" }}>Editar evento</div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Ocorrências (TCEduc + TCEduc Administrativo) */}
-                            <div
-                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "ocorrencias"); }}
-                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", borderBottom: "1px solid #f0f0f0" }}
-                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            >
-                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#fff3e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⚠️</div>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8730A" }}>Ocorrências</div>
-                                <div style={{ fontSize: 11, color: "#888" }}>{nOcs > 0 ? `${nOcs} registradas` : "Sem ocorrências"}</div>
-                              </div>
-                            </div>
-
-                            {/* Relatório */}
-                            <div
-                              onClick={() => { setMenuEvento(null); onVerEvento && onVerEvento(ev, "relatorio"); }}
-                              style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer" }}
-                              onMouseEnter={e => e.currentTarget.style.background = "#f8f9fb"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            >
-                              <div style={{ width: 32, height: 32, borderRadius: 10, background: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📄</div>
-                              <div>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#059669" }}>Relatório</div>
-                                <div style={{ fontSize: 11, color: "#888" }}>Gerar PDF do evento</div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* EQUIPE */}
             {form.equipe.length > 0 && (
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 14 }}>👥 Equipe da Viagem</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#1B3F7A", borderRadius: 2 }} />👥 Equipe da Viagem</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {form.equipe.map(email => {
-                    const m = todosOsMembros.find(x => x.email === email);
-                    return (
-                      <div key={email} style={{ background: m?.tipo === "instrutor" ? "#f3e8ff" : m?.tipo === "motorista" ? "#e0f2fe" : "#eff6ff", borderRadius: 10, padding: "6px 14px", fontSize: 13, color: m?.tipo === "instrutor" ? "#7c3aed" : m?.tipo === "motorista" ? "#0891b2" : "#1B3F7A", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                        {m?.tipo === "instrutor" ? "👨‍🏫" : m?.tipo === "motorista" ? "🚗" : "👤"} {m?.nome || email}
-                      </div>
-                    );
+                    const m = todosOsMembros.find(x=>x.email===email);
+                    const bg=m?.tipo==="instrutor"?"#f3e8ff":m?.tipo==="motorista"?"#e0f2fe":"#eff6ff";
+                    const cor=m?.tipo==="instrutor"?"#7c3aed":m?.tipo==="motorista"?"#0891b2":"#1B3F7A";
+                    const ico=m?.tipo==="instrutor"?"👨‍🏫":m?.tipo==="motorista"?"🚗":"👤";
+                    return <div key={email} style={{ background:bg,borderRadius:10,padding:"6px 14px",fontSize:13,color:cor,fontWeight:600,display:"flex",alignItems:"center",gap:6 }}>{ico} {m?.nome||email}</div>;
                   })}
                 </div>
               </div>
@@ -669,19 +702,13 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
             {/* BOTÕES */}
             <div style={{ display: "flex", gap: 10 }}>
-              {(podeEditar !== false) && <button onClick={() => setModoEdicao(true)} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Viagem</button>}
-              <button onClick={() => onRelatorio && onRelatorio(viagem.id)} style={{ flex: 1, background: "#f0f4ff", border: "none", borderRadius: 14, padding: 14, color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>📄 Relatório</button>
+              {podeEditar!==false && <button onClick={()=>setModoEdicao(true)} style={{ flex:1,background:"#1B3F7A",border:"none",borderRadius:14,padding:14,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Montserrat', sans-serif" }}>✏️ Editar Viagem</button>}
+              <button onClick={()=>onRelatorio&&onRelatorio(viagem.id)} style={{ flex:1,background:"#f0f4ff",border:"none",borderRadius:14,padding:14,color:"#1B3F7A",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'Montserrat', sans-serif" }}>📄 Relatório</button>
             </div>
           </>
         )}
 
-        {/* MODO NOVO (sem viagem) */}
-        {!viagem && !modoEdicao && (
-          <div style={{ textAlign: "center", padding: 60, color: "#aaa" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>Viagem salva com sucesso!</div>
-          </div>
-        )}
+        {!viagem && !modoEdicao && <div style={{ textAlign:"center",padding:60,color:"#aaa" }}><div style={{ fontSize:48,marginBottom:12 }}>🗺️</div><div style={{ fontWeight:700,fontSize:16 }}>Viagem salva com sucesso!</div></div>}
       </div>
     </div>
   );
