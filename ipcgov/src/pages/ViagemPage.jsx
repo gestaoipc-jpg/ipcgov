@@ -37,7 +37,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, eventos, usuarios, servidores }) {
+export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, eventos, usuarios, servidores, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", municipiosIds: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
@@ -538,7 +538,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
             {/* BOTÕES */}
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setModoEdicao(true)} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Viagem</button>
+              {(podeEditar !== false) && <button onClick={() => setModoEdicao(true)} style={{ flex: 1, background: "#1B3F7A", border: "none", borderRadius: 14, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>✏️ Editar Viagem</button>}
               <button onClick={() => onRelatorio && onRelatorio(viagem.id)} style={{ flex: 1, background: "#f0f4ff", border: "none", borderRadius: 14, padding: 14, color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>📄 Relatório</button>
             </div>
           </>
