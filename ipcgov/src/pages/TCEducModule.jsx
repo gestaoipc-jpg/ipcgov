@@ -100,6 +100,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [ocorrencias, setOcorrencias] = useState([]);
   const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", email: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
+  const [participantesPorAcao, setParticipantesPorAcao] = useState({});
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [itemOcorrencia, setItemOcorrencia] = useState(null);
@@ -176,17 +177,30 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     setChecklist(ev.checklist || {});
     setOcorrencias(ev.ocorrencias || []);
     setLicoesAprendidas(ev.licoesAprendidas || "");
+    // Carrega participantes de cada ação educacional
+    const partic = {};
+    (ev.acoesEducacionais || []).forEach((a, idx) => {
+      const key = a.acaoId || a.id || String(idx);
+      partic[key] = a.participantes || 0;
+    });
+    setParticipantesPorAcao(partic);
     setInfoViagem(ev.infoViagem || {});
     setModal("bloco");
   };
 
   const salvarBloco = async () => {
     setSalvando(true);
+    // Atualiza participantes nas ações educacionais
+    const acoesAtualizadas = (selected.acoesEducacionais || []).map((a, idx) => {
+      const key = a.acaoId || a.id || String(idx);
+      return { ...a, participantes: parseInt(participantesPorAcao[key]) || 0 };
+    });
     const updates = {
       checklist,
       ocorrencias,
       licoesAprendidas,
       infoViagem,
+      acoesEducacionais: acoesAtualizadas,
       atualizadoEm: new Date().toISOString(),
     };
     await updateDoc(doc(db, "tceduc_eventos", selected.id), updates);
@@ -849,6 +863,44 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         {/* BLOCO PÓS */}
             {blocoAtivo === "pos" && (
               <div>
+                {/* PARTICIPANTES POR CURSO */}
+                {(selected?.acoesEducacionais || []).length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 4 }}>📊 Participantes por Curso</div>
+                    <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Informe a quantidade de participantes de cada curso realizado neste evento.</div>
+                    <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                      {/* Header */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", background: "#1B3F7A", padding: "10px 16px" }}>
+                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Curso / Ação Educacional</div>
+                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Participantes</div>
+                      </div>
+                      {(selected.acoesEducacionais || []).map((a, idx) => {
+                        const key = a.acaoId || a.id || String(idx);
+                        return (
+                          <div key={key} style={{ display: "grid", gridTemplateColumns: "1fr 140px", padding: "12px 16px", borderBottom: idx < (selected.acoesEducacionais.length - 1) ? "1px solid #f0f0f0" : "none", background: idx % 2 === 0 ? "#fff" : "#f8f9fb", alignItems: "center" }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: "#333" }}>{a.acaoNome || a.nome || "Ação " + (idx + 1)}</div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={participantesPorAcao[key] || ""}
+                              onChange={e => setParticipantesPorAcao(p => ({ ...p, [key]: e.target.value }))}
+                              placeholder="0"
+                              style={{ ...inputStyle, textAlign: "center", fontWeight: 700, fontSize: 16, color: "#1B3F7A", padding: "8px 12px" }}
+                            />
+                          </div>
+                        );
+                      })}
+                      {/* Total */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", padding: "12px 16px", background: "#E8730A", alignItems: "center" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>TOTAL DE CAPACITADOS</div>
+                        <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", textAlign: "center" }}>
+                          {Object.values(participantesPorAcao).reduce((s, v) => s + (parseInt(v) || 0), 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <label style={labelStyle}>Lições aprendidas</label>
                 <textarea value={licoesAprendidas} onChange={e => setLicoesAprendidas(e.target.value)}
                   placeholder="Registre aqui as lições aprendidas neste evento para melhorar as próximas edições..."
