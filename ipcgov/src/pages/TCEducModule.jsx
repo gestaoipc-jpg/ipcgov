@@ -98,7 +98,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [blocoAtivo, setBlocoAtivo] = useState(null);
   const [checklist, setChecklist] = useState({});
   const [ocorrencias, setOcorrencias] = useState([]);
-  const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
+  const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", email: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
@@ -238,7 +238,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   };
 
   const adicionarOcorrencia = async () => {
-    if (!novaOcorrencia.descricao) return;
+    if (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) return;
     const oc = {
       ...novaOcorrencia,
       id: Date.now(),
@@ -261,7 +261,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       });
       setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ocorrencias: novasOcs } : e));
     } catch(e) { console.error(e); }
-    setNovaOcorrencia({ tipo: "inscricao", descricao: "", cpf: "", nome: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
+    setNovaOcorrencia({ tipo: "inscricao", descricao: "", cpf: "", nome: "", email: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   };
 
   const excluirOcorrencia = async (ocId) => {
@@ -742,13 +742,17 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                     <div>
-                      <label style={labelStyle}>CPF (se aplicável)</label>
+                      <label style={labelStyle}>CPF *</label>
                       <input value={novaOcorrencia.cpf} onChange={e => setNovaOcorrencia(o => ({ ...o, cpf: e.target.value }))} placeholder="000.000.000-00" style={inputStyle} />
                     </div>
                     <div>
-                      <label style={labelStyle}>Nome (se aplicável)</label>
+                      <label style={labelStyle}>Nome *</label>
                       <input value={novaOcorrencia.nome} onChange={e => setNovaOcorrencia(o => ({ ...o, nome: e.target.value }))} placeholder="Nome da pessoa" style={inputStyle} />
                     </div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={labelStyle}>E-mail *</label>
+                    <input value={novaOcorrencia.email} onChange={e => setNovaOcorrencia(o => ({ ...o, email: e.target.value }))} placeholder="email@exemplo.com" type="email" style={inputStyle} />
                   </div>
                   <div style={{ marginBottom: 12 }}>
                     <label style={labelStyle}>Descrição da ocorrência *</label>
@@ -787,9 +791,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                       </select>
                     )}
                   </div>
-                  <button onClick={adicionarOcorrencia} disabled={!novaOcorrencia.descricao} style={{
-                    background: !novaOcorrencia.descricao ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
-                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: !novaOcorrencia.descricao ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif",
+                  <button onClick={adicionarOcorrencia} disabled={!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()} style={{
+                    background: (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
+                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif",
                   }}>+ Adicionar Ocorrência</button>
                 </div>
 
