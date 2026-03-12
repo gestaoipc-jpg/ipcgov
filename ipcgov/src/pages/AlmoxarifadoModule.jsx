@@ -11,7 +11,7 @@ function formatDateTime(iso) { if(!iso)return"—"; return new Date(iso).toLocal
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
-export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelatorio, onSolicitacoes }) {
+export default function AlmoxarifadoModule({ user, userInfo, onBack, onDashboard, onRelatorio, onSolicitacoes }) {
   const [materiais, setMateriais] = useState([]);
   const [servidores, setServidores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,13 +24,21 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
   const [salvando, setSalvando] = useState(false);
   const [aba, setAba] = useState("materiais");
+  const [cargos, setCargos] = useState([]);
 
-  useEffect(() => { loadMateriais(); loadServidores(); }, []);
+  useEffect(() => { loadMateriais(); loadServidores(); loadCargos(); }, []);
 
   const loadServidores = async () => {
     try {
       const snap = await getDocs(collection(db, "ipc_servidores"));
       setServidores(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.nome||"").localeCompare(b.nome||"")));
+    } catch(e) { console.error(e); }
+  };
+
+  const loadCargos = async () => {
+    try {
+      const snap = await getDocs(collection(db, "ipc_cargos"));
+      setCargos(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")));
     } catch(e) { console.error(e); }
   };
 
@@ -146,6 +154,9 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
     setSalvando(false);
   };
 
+  const isAdmin = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
+  const isAlmoxAdmin = userInfo?.isAlmoxAdmin ?? isAdmin;
+
   const filtrados = materiais.filter(m => {
     if (filtroCategoria !== "todas" && m.categoria !== filtroCategoria) return false;
     if (busca) {
@@ -176,9 +187,9 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
               <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
               <div onClick={onSolicitacoes} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Solicitações</div>
               <div onClick={onRelatorio} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📄 Relatórios</div>
-              <div onClick={() => { setFormEntrada({}); setModal("entrada"); }} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📥 Registrar Entrada</div>
-              <div onClick={() => { setFormSaida({}); setModal("saida"); }} style={{ background:"rgba(220,38,38,0.3)", border:"1px solid rgba(220,38,38,0.4)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Registrar Saída</div>
-              <div onClick={() => { setForm({ setoresAutorizados:[] }); setSelected(null); setModal("form"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Material</div>
+              <div onClick={() => { if(!isAlmoxAdmin){ alert("Apenas o grupo Almoxarifado Administrativo pode registrar entradas."); return; } setFormEntrada({}); setModal("entrada"); }} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📥 Registrar Entrada</div>
+              <div onClick={() => { if(!isAlmoxAdmin){ alert("Apenas o grupo Almoxarifado Administrativo pode registrar saídas diretas."); return; } setFormSaida({}); setModal("saida"); }} style={{ background:"rgba(220,38,38,0.3)", border:"1px solid rgba(220,38,38,0.4)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📤 Registrar Saída</div>
+              <div onClick={() => { if(!isAlmoxAdmin){ alert("Apenas o grupo Almoxarifado Administrativo pode cadastrar materiais."); return; } setForm({ setoresAutorizados:[] }); setSelected(null); setModal("form"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Material</div>
             </div>
           </div>
           {/* STATS */}
@@ -227,7 +238,7 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
           <div style={{ textAlign:"center", padding:60 }}>
             <div style={{ fontSize:56, marginBottom:16 }}>🗃️</div>
             <div style={{ fontWeight:700, fontSize:16, color:"#333", marginBottom:8 }}>Nenhum material cadastrado</div>
-            <div onClick={()=>{ setForm({ setoresAutorizados:[] }); setSelected(null); setModal("form"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Novo Material</div>
+            <div onClick={()=>{ if(!isAlmoxAdmin){ alert("Apenas o grupo Almoxarifado Administrativo pode cadastrar materiais."); return; } setForm({ setoresAutorizados:[] }); setSelected(null); setModal("form"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Novo Material</div>
           </div>
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:16 }}>
@@ -291,6 +302,7 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
                   { label:"Estoque Mínimo", value:`${selected.estoqueMinimo||0} ${selected.unidade||"un."}` },
                   { label:"Unidade", value:selected.unidade||"—" },
                   { label:"Setores Autorizados", value:(selected.setoresAutorizados||[]).join(", ")||"Todos" },
+                  { label:"Cargo Autorizador", value:selected.cargoAutorizadorNome||"Nenhum — liberação direta" },
                   { label:"Criado por", value:selected.criadoPor||"—" },
                 ].map((f,i)=>(
                   <div key={i} style={{ background:"#f8f9fb", borderRadius:12, padding:"12px 14px" }}>
@@ -306,9 +318,9 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
                 </div>
               )}
               <div style={{ display:"flex", gap:10 }}>
-                <button onClick={()=>{ setForm({...selected}); setModal("form"); }} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
-                <button onClick={()=>{ setFormEntrada({ materialId:selected.id }); setModal("entrada"); }} style={{ flex:1, background:"#e8f5e9", border:"none", borderRadius:14, padding:14, color:"#059669", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>📥 Entrada</button>
-                <button onClick={()=>deletarMaterial(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
+                <button onClick={()=>{ if(!isAlmoxAdmin){ alert("Sem permissão."); return; } setForm({...selected}); setModal("form"); }} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
+                <button onClick={()=>{ if(!isAlmoxAdmin){ alert("Sem permissão."); return; } setFormEntrada({ materialId:selected.id }); setModal("entrada"); }} style={{ flex:1, background:"#e8f5e9", border:"none", borderRadius:14, padding:14, color:"#059669", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>📥 Entrada</button>
+                <button onClick={()=>{ if(!isAlmoxAdmin){ alert("Sem permissão."); return; } deletarMaterial(selected.id); }} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
               </div>
             </div>
           </div>
@@ -369,6 +381,30 @@ export default function AlmoxarifadoModule({ user, onBack, onDashboard, onRelato
                   </div>
                 </div>
               </div>
+
+                {/* CARGO AUTORIZADOR */}
+                <div style={{ gridColumn:"1/-1", marginTop:8 }}>
+                  <div style={{ background:"#fff3e0", borderRadius:14, padding:"14px 18px", border:"1px solid #fed7aa" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#E8730A", marginBottom:8 }}>🔐 Autorização de Liberação (opcional)</div>
+                    <div style={{ fontSize:12, color:"#555", marginBottom:10, lineHeight:1.5 }}>
+                      Se definido, toda solicitação deste material precisará ser autorizada pelo servidor que ocupa este cargo antes de ser processada pelo almoxarifado.
+                    </div>
+                    <label style={labelStyle}>Cargo que deve autorizar</label>
+                    <select value={form.cargoAutorizadorId||""} onChange={e=>{
+                      const cargo = cargos.find(c=>c.id===e.target.value);
+                      setForm(f=>({...f, cargoAutorizadorId:e.target.value, cargoAutorizadorNome:cargo?.nome||""}));
+                    }} style={inputStyle}>
+                      <option value="">Nenhum — liberação direta para almoxarifado</option>
+                      {cargos.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+                    </select>
+                    {form.cargoAutorizadorId && (
+                      <div style={{ marginTop:8, background:"#fff", borderRadius:8, padding:"6px 12px", fontSize:12, color:"#E8730A", fontWeight:600 }}>
+                        ⚠️ Será necessária autorização do cargo: {form.cargoAutorizadorNome}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
               <button onClick={salvarMaterial} disabled={salvando||!form.nome} style={{ width:"100%", marginTop:20, background:salvando||!form.nome?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
                 {salvando?"Salvando...":"💾 Salvar Material"}
               </button>
