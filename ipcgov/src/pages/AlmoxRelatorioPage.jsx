@@ -248,7 +248,7 @@ export default function AlmoxRelatorioPage({ onBack }) {
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:28 }}>
                       {[
                         { label:"Total solicitações", value:solSetor.length, cor:"#1B3F7A" },
-                        { label:"Aprovadas", value:solSetor.filter(s=>["Aprovada","Entregue"].includes(s.status)).length, cor:"#059669" },
+                        { label:"Aprovadas", value:solSetor.filter(s=>["Aguardando Homologação","Em Separação","Entregue","Entregue Parcial","Devolução Pendente","Devolução Homologada"].includes(s.status)).length, cor:"#059669" },
                         { label:"Unidades retiradas", value:`${totalUnids} un.`, cor:"#E8730A" },
                       ].map((s,i)=>(
                         <div key={i} style={{ background:"#f8f9fb", borderRadius:14, padding:"16px", textAlign:"center" }}>
@@ -262,7 +262,7 @@ export default function AlmoxRelatorioPage({ onBack }) {
                       <div key={sol.id} style={{ padding:"12px 16px", background:i%2===0?"#f8f9fb":"#fff", borderRadius:12, marginBottom:8 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
                           <div style={{ fontSize:12, color:"#aaa" }}>{formatDateTime(sol.criadoEm)} · {sol.solicitante}</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:sol.status==="Aprovada"||sol.status==="Entregue"?"#059669":sol.status==="Recusada"?"#dc2626":"#E8730A" }}>{sol.status}</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:["Entregue","Entregue Parcial","Devolução Homologada"].includes(sol.status)?"#059669":sol.status==="Recusada"?"#dc2626":"#E8730A" }}>{sol.status}</div>
                         </div>
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                           {(sol.itens||[]).map((it,j)=>{ const mat=materiais.find(m=>m.id===it.materialId); return <div key={j} style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:12, color:"#1B3F7A", fontWeight:600 }}>{mat?.nome||it.materialNome}: {it.quantidade}</div>; })}
@@ -281,7 +281,7 @@ export default function AlmoxRelatorioPage({ onBack }) {
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:28 }}>
                       {[
                         { label:"Total solicitações", value:solUsuario.length, cor:"#1B3F7A" },
-                        { label:"Aprovadas", value:solUsuario.filter(s=>["Aprovada","Entregue"].includes(s.status)).length, cor:"#059669" },
+                        { label:"Aprovadas", value:solUsuario.filter(s=>["Aguardando Homologação","Em Separação","Entregue","Entregue Parcial","Devolução Pendente","Devolução Homologada"].includes(s.status)).length, cor:"#059669" },
                         { label:"Unidades retiradas", value:`${totalUnids} un.`, cor:"#E8730A" },
                       ].map((s,i)=>(
                         <div key={i} style={{ background:"#f8f9fb", borderRadius:14, padding:"16px", textAlign:"center" }}>
@@ -295,7 +295,7 @@ export default function AlmoxRelatorioPage({ onBack }) {
                       <div key={sol.id} style={{ padding:"12px 16px", background:i%2===0?"#f8f9fb":"#fff", borderRadius:12, marginBottom:8 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
                           <div style={{ fontSize:12, color:"#aaa" }}>{formatDateTime(sol.criadoEm)} · Setor: {sol.setor}</div>
-                          <div style={{ fontSize:12, fontWeight:700, color:sol.status==="Aprovada"||sol.status==="Entregue"?"#059669":sol.status==="Recusada"?"#dc2626":"#E8730A" }}>{sol.status}</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:["Entregue","Entregue Parcial","Devolução Homologada"].includes(sol.status)?"#059669":sol.status==="Recusada"?"#dc2626":"#E8730A" }}>{sol.status}</div>
                         </div>
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                           {(sol.itens||[]).map((it,j)=>{ const mat=materiais.find(m=>m.id===it.materialId); return <div key={j} style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:12, color:"#1B3F7A", fontWeight:600 }}>{mat?.nome||it.materialNome}: {it.quantidade}</div>; })}
