@@ -204,6 +204,21 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
             )}
 
+            {/* EQUIPAMENTOS — resumido */}
+            {(viagem.equipamentos || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#7c3aed")}>🎒 Equipamentos e Acessórios ({(viagem.equipamentos || []).length})</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {(viagem.equipamentos || []).map((eq, i) => (
+                    <div key={i} style={{ background: "#f8f4ff", borderRadius: 10, padding: "6px 14px", border: "1px solid #e9d5ff" }}>
+                      <span style={{ fontWeight: 700, fontSize: 13, color: "#7c3aed" }}>🎒 {eq.tipo}</span>
+                      {eq.tombo && <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>🏷️ {eq.tombo}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* MUNICÍPIOS */}
             <div style={card}>
               <div style={sec()}>📍 Municípios da Viagem ({eventosVinculados.length})</div>
@@ -339,7 +354,21 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                         <div style={{ fontSize: 13, color: v.feito ? "#059669" : "#333", fontWeight: v.feito ? 600 : 400, textDecoration: v.feito ? "line-through" : "none" }}>{item}</div>
                         {v.responsavel && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>👤 {v.responsavel}</div>}
                         {v.dataLimite && <div style={{ fontSize: 11, color: "#888" }}>📅 {formatDate(v.dataLimite)}</div>}
-                        {(v.ocorrencias || []).length > 0 && <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700 }}>⚠️ {v.ocorrencias.length} ocorrência{v.ocorrencias.length !== 1 ? "s" : ""}</div>}
+                        {(v.ocorrencias || []).length > 0 && (
+                          <div style={{ marginTop: 6 }}>
+                            <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 700, marginBottom: 4 }}>⚠️ {v.ocorrencias.length} ocorrência{v.ocorrencias.length !== 1 ? "s" : ""}</div>
+                            {(v.ocorrencias || []).map((oc, oi) => (
+                              <div key={oi} style={{ background: "#fff3e0", borderRadius: 6, padding: "5px 9px", marginBottom: 3, border: "1px solid #fed7aa", fontSize: 11 }}>
+                                <div style={{ fontWeight: 700, color: "#E8730A" }}>
+                                  {oc.tipo ? `${TIPO_OC[oc.tipo] || oc.tipo}` : "Ocorrência"}
+                                  {oc.data ? <span style={{ fontWeight: 400, color: "#aaa", marginLeft: 6 }}>{new Date(oc.data).toLocaleString("pt-BR")}</span> : null}
+                                </div>
+                                <div style={{ color: "#333", marginTop: 2, lineHeight: 1.4 }}>{oc.descricao || oc.texto || "—"}</div>
+                                {oc.autorEmail && <div style={{ color: "#aaa", marginTop: 1, fontSize: 10 }}>Por: {oc.autorEmail}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -353,6 +382,27 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
               <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
+            )}
+
+            {/* EQUIPAMENTOS — completo */}
+            {(viagem.equipamentos || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#7c3aed")}>🎒 Equipamentos e Acessórios</div>
+                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr", background: "#7c3aed", padding: "12px 18px" }}>
+                    {["Equipamento / Acessório", "Tombo", "Descrição"].map(h => (
+                      <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                    ))}
+                  </div>
+                  {(viagem.equipamentos || []).map((eq, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr", padding: "11px 18px", borderBottom: i < (viagem.equipamentos.length - 1) ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#faf8ff" }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#7c3aed" }}>🎒 {eq.tipo}</div>
+                      <div style={{ fontSize: 13, color: "#555" }}>{eq.tombo || "—"}</div>
+                      <div style={{ fontSize: 13, color: "#333" }}>{eq.descricao || "—"}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* HOSPEDAGEM */}
