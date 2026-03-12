@@ -73,7 +73,7 @@ const btnDel = {
   cursor: "pointer", padding: "0 4px", lineHeight: 1, flexShrink: 0,
 };
 
-export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, podeEditar }) {
+export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", municipiosIds: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
@@ -928,8 +928,11 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                   };
 
                   // Separar motoristas reais da equipe para sugestão
+                  // Filtro correto: motoristas = apenas mot_, apoio = apenas servidores/usuários TCEduc (sem inst_/mot_)
+                  const grupoTCEduc = (grupos||[]).find(g => g.nome?.toLowerCase().includes("tceduc"));
+                  const membrosTCEduc = grupoTCEduc ? (servidores||[]).filter(s => (s.grupos||[]).includes(grupoTCEduc.id)).map(s=>s.email) : [];
                   const motoristasDaEquipe = (form.equipe || []).filter(ch => ch.startsWith("mot_"));
-                  const demaisDaEquipe = (form.equipe || []).filter(ch => !ch.startsWith("mot_"));
+                  const apoiosDaEquipe = (form.equipe || []).filter(ch => !ch.startsWith("mot_") && !ch.startsWith("inst_") && (membrosTCEduc.includes(ch) || membrosTCEduc.length === 0));
 
                   return (
                     <div key={ev.id} style={{ ...cardItem, marginBottom: 10 }}>
@@ -996,7 +999,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                             ) : (
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                                 {/* Primeiro os motoristas reais, depois os demais */}
-                                {[...motoristasDaEquipe, ...demaisDaEquipe].map((ch, i) => {
+                                {motoristasDaEquipe.map((ch, i) => {
                                   const sel = (emq.motoristas || []).includes(ch);
                                   return (
                                     <div key={i} onClick={() => toggleMembro("motoristas", ch)}
@@ -1016,11 +1019,11 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                               👥 Apoio
                               <span style={{ fontSize: 10, fontWeight: 400, color: "#888" }}>— pode ser mais de um</span>
                             </div>
-                            {form.equipe.length === 0 ? (
-                              <div style={{ fontSize: 12, color: "#aaa" }}>Nenhum membro na equipe da viagem ainda</div>
+                            {apoiosDaEquipe.length === 0 ? (
+                              <div style={{ fontSize: 12, color: "#aaa" }}>Nenhum membro TCEduc na equipe da viagem ainda</div>
                             ) : (
                               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                {form.equipe.map((ch, i) => {
+                                {apoiosDaEquipe.map((ch, i) => {
                                   const sel = (emq.apoios || []).includes(ch);
                                   return (
                                     <div key={i} onClick={() => toggleMembro("apoios", ch)}
@@ -1138,8 +1141,10 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                           return { ...prev, [ev.id]: { ...atual, [campo]: nova } };
                         });
                       };
+                      const grupoTCEduc2 = (grupos||[]).find(g => g.nome?.toLowerCase().includes("tceduc"));
+                      const membrosTCEduc2 = grupoTCEduc2 ? (servidores||[]).filter(s => (s.grupos||[]).includes(grupoTCEduc2.id)).map(s=>s.email) : [];
                       const motoristasDaEquipe = (form.equipe||[]).filter(ch=>ch.startsWith("mot_"));
-                      const demaisDaEquipe = (form.equipe||[]).filter(ch=>!ch.startsWith("mot_"));
+                      const apoiosDaEquipe = (form.equipe||[]).filter(ch=>!ch.startsWith("mot_") && !ch.startsWith("inst_") && (membrosTCEduc2.includes(ch) || membrosTCEduc2.length === 0));
                       return (
                         <div key={ev.id} style={{ position: "relative" }}>
                           <div style={{ background: equipAberto?"#f0f4ff":aberto?"#f0f4ff":"#f8f9fb", borderRadius: equipAberto?"14px 14px 0 0":14, padding: "14px 16px", border: `2px solid ${equipAberto?"#1B3F7A":aberto?"#1B3F7A":cor+"33"}`, borderBottom: equipAberto?"none":undefined, transition: "all .15s" }}>
@@ -1182,7 +1187,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                                   <div style={{ marginBottom:10 }}>
                                     <div style={{ fontSize:11,fontWeight:800,color:"#0891b2",marginBottom:6,textTransform:"uppercase",letterSpacing:0.5 }}>🚗 Motorista(s)</div>
                                     <div style={{ display:"flex",flexWrap:"wrap",gap:5 }}>
-                                      {[...motoristasDaEquipe,...demaisDaEquipe].map((ch,i)=>{
+                                      {motoristasDaEquipe.map((ch,i)=>{
                                         const sel=(emqSide.motoristas||[]).includes(ch);
                                         return (
                                           <div key={i} onClick={()=>toggleMembroSide("motoristas",ch)}
@@ -1197,7 +1202,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                                   <div style={{ marginBottom:12 }}>
                                     <div style={{ fontSize:11,fontWeight:800,color:"#1B3F7A",marginBottom:6,textTransform:"uppercase",letterSpacing:0.5 }}>👥 Apoio</div>
                                     <div style={{ display:"flex",flexWrap:"wrap",gap:5 }}>
-                                      {form.equipe.map((ch,i)=>{
+                                      {apoiosDaEquipe.map((ch,i)=>{
                                         const sel=(emqSide.apoios||[]).includes(ch);
                                         return (
                                           <div key={i} onClick={()=>toggleMembroSide("apoios",ch)}
