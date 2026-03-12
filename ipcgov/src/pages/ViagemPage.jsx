@@ -90,6 +90,12 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
+  // Almoxarifado materiais na viagem
+  const [materiaisAlmox, setMateriaisAlmox] = useState([]); // lista do almox para seleção
+  const [solicitacoesViagem, setSolicitacoesViagem] = useState([]); // solicitações desta viagem
+  const [novaMatSol, setNovaMatSol] = useState({ materialId:"", quantidade:1, justificativa:"" });
+  const [enviandoMat, setEnviandoMat] = useState(false);
+  const [devForm, setDevForm] = useState({}); // qtd devolução por materialId
   // UI
   const [blocoAtivo, setBlocoAtivo] = useState(null);
   const [salvando, setSalvando] = useState(false);
@@ -126,8 +132,105 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAlimentacao(viagem.alimentacao || []);
       setAgenda(viagem.agenda || []);
       setLicoesAprendidas(viagem.licoesAprendidas || "");
+      loadMateriaisAlmox();
+      loadSolicitacoesViagem(viagem.id);
     }
   }, [viagem]);
+
+  const loadMateriaisAlmox = async () => {
+    try {
+      const snap = await getDocs(collection(db, "almox_materiais"));
+      setMateriaisAlmox(snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")));
+    } catch(e){ console.error(e); }
+  };
+
+  const loadSolicitacoesViagem = async (viagemId) => {
+    if (!viagemId) return;
+    try {
+      const snap = await getDocs(collection(db, "almox_solicitacoes"));
+      const todas = snap.docs.map(d=>({id:d.id,...d.data()}));
+      setSolicitacoesViagem(todas.filter(s=>s.origemViagem===viagemId));
+    } catch(e){ console.error(e); }
+  };
+
+  const solicitarMaterialAlmox = async () => {
+    if (!novaMatSol.materialId) return;
+    setEnviandoMat(true);
+    try {
+      const mat = materiaisAlmox.find(m=>m.id===novaMatSol.materialId);
+      if (!mat) return;
+      const qtd = parseInt(novaMatSol.quantidade)||1;
+      if (qtd > (mat.estoqueAtual||0)) { alert("Estoque insuficiente!"); setEnviandoMat(false); return; }
+
+      const precisaAutorizacao = !!mat.cargoAutorizadorId;
+      const novoStatus = precisaAutorizacao ? "Aguardando Autorização" : "Aguardando Homologação";
+
+      const dados = {
+        itens: [{ materialId:mat.id, materialNome:mat.nome, quantidade:qtd, unidade:mat.unidade||"un." }],
+        justificativa: novaMatSol.justificativa||"",
+        setor: "TCEduc",
+        origemViagem: viagem.id,
+        origemViagemTitulo: viagem.titulo,
+        status: novoStatus,
+        solicitante: user?.email||"sistema",
+        solicitanteNome: user?.displayName||user?.email,
+        cargoAutorizadorId: mat.cargoAutorizadorId||null,
+        cargoAutorizadorNome: mat.cargoAutorizadorNome||null,
+        criadoEm: new Date().toISOString(),
+        historico: [{ data:new Date().toISOString(), autor:user?.email, tipo:"criacao",
+          texto:`📋 Solicitação criada via TCEduc (Viagem: ${viagem.titulo}) por ${user?.displayName||user?.email}. Status: ${novoStatus}` }],
+      };
+      const ref = await addDoc(collection(db,"almox_solicitacoes"), dados);
+      const nova = { id:ref.id, ...dados };
+      setSolicitacoesViagem(s=>[...s, nova]);
+
+      // Alertas
+      if (precisaAutorizacao) {
+        await addDoc(collection(db,"almox_alertas"),{
+          tipo:"autorizacao_necessaria", solicitacaoId:ref.id, lido:false,
+          cargoDestinatario:mat.cargoAutorizadorId,
+          mensagem:`🔐 Solicitação de ${mat.nome} via viagem "${viagem.titulo}" aguarda sua autorização. Solicitante: ${user?.displayName||user?.email}`,
+          criadoEm:new Date().toISOString(),
+        });
+      } else {
+        await addDoc(collection(db,"almox_alertas"),{
+          tipo:"homologacao_pendente", solicitacaoId:ref.id, lido:false,
+          grupo:"Almoxarifado Administrativo",
+          mensagem:`📦 Nova solicitação de materiais para viagem "${viagem.titulo}". Solicitante: ${user?.displayName||user?.email}`,
+          criadoEm:new Date().toISOString(),
+        });
+      }
+
+      setNovaMatSol({ materialId:"", quantidade:1, justificativa:"" });
+    } catch(e){ console.error(e); alert("Erro ao solicitar material."); }
+    setEnviandoMat(false);
+  };
+
+  const registrarDevolucao = async (sol) => {
+    const itensDev = (sol.itensEntregues||sol.itens||[]).filter(it=>(devForm[it.materialId]||0)>0).map(it=>({
+      materialId:it.materialId, materialNome:it.materialNome,
+      qtdDevolvida:devForm[it.materialId]||0, unidade:it.unidade
+    }));
+    if (itensDev.length===0) { alert("Informe ao menos uma quantidade."); return; }
+    setEnviandoMat(true);
+    try {
+      const textoHist = `↩️ Devolução solicitada por ${user?.displayName||user?.email}: ${itensDev.map(it=>`${it.materialNome} (${it.qtdDevolvida})`).join(", ")}`;
+      const novoHist = [...(sol.historico||[]),{ data:new Date().toISOString(), autor:user?.email, tipo:"devolucao_solicitada", texto:textoHist }];
+      await updateDoc(doc(db,"almox_solicitacoes",sol.id),{
+        status:"Devolução Pendente", historico:novoHist, itensDevolucao:itensDev, atualizadoEm:new Date().toISOString()
+      });
+      await addDoc(collection(db,"almox_alertas"),{
+        tipo:"devolucao_pendente", solicitacaoId:sol.id, lido:false,
+        grupo:"Almoxarifado Administrativo",
+        mensagem:`↩️ Devolução de materiais da viagem "${viagem.titulo}" aguardando homologação. Solicitante: ${user?.displayName||user?.email}`,
+        criadoEm:new Date().toISOString(),
+      });
+      const atualizada = {...sol,status:"Devolução Pendente",historico:novoHist,itensDevolucao:itensDev};
+      setSolicitacoesViagem(s=>s.map(x=>x.id===sol.id?atualizada:x));
+      setDevForm({});
+    } catch(e){ console.error(e); }
+    setEnviandoMat(false);
+  };
 
   const status = calcStatus(form.dataInicio, form.dataFim);
   const todosItens = [...CHECKLIST_VIAGEM_ITENS, ...itensCustom];
@@ -325,6 +428,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
               {[
                 { id: "checklist", icon: "📋", label: "Logística Antes", sub: `${prog.done}/${prog.total} — ${prog.pct}%`, color: "#1B3F7A", prog: true },
                 { id: "logviagem",  icon: "🗺️", label: "Logística de Viagem", sub: `${hospedagens.length + horarios.length + contatos.length + alimentacao.length + agenda.length} itens`, color: "#2a5ba8" },
+                { id: "materiais", icon: "📦", label: "Materiais Almox.", sub: `${solicitacoesViagem.length} solicitaç${solicitacoesViagem.length!==1?"ões":"ão"}`, color: "#059669" },
                 { id: "ocorrencias", icon: "⚠️", label: "Ocorrências", sub: `${ocorrencias.length} registradas`, color: "#E8730A" },
               ].map(b => (
                 <div key={b.id} onClick={() => setBlocoAtivo(blocoAtivo === b.id ? null : b.id)} style={{ background: blocoAtivo === b.id ? "#fff" : "#f8f9fb", borderRadius: 16, padding: 14, cursor: "pointer", border: `2px solid ${blocoAtivo === b.id ? b.color : "transparent"}`, transition: "all .15s" }}>
@@ -582,6 +686,101 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
               </div>
             )}
 
+            {/* ===== BLOCO MATERIAIS ALMOXARIFADO ===== */}
+            {blocoAtivo === "materiais" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />
+                  📦 Materiais do Almoxarifado
+                </div>
+
+                {/* Solicitações existentes */}
+                {solicitacoesViagem.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600, marginBottom: 8 }}>Solicitações desta viagem</div>
+                    {solicitacoesViagem.map((sol, i) => {
+                      const statusCor = { "Aguardando Autorização":"#E8730A","Aguardando Homologação":"#7c3aed","Em Separação":"#0891b2","Entregue":"#059669","Entregue Parcial":"#059669","Recusada":"#dc2626","Devolução Pendente":"#0891b2","Devolução Homologada":"#059669" };
+                      const cor = statusCor[sol.status]||"#888";
+                      return (
+                        <div key={sol.id} style={{ background: "#f8f9fb", borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${cor}22` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                            <div style={{ flex: 1 }}>
+                              {(sol.itens||[]).map((it,j)=>(
+                                <div key={j} style={{ fontSize: 13, color: "#333", fontWeight: 600 }}>📦 {it.materialNome} — {it.quantidade} {it.unidade}</div>
+                              ))}
+                              {sol.justificativa && <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontStyle: "italic" }}>"{sol.justificativa}"</div>}
+                            </div>
+                            <div style={{ background: cor+"18", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: cor, whiteSpace: "nowrap", marginLeft: 8 }}>{sol.status}</div>
+                          </div>
+                          {sol.cargoAutorizadorNome && sol.status==="Aguardando Autorização" && (
+                            <div style={{ fontSize: 11, color: "#E8730A", fontWeight: 600 }}>🔐 Aguardando autorização: {sol.cargoAutorizadorNome}</div>
+                          )}
+                          {/* Botão devolução */}
+                          {(sol.status==="Entregue"||sol.status==="Entregue Parcial") && sol.solicitante===user?.email && (
+                            <div style={{ marginTop: 8 }}>
+                              <div style={{ fontSize: 11, color: "#888", marginBottom: 5 }}>Devolver material não utilizado:</div>
+                              {(sol.itensEntregues||sol.itens||[]).map((it,j)=>(
+                                <div key={j} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                                  <span style={{ fontSize:12, flex:1, color:"#333" }}>{it.materialNome}</span>
+                                  <input type="number" min="0" max={it.quantidade} value={devForm[it.materialId]??0}
+                                    onChange={e=>setDevForm(f=>({...f,[it.materialId]:parseInt(e.target.value)||0}))}
+                                    style={{ ...inp, width:60, padding:"4px 8px", fontSize:11 }}/>
+                                  <span style={{ fontSize:11, color:"#888" }}>{it.unidade}</span>
+                                </div>
+                              ))}
+                              <button onClick={()=>registrarDevolucao(sol)} disabled={enviandoMat}
+                                style={{ marginTop:6, background:"#0891b2", border:"none", borderRadius:8, padding:"7px 14px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                                ↩️ Registrar Devolução
+                              </button>
+                            </div>
+                          )}
+                          {/* Resultado devolução */}
+                          {sol.status==="Devolução Homologada" && (sol.itensDevolucao||[]).map((it,j)=>(
+                            <div key={j} style={{ fontSize:12, color:sol.devolucaoAceita?"#059669":"#dc2626", marginTop:4, background:sol.devolucaoAceita?"#e8f5e9":"#fee2e2", borderRadius:6, padding:"4px 10px" }}>
+                              {sol.devolucaoAceita?"✅":"❌"} Devolução de {it.materialNome} — {viagem.titulo} QTD {it.qtdDevolvida} ({sol.devolucaoAceita?"Devolução aceita":"Não aceita"} no dia {new Date(sol.devolucaoHomologadaEm).toLocaleDateString("pt-BR")} às {new Date(sol.devolucaoHomologadaEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} por {sol.devolucaoHomologadaPor})
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Form nova solicitação */}
+                <div style={{ background: "#f0fdf4", borderRadius: 14, padding: 16, border: "2px dashed #bbf7d0" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#059669", marginBottom: 12 }}>+ Solicitar Material</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px", gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={lbl}>Material</label>
+                      <select value={novaMatSol.materialId} onChange={e=>setNovaMatSol(n=>({...n,materialId:e.target.value}))} style={inp}>
+                        <option value="">Selecione o material...</option>
+                        {materiaisAlmox.filter(m=>(m.estoqueAtual||0)>0).map(m=>(
+                          <option key={m.id} value={m.id}>{m.nome} ({m.estoqueAtual||0} {m.unidade||"un."} disponíveis){m.cargoAutorizadorId?" 🔐":""}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={lbl}>Qtd</label>
+                      <input type="number" min="1" value={novaMatSol.quantidade} onChange={e=>setNovaMatSol(n=>({...n,quantidade:e.target.value}))} style={inp}/>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={lbl}>Justificativa</label>
+                    <input value={novaMatSol.justificativa} onChange={e=>setNovaMatSol(n=>({...n,justificativa:e.target.value}))} placeholder="Para que será utilizado..." style={inp}/>
+                  </div>
+                  {novaMatSol.materialId && materiaisAlmox.find(m=>m.id===novaMatSol.materialId)?.cargoAutorizadorId && (
+                    <div style={{ background:"#fff3e0", borderRadius:8, padding:"6px 12px", marginBottom:10, fontSize:11, color:"#E8730A", fontWeight:600 }}>
+                      🔐 Este material requer autorização do cargo: {materiaisAlmox.find(m=>m.id===novaMatSol.materialId)?.cargoAutorizadorNome}
+                    </div>
+                  )}
+                  <button onClick={solicitarMaterialAlmox} disabled={enviandoMat||!novaMatSol.materialId}
+                    style={{ background:enviandoMat||!novaMatSol.materialId?"#ccc":"#059669", border:"none", borderRadius:10, padding:"9px 18px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                    {enviandoMat?"Enviando...":"📦 Solicitar ao Almoxarifado"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ===== BLOCO OCORRÊNCIAS ===== */}
             {blocoAtivo === "ocorrencias" && (
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
@@ -629,8 +828,62 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
             {blocoAtivo === "posviagem" && (
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />✅ Pós Viagem</div>
+
+                {/* Materiais solicitados e devoluções */}
+                {solicitacoesViagem.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 10 }}>📦 Materiais Solicitados na Viagem</div>
+                    {solicitacoesViagem.map((sol, i) => {
+                      const statusCor = { "Entregue":"#059669","Entregue Parcial":"#059669","Recusada":"#dc2626","Aguardando Autorização":"#E8730A","Aguardando Homologação":"#7c3aed","Devolução Pendente":"#0891b2","Devolução Homologada":"#059669" };
+                      const cor = statusCor[sol.status]||"#888";
+                      const podeDevolver = (sol.status==="Entregue"||sol.status==="Entregue Parcial") && sol.solicitante===user?.email;
+                      return (
+                        <div key={sol.id} style={{ background:"#f8f9fb", borderRadius:12, padding:"12px 14px", marginBottom:8, borderLeft:`4px solid ${cor}` }}>
+                          {(sol.itens||[]).map((it,j)=>(
+                            <div key={j} style={{ fontSize:13, color:"#333", fontWeight:600 }}>📦 {it.materialNome} — {it.quantidade} {it.unidade}</div>
+                          ))}
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+                            <div style={{ background:cor+"18", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700, color:cor }}>{sol.status}</div>
+                            <span style={{ fontSize:11, color:"#aaa" }}>{new Date(sol.criadoEm).toLocaleDateString("pt-BR")}</span>
+                          </div>
+                          {/* Resultado devolução detalhado — formato solicitado */}
+                          {sol.status==="Devolução Homologada" && (sol.itensDevolucao||[]).map((it,j)=>(
+                            <div key={j} style={{ fontSize:12, marginTop:6, background:sol.devolucaoAceita?"#e8f5e9":"#fee2e2", borderRadius:8, padding:"6px 10px", border:`1px solid ${sol.devolucaoAceita?"#c8e6c9":"#fecaca"}` }}>
+                              <div style={{ fontWeight:700, color:sol.devolucaoAceita?"#059669":"#dc2626" }}>
+                                {sol.devolucaoAceita?"✅":"❌"} Devolução de {it.materialNome} - {viagem.titulo} QTD {it.qtdDevolvida}
+                              </div>
+                              <div style={{ color:"#555", fontSize:11, marginTop:2 }}>
+                                ({sol.devolucaoAceita?"Devolução aceita":"Não aceita"} no dia {new Date(sol.devolucaoHomologadaEm).toLocaleDateString("pt-BR")} às {new Date(sol.devolucaoHomologadaEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} por {sol.devolucaoHomologadaPor})
+                              </div>
+                            </div>
+                          ))}
+                          {/* Botão devolução no pós-viagem */}
+                          {podeDevolver && (
+                            <div style={{ marginTop:10, background:"#e0f2fe", borderRadius:10, padding:"10px 12px", border:"1px solid #bae6fd" }}>
+                              <div style={{ fontSize:12, fontWeight:600, color:"#0891b2", marginBottom:8 }}>↩️ Devolver materiais não utilizados</div>
+                              {(sol.itensEntregues||sol.itens||[]).map((it,j)=>(
+                                <div key={j} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                                  <span style={{ fontSize:12, flex:1, color:"#333" }}>{it.materialNome}</span>
+                                  <input type="number" min="0" max={it.quantidade} value={devForm[it.materialId]??0}
+                                    onChange={e=>setDevForm(f=>({...f,[it.materialId]:parseInt(e.target.value)||0}))}
+                                    style={{ ...inp, width:60, padding:"4px 8px", fontSize:11 }}/>
+                                  <span style={{ fontSize:11, color:"#888" }}>{it.unidade}</span>
+                                </div>
+                              ))}
+                              <button onClick={()=>registrarDevolucao(sol)} disabled={enviandoMat}
+                                style={{ marginTop:6, background:enviandoMat?"#ccc":"#0891b2", border:"none", borderRadius:8, padding:"8px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                                {enviandoMat?"Enviando...":"↩️ Confirmar Devolução"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <label style={lbl}>💡 Lições Aprendidas</label>
-                <textarea value={licoesAprendidas} onChange={e=>setLicoesAprendidas(e.target.value)} placeholder="O que funcionou bem? O que pode melhorar? Insights da equipe para as próximas viagens..." style={{ ...inp, minHeight: 160, resize: "vertical", lineHeight: 1.6 }} />
+                <textarea value={licoesAprendidas} onChange={e=>setLicoesAprendidas(e.target.value)} placeholder="O que funcionou bem? O que pode melhorar? Insights da equipe para as próximas viagens..." style={{ ...inp, minHeight: 130, resize: "vertical", lineHeight: 1.6 }} />
                 <BtnSalvar />
               </div>
             )}
