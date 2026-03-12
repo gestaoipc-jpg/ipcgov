@@ -466,6 +466,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
         servidores={servidores}
         instrutores={instrutores}
         motoristas={motoristas}
+        grupos={grupos}
         podeEditar={podeCriarViagem}
       />
     );
