@@ -99,6 +99,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [equipamentos, setEquipamentos] = useState([]); // lista de equipamentos a levar
+  const [equipeMunicipio, setEquipeMunicipio] = useState({}); // { [eventoId]: { motoristas:[], apoios:[] } }
+  const [expandedMun, setExpandedMun] = useState(null); // eventoId com painel aberto
   // Almoxarifado materiais na viagem
   const [materiaisAlmox, setMateriaisAlmox] = useState([]); // lista do almox para seleção
   const [solicitacoesViagem, setSolicitacoesViagem] = useState([]); // solicitações desta viagem
@@ -142,6 +144,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAgenda(viagem.agenda || []);
       setLicoesAprendidas(viagem.licoesAprendidas || "");
       setEquipamentos(viagem.equipamentos || []);
+      setEquipeMunicipio(viagem.equipeMunicipio || {});
       loadMateriaisAlmox();
       loadSolicitacoesViagem(viagem.id);
     }
@@ -264,7 +267,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, equipamentos, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, equipamentos, equipeMunicipio, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -890,14 +893,153 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />📍 Municípios / Eventos da Viagem</div>
                 {eventosVinculados.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", padding: 24 }}>Nenhum evento vinculado</div> : eventosVinculados.map((ev) => {
                   const cap = (ev.acoesEducacionais||[]).reduce((s,a)=>s+(parseInt(a.participantes)||0),0);
+                  const emq = equipeMunicipio[ev.id] || { motoristas: [], apoios: [] };
+                  const isOpen = expandedMun === ev.id;
+
+                  // Helpers: resolve nome de chave da equipe
+                  const resolveNome = (chave) => {
+                    if (!chave) return "—";
+                    if (chave.startsWith("mot_")) {
+                      const m = (motoristas||[]).find(x => x.id === chave.replace("mot_",""));
+                      return m ? (m.nome||m.email||chave) : chave;
+                    }
+                    if (chave.startsWith("inst_")) {
+                      const m = (instrutores||[]).find(x => x.id === chave.replace("inst_",""));
+                      return m ? (m.nome||m.email||chave) : chave;
+                    }
+                    const srv = (servidores||[]).find(x => x.email===chave);
+                    if (srv) return srv.nome||chave;
+                    const usr = (usuarios||[]).find(x => x.email===chave);
+                    return usr ? (usr.nome||usr.displayName||chave) : chave;
+                  };
+                  const resolveIcone = (chave) => {
+                    if (chave?.startsWith("mot_")) return "🚗";
+                    if (chave?.startsWith("inst_")) return "👨‍🏫";
+                    return "👤";
+                  };
+
+                  const toggleMembro = (campo, chave) => {
+                    setEquipeMunicipio(prev => {
+                      const atual = prev[ev.id] || { motoristas: [], apoios: [] };
+                      const lista = atual[campo] || [];
+                      const nova = lista.includes(chave) ? lista.filter(x => x !== chave) : [...lista, chave];
+                      return { ...prev, [ev.id]: { ...atual, [campo]: nova } };
+                    });
+                  };
+
+                  // Separar motoristas reais da equipe para sugestão
+                  const motoristasDaEquipe = (form.equipe || []).filter(ch => ch.startsWith("mot_"));
+                  const demaisDaEquipe = (form.equipe || []).filter(ch => !ch.startsWith("mot_"));
+
                   return (
-                    <div key={ev.id} style={cardItem}>
+                    <div key={ev.id} style={{ ...cardItem, marginBottom: 10 }}>
+                      {/* Cabeçalho do card */}
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                        <div><div style={{ fontWeight: 700, fontSize: 15, color: "#1B3F7A" }}>{ev.tipo==="Municipal"?ev.municipio:ev.regiao}</div><div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local?` · 📍 ${ev.local}`:""}</div></div>
-                        <div style={{ textAlign: "right" }}><div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div><div style={{ fontSize: 10, color: "#aaa" }}>participantes</div></div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 15, color: "#1B3F7A" }}>{ev.tipo==="Municipal"?ev.municipio:ev.regiao}</div>
+                          <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local?` · 📍 ${ev.local}`:""}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontWeight: 900, fontSize: 18, color: "#059669" }}>{cap}</div>
+                          <div style={{ fontSize: 10, color: "#aaa" }}>participantes</div>
+                        </div>
                       </div>
-                      {(ev.acoesEducacionais||[]).length>0 && <div style={{ marginTop: 8 }}>{ev.acoesEducacionais.map((a,j)=><div key={j} style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"#555",padding:"3px 0",borderBottom:j<ev.acoesEducacionais.length-1?"1px solid #f0f0f0":"none" }}><span>{a.acaoNome||a.nome||"—"}</span><span style={{ fontWeight:700,color:"#1B3F7A" }}>{a.participantes||0}</span></div>)}</div>}
-                      {(ev.ocorrencias||[]).length>0 && <div style={{ marginTop:8,background:"#fff3e0",borderRadius:8,padding:"5px 10px",fontSize:11,color:"#E8730A",fontWeight:700 }}>⚠️ {ev.ocorrencias.length} ocorrência{ev.ocorrencias.length!==1?"s":""}</div>}
+
+                      {(ev.acoesEducacionais||[]).length>0 && (
+                        <div style={{ marginTop: 6 }}>
+                          {ev.acoesEducacionais.map((a,j)=>(
+                            <div key={j} style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"#555",padding:"3px 0",borderBottom:j<ev.acoesEducacionais.length-1?"1px solid #f0f0f0":"none" }}>
+                              <span>{a.acaoNome||a.nome||"—"}</span><span style={{ fontWeight:700,color:"#1B3F7A" }}>{a.participantes||0}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(ev.ocorrencias||[]).length>0 && (
+                        <div style={{ marginTop:8,background:"#fff3e0",borderRadius:8,padding:"5px 10px",fontSize:11,color:"#E8730A",fontWeight:700 }}>
+                          ⚠️ {ev.ocorrencias.length} ocorrência{ev.ocorrencias.length!==1?"s":""}
+                        </div>
+                      )}
+
+                      {/* Resumo equipe já definida */}
+                      {(emq.motoristas.length > 0 || emq.apoios.length > 0) && (
+                        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 5 }}>
+                          {emq.motoristas.map((ch,i) => (
+                            <span key={i} style={{ background:"#e0f2fe",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,color:"#0891b2" }}>🚗 {resolveNome(ch)}</span>
+                          ))}
+                          {emq.apoios.map((ch,i) => (
+                            <span key={i} style={{ background:"#eff6ff",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700,color:"#1B3F7A" }}>{resolveIcone(ch)} {resolveNome(ch)}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Botão toggle equipe */}
+                      <div onClick={() => setExpandedMun(isOpen ? null : ev.id)}
+                        style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "#1B3F7A", fontSize: 12, fontWeight: 700 }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 6, background: isOpen ? "#1B3F7A" : "#f0f4ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: isOpen ? "#fff" : "#1B3F7A" }}>
+                          {isOpen ? "▲" : "▼"}
+                        </div>
+                        {isOpen ? "Fechar" : "👥 Definir equipe para este município"}
+                      </div>
+
+                      {/* Painel de seleção de equipe */}
+                      {isOpen && (
+                        <div style={{ marginTop: 10, background: "#f0f4ff", borderRadius: 14, padding: 16, border: "1px solid #dce8f5" }}>
+                          {/* MOTORISTAS */}
+                          <div style={{ marginBottom: 14 }}>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: "#0891b2", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                              🚗 Motorista(s)
+                              <span style={{ fontSize: 10, fontWeight: 400, color: "#888" }}>— pode ser mais de um</span>
+                            </div>
+                            {form.equipe.length === 0 ? (
+                              <div style={{ fontSize: 12, color: "#aaa" }}>Nenhum membro na equipe da viagem ainda</div>
+                            ) : (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {/* Primeiro os motoristas reais, depois os demais */}
+                                {[...motoristasDaEquipe, ...demaisDaEquipe].map((ch, i) => {
+                                  const sel = (emq.motoristas || []).includes(ch);
+                                  return (
+                                    <div key={i} onClick={() => toggleMembro("motoristas", ch)}
+                                      style={{ display: "flex", alignItems: "center", gap: 5, background: sel ? "#0891b2" : "#fff", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: sel ? "#fff" : "#333", border: `1px solid ${sel ? "#0891b2" : "#e0e0e0"}`, cursor: "pointer" }}>
+                                      {sel && <span style={{ fontSize: 10 }}>✓</span>}
+                                      {resolveIcone(ch)} {resolveNome(ch)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* APOIO */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 12, color: "#1B3F7A", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                              👥 Apoio
+                              <span style={{ fontSize: 10, fontWeight: 400, color: "#888" }}>— pode ser mais de um</span>
+                            </div>
+                            {form.equipe.length === 0 ? (
+                              <div style={{ fontSize: 12, color: "#aaa" }}>Nenhum membro na equipe da viagem ainda</div>
+                            ) : (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                {form.equipe.map((ch, i) => {
+                                  const sel = (emq.apoios || []).includes(ch);
+                                  return (
+                                    <div key={i} onClick={() => toggleMembro("apoios", ch)}
+                                      style={{ display: "flex", alignItems: "center", gap: 5, background: sel ? "#1B3F7A" : "#fff", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 600, color: sel ? "#fff" : "#333", border: `1px solid ${sel ? "#1B3F7A" : "#e0e0e0"}`, cursor: "pointer" }}>
+                                      {sel && <span style={{ fontSize: 10 }}>✓</span>}
+                                      {resolveIcone(ch)} {resolveNome(ch)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          <button onClick={salvarBloco} disabled={salvando}
+                            style={{ marginTop: 14, background: salvando ? "#ccc" : "#059669", border: "none", borderRadius: 10, padding: "8px 18px", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>
+                            {salvando ? "Salvando..." : "💾 Salvar equipe"}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -980,6 +1122,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                       const statusCores = { Programado:"#7c3aed","Em Execução":"#E8730A",Realizado:"#059669",Cancelado:"#dc2626" };
                       const cor = statusCores[ev.status]||"#888";
                       const aberto = menuEvento===ev.id;
+                      const emqSide = equipeMunicipio[ev.id] || { motoristas: [], apoios: [] };
+                      const temEquipe = emqSide.motoristas.length > 0 || emqSide.apoios.length > 0;
                       return (
                         <div key={ev.id} style={{ position:"relative" }}>
                           <div onClick={()=>setMenuEvento(aberto?null:ev.id)} style={{ background:aberto?"#f0f4ff":"#f8f9fb",borderRadius:14,padding:"14px 16px",cursor:"pointer",border:`2px solid ${aberto?"#1B3F7A":cor+"33"}`,transition:"all .15s" }}>
@@ -993,6 +1137,18 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                               <div style={{ fontSize:10,color:"#aaa",fontWeight:600 }}>participantes</div>
                             </div>
                             {nOcs>0 && <div style={{ marginTop:6,background:"#fff3e0",borderRadius:6,padding:"3px 8px",fontSize:11,color:"#E8730A",fontWeight:700,display:"inline-block" }}>⚠️ {nOcs} ocorr.</div>}
+                            {temEquipe && (
+                              <div style={{ marginTop:6, display:"flex", flexWrap:"wrap", gap:4 }}>
+                                {emqSide.motoristas.map((ch,i)=>{
+                                  const m = ch.startsWith("mot_") ? (motoristas||[]).find(x=>x.id===ch.replace("mot_","")) : (servidores||[]).find(x=>x.email===ch)||(usuarios||[]).find(x=>x.email===ch);
+                                  return <span key={i} style={{ background:"#e0f2fe",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,color:"#0891b2" }}>🚗 {m?.nome||ch}</span>;
+                                })}
+                                {emqSide.apoios.map((ch,i)=>{
+                                  const m = ch.startsWith("mot_") ? (motoristas||[]).find(x=>x.id===ch.replace("mot_","")) : ch.startsWith("inst_") ? (instrutores||[]).find(x=>x.id===ch.replace("inst_","")) : (servidores||[]).find(x=>x.email===ch)||(usuarios||[]).find(x=>x.email===ch);
+                                  return <span key={i} style={{ background:"#eff6ff",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,color:"#1B3F7A" }}>👤 {m?.nome||ch}</span>;
+                                })}
+                              </div>
+                            )}
                           </div>
                           {aberto && (
                             <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,background:"#fff",borderRadius:14,boxShadow:"0 8px 32px rgba(27,63,122,0.18)",border:"1px solid #e8edf2",zIndex:50,overflow:"hidden" }} onClick={e=>e.stopPropagation()}>
