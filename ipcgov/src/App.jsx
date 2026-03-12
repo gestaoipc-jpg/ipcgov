@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase/config";
+import { auth, db } from "./firebase/config";
+import { collection, getDocs, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
 import TCEducModule from "./pages/TCEducModule";
@@ -39,11 +40,121 @@ export default function App() {
   const [currentModule, setCurrentModule] = useState(null);
   const [relatorioEventoId, setRelatorioEventoId] = useState(null);
   const [processoRelatorioId, setProcessoRelatorioId] = useState(null);
+  const [userInfo, setUserInfo] = useState(null); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
+  const [pendAutorizacoes, setPendAutorizacoes] = useState([]); // solicitações esperando autorização deste user
+  const [modalAutorizacao, setModalAutorizacao] = useState(null); // solicitação aberta para autorizar
+  const [autJustificativa, setAutJustificativa] = useState("");
+  const [salvandoAut, setSalvandoAut] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      setUser(u);
+      if (u) {
+        await loadUserInfo(u);
+      } else {
+        setUserInfo(null);
+        setPendAutorizacoes([]);
+      }
+      setLoading(false);
+    });
     return unsub;
   }, []);
+
+  const loadUserInfo = async (u) => {
+    try {
+      const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
+      const isAdminGlobal = ADMINS.includes(u.email);
+
+      // Load grupos_trabalho
+      const gruposSnap = await getDocs(collection(db, "ipc_grupos_trabalho"));
+      const todosGrupos = gruposSnap.docs.map(d=>({id:d.id,...d.data()}));
+
+      // Load servidor by email
+      const srvSnap = await getDocs(query(collection(db,"ipc_servidores"), where("email","==",u.email)));
+      let servidor = null;
+      if (!srvSnap.empty) servidor = { id: srvSnap.docs[0].id, ...srvSnap.docs[0].data() };
+
+      const meusGrupoIds = servidor?.grupos || [];
+
+      // Check Almoxarifado Administrativo
+      const grupoAlmox = todosGrupos.find(g => g.nome?.toLowerCase().includes("almoxarifado administrativo"));
+      const isAlmoxAdmin = isAdminGlobal || (grupoAlmox ? meusGrupoIds.includes(grupoAlmox.id) : false);
+
+      // Check TCEduc Administrativo
+      const grupoTCEduc = todosGrupos.find(g => g.nome?.toLowerCase().includes("tceduc administrativo"));
+      const isTCEducAdmin = isAdminGlobal || (grupoTCEduc ? meusGrupoIds.includes(grupoTCEduc.id) : false);
+
+      const info = {
+        grupos: meusGrupoIds,
+        cargoId: servidor?.cargoId || null,
+        cargoNome: servidor?.cargoNome || null,
+        servidorId: servidor?.id || null,
+        servidorNome: servidor?.nome || u.displayName || u.email,
+        isAlmoxAdmin,
+        isTCEducAdmin,
+        isAdminGlobal,
+      };
+      setUserInfo(info);
+
+      // Load pending authorizations for this user's cargo
+      if (info.cargoId) {
+        await loadPendAutorizacoes(info.cargoId);
+      }
+    } catch(e) { console.error("loadUserInfo", e); }
+  };
+
+  const loadPendAutorizacoes = async (cargoId) => {
+    try {
+      const snap = await getDocs(query(
+        collection(db, "almox_solicitacoes"),
+        where("status", "==", "Aguardando Autorização"),
+        where("cargoAutorizadorId", "==", cargoId)
+      ));
+      setPendAutorizacoes(snap.docs.map(d=>({id:d.id,...d.data()})));
+    } catch(e) { console.error(e); }
+  };
+
+  const autorizarSolicitacao = async (sol, aprovado) => {
+    setSalvandoAut(true);
+    try {
+      const novoStatus = aprovado ? "Aguardando Homologação" : "Recusada";
+      const textoHist = aprovado
+        ? `✅ Autorizado por ${userInfo?.servidorNome || user?.email} (${userInfo?.cargoNome})`
+        : `❌ Não autorizado por ${userInfo?.servidorNome || user?.email} (${userInfo?.cargoNome}). Motivo: ${autJustificativa}`;
+      const novoHist = [...(sol.historico||[]), {
+        data: new Date().toISOString(), autor: user?.email,
+        tipo: aprovado ? "autorizacao" : "recusa_autorizacao", texto: textoHist,
+      }];
+      const upd = { status: novoStatus, historico: novoHist, atualizadoEm: new Date().toISOString() };
+      if (!aprovado) upd.motivoRecusa = autJustificativa;
+      await updateDoc(doc(db, "almox_solicitacoes", sol.id), upd);
+
+      // Alerta para solicitante
+      await addDoc(collection(db, "almox_alertas"), {
+        tipo: aprovado ? "autorizacao_aprovada" : "autorizacao_recusada",
+        solicitacaoId: sol.id, destinatario: sol.solicitante, lido: false,
+        mensagem: aprovado
+          ? `✅ Sua solicitação de materiais foi autorizada por ${userInfo?.servidorNome}. Aguarde homologação do almoxarifado.`
+          : `❌ Sua solicitação de materiais foi recusada por ${userInfo?.servidorNome}. Motivo: ${autJustificativa}`,
+        criadoEm: new Date().toISOString(),
+      });
+
+      // Se aprovado: alerta para Almoxarifado Administrativo
+      if (aprovado) {
+        await addDoc(collection(db, "almox_alertas"), {
+          tipo: "homologacao_pendente", grupo: "Almoxarifado Administrativo",
+          solicitacaoId: sol.id, lido: false,
+          mensagem: `📦 Nova solicitação de materiais autorizada aguardando homologação. Solicitante: ${sol.solicitanteNome || sol.solicitante}`,
+          criadoEm: new Date().toISOString(),
+        });
+      }
+
+      setPendAutorizacoes(p => p.filter(x => x.id !== sol.id));
+      setModalAutorizacao(null);
+      setAutJustificativa("");
+    } catch(e) { console.error(e); }
+    setSalvandoAut(false);
+  };
 
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#1B3F7A", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
@@ -80,9 +191,9 @@ export default function App() {
   if (currentModule === "processos_relatorio") return <ProcessosRelatorioPage onBack={() => setCurrentModule("processos")} processoId={processoRelatorioId} />;
   if (currentModule === "processos_dashboard") return <ProcessosDashboardPage onBack={() => setCurrentModule("processos")} />;
 
-  if (currentModule === "almoxarifado") return <AlmoxarifadoModule user={user} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("almox_dashboard")} onRelatorio={() => setCurrentModule("almox_relatorio")} onSolicitacoes={() => setCurrentModule("almox_solicitacoes")} />;
+  if (currentModule === "almoxarifado") return <AlmoxarifadoModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("almox_dashboard")} onRelatorio={() => setCurrentModule("almox_relatorio")} onSolicitacoes={() => setCurrentModule("almox_solicitacoes")} />;
   if (currentModule === "almox_dashboard") return <AlmoxDashboardPage onBack={() => setCurrentModule("almoxarifado")} />;
-  if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} onBack={() => setCurrentModule("almoxarifado")} isAdmin={true} />;
+  if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("almoxarifado")} isAdmin={userInfo?.isAlmoxAdmin || false} />;
   if (currentModule === "almox_relatorio") return <AlmoxRelatorioPage onBack={() => setCurrentModule("almoxarifado")} />;
 
   if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} onAniversarios={() => setCurrentModule("aniversarios")} onEstrutura={() => setCurrentModule("estrutura_pessoas")} />;
