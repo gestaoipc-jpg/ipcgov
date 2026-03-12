@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase/config";
 
 function formatDate(d) {
   if (!d) return "—";
@@ -37,6 +39,14 @@ const tag = (bg, cor) => ({
 
 export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, usuarios, instrutores, motoristas }) {
   const [tipo, setTipo] = useState("resumido");
+  const [solicitacoesViagem, setSolicitacoesViagem] = useState([]);
+
+  useEffect(() => {
+    if (!viagem?.id) return;
+    getDocs(query(collection(db, "almox_solicitacoes"), where("origemViagem", "==", viagem.id)))
+      .then(snap => setSolicitacoesViagem(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(console.error);
+  }, [viagem?.id]);
 
   if (!viagem) return null;
 
@@ -312,6 +322,34 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               </div>
             )}
 
+            {/* MATERIAIS ALMOXARIFADO — resumido */}
+            {solicitacoesViagem.length > 0 && (
+              <div style={card}>
+                <div style={sec("#059669")}>📦 Materiais Solicitados ao Almoxarifado</div>
+                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1.5fr", background: "#059669", padding: "11px 18px" }}>
+                    {["Material", "Qtd", "Status", "Solicitante"].map(h => (
+                      <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                    ))}
+                  </div>
+                  {solicitacoesViagem.map((sol, si) =>
+                    (sol.itens || []).map((it, ii) => {
+                      const statusCores = { "Entregue":"#059669","Entregue Parcial":"#059669","Recusada":"#dc2626","Devolução Homologada":"#0891b2" };
+                      const cor = statusCores[sol.status] || "#E8730A";
+                      return (
+                        <div key={`${si}-${ii}`} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1.5fr", padding: "10px 18px", borderBottom: "1px solid #f0f0f0", background: (si + ii) % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{it.materialNome}</div>
+                          <div style={{ fontSize: 13, color: "#1B3F7A", fontWeight: 700 }}>{it.quantidade} {it.unidade || "un."}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: cor }}>{sol.status}</div>
+                          <div style={{ fontSize: 12, color: "#555" }}>{sol.solicitanteNome || sol.solicitante}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* OCORRÊNCIAS VIAGEM — resumo por tipo */}
             {totalOcViagem > 0 && (
               <div style={card}>
@@ -549,6 +587,71 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                     {a.extra && <div style={{ fontSize: 12, color: "#555", marginTop: 8, background: "#fff", borderRadius: 8, padding: "6px 12px", border: "1px solid #e8edf2" }}>{a.extra}</div>}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* MATERIAIS ALMOXARIFADO — completo */}
+            {solicitacoesViagem.length > 0 && (
+              <div style={card}>
+                <div style={sec("#059669")}>📦 Materiais Solicitados ao Almoxarifado</div>
+                {solicitacoesViagem.map((sol, si) => {
+                  const statusCores = { "Entregue":"#059669","Entregue Parcial":"#059669","Recusada":"#dc2626","Aguardando Autorização":"#E8730A","Aguardando Homologação":"#7c3aed","Em Separação":"#0891b2","Devolução Pendente":"#0891b2","Devolução Homologada":"#059669" };
+                  const cor = statusCores[sol.status] || "#888";
+                  return (
+                    <div key={si} style={{ background: "#f8f9fb", borderRadius: 14, padding: "14px 18px", marginBottom: 10, borderLeft: `4px solid ${cor}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A" }}>{sol.solicitanteNome || sol.solicitante}</div>
+                          {sol.setor && <div style={{ fontSize: 12, color: "#888" }}>{sol.setor}</div>}
+                          {sol.justificativa && <div style={{ fontSize: 12, color: "#555", marginTop: 3, fontStyle: "italic" }}>"{sol.justificativa}"</div>}
+                        </div>
+                        <div style={{ background: cor + "18", borderRadius: 8, padding: "3px 12px", fontSize: 11, fontWeight: 700, color: cor, whiteSpace: "nowrap", marginLeft: 10 }}>{sol.status}</div>
+                      </div>
+                      {/* Itens */}
+                      <div style={{ border: "1px solid #e8edf2", borderRadius: 10, overflow: "hidden", marginBottom: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", background: "#1B3F7A", padding: "8px 14px" }}>
+                          {["Material", "Solicitado", "Entregue"].map(h => <div key={h} style={{ color: "#fff", fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>)}
+                        </div>
+                        {(sol.itens || []).map((it, ii) => {
+                          const entregue = (sol.itensEntregues || [])[ii];
+                          return (
+                            <div key={ii} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", padding: "8px 14px", borderBottom: ii < sol.itens.length - 1 ? "1px solid #f0f0f0" : "none", background: ii % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{it.materialNome}</div>
+                              <div style={{ fontSize: 13, color: "#1B3F7A", fontWeight: 700 }}>{it.quantidade} {it.unidade || "un."}</div>
+                              <div style={{ fontSize: 13, color: entregue ? "#059669" : "#aaa", fontWeight: entregue ? 700 : 400 }}>
+                                {entregue ? `${entregue.quantidade} ${entregue.unidade || "un."}` : "—"}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* Devolução */}
+                      {sol.status === "Devolução Homologada" && (sol.itensDevolucao || []).length > 0 && (
+                        <div style={{ background: sol.devolucaoAceita ? "#e8f5e9" : "#fee2e2", borderRadius: 8, padding: "8px 12px", border: `1px solid ${sol.devolucaoAceita ? "#c8e6c9" : "#fecaca"}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: sol.devolucaoAceita ? "#059669" : "#dc2626", marginBottom: 4 }}>
+                            {sol.devolucaoAceita ? "✅" : "❌"} Devolução {sol.devolucaoAceita ? "aceita" : "não homologada"}
+                          </div>
+                          {(sol.itensDevolucao || []).map((it, di) => (
+                            <div key={di} style={{ fontSize: 12, color: "#333" }}>
+                              ↩️ {it.materialNome} QTD {it.qtdDevolvida} — aceita em {new Date(sol.devolucaoHomologadaEm).toLocaleString("pt-BR")} por {sol.devolucaoHomologadaPor}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Histórico */}
+                      {(sol.historico || []).length > 0 && (
+                        <div style={{ marginTop: 8, borderTop: "1px solid #e8edf2", paddingTop: 8 }}>
+                          <div style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>Histórico</div>
+                          {(sol.historico || []).map((h, hi) => (
+                            <div key={hi} style={{ fontSize: 11, color: "#555", borderLeft: "2px solid #e8edf2", paddingLeft: 8, marginBottom: 3 }}>
+                              <span style={{ fontWeight: 700, color: "#888" }}>{new Date(h.data).toLocaleString("pt-BR")}</span> — {h.texto}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
