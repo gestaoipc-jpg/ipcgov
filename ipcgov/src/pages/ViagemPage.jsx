@@ -78,6 +78,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
+  const [novoEq, setNovoEq] = useState({ tipo: "", tombo: "", descricao: "", outro: "" });
   const [itemAberto, setItemAberto] = useState(null);
   const [novaOcItem, setNovaOcItem] = useState("");
   // Logística de Viagem
@@ -480,7 +481,6 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
             {/* ===== BLOCO EQUIPAMENTOS ===== */}
             {blocoAtivo === "equipamentos" && (() => {
-              const [novoEq, setNovoEq] = React.useState({ tipo: "", tombo: "", descricao: "", outro: "" });
               const addEquipamento = () => {
                 const tipo = novoEq.tipo === "Outro" ? (novoEq.outro?.trim() || "Outro") : novoEq.tipo;
                 if (!tipo) return;
