@@ -34,6 +34,13 @@ function fmtWhats(num) {
   return num;
 }
 
+const EQUIPAMENTOS_LISTA = [
+  "Notebook","Projetor","Caixa de Som","Microfone","Webcam",
+  "Kit Transmissão","Passador de Slides","Mesa de Som","Filmadora",
+  "Tripé Câmera","Tripé Banner","Tablet","Monitor","Computador",
+  "Mesa de Corte","Máquina Fotográfica","Suporte Tablet","Outro",
+];
+
 const CHECKLIST_VIAGEM_ITENS = [
   "Solicitar viagem",
   "Solicitar diária terceirizados",
@@ -90,6 +97,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
+  const [equipamentos, setEquipamentos] = useState([]); // lista de equipamentos a levar
   // Almoxarifado materiais na viagem
   const [materiaisAlmox, setMateriaisAlmox] = useState([]); // lista do almox para seleção
   const [solicitacoesViagem, setSolicitacoesViagem] = useState([]); // solicitações desta viagem
@@ -132,6 +140,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAlimentacao(viagem.alimentacao || []);
       setAgenda(viagem.agenda || []);
       setLicoesAprendidas(viagem.licoesAprendidas || "");
+      setEquipamentos(viagem.equipamentos || []);
       loadMateriaisAlmox();
       loadSolicitacoesViagem(viagem.id);
     }
@@ -254,7 +263,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, equipamentos, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -427,6 +436,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
               {[
                 { id: "checklist", icon: "📋", label: "Logística Antes", sub: `${prog.done}/${prog.total} — ${prog.pct}%`, color: "#1B3F7A", prog: true },
+                { id: "equipamentos", icon: "🎒", label: "Equipamentos", sub: `${equipamentos.length} item${equipamentos.length!==1?"s":""}`, color: "#7c3aed" },
                 { id: "logviagem",  icon: "🗺️", label: "Logística de Viagem", sub: `${hospedagens.length + horarios.length + contatos.length + alimentacao.length + agenda.length} itens`, color: "#2a5ba8" },
                 { id: "materiais", icon: "📦", label: "Materiais Almox.", sub: `${solicitacoesViagem.length} solicitaç${solicitacoesViagem.length!==1?"ões":"ão"}`, color: "#059669" },
                 { id: "ocorrencias", icon: "⚠️", label: "Ocorrências", sub: `${ocorrencias.length} registradas`, color: "#E8730A" },
@@ -467,6 +477,76 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 <BtnSalvar />
               </div>
             )}
+
+            {/* ===== BLOCO EQUIPAMENTOS ===== */}
+            {blocoAtivo === "equipamentos" && (() => {
+              const [novoEq, setNovoEq] = React.useState({ tipo: "", tombo: "", descricao: "", outro: "" });
+              const addEquipamento = () => {
+                const tipo = novoEq.tipo === "Outro" ? (novoEq.outro?.trim() || "Outro") : novoEq.tipo;
+                if (!tipo) return;
+                setEquipamentos(prev => [...prev, { tipo, tombo: novoEq.tombo || "", descricao: novoEq.descricao || "" }]);
+                setNovoEq({ tipo: "", tombo: "", descricao: "", outro: "" });
+              };
+              const removerEq = (i) => setEquipamentos(prev => prev.filter((_, j) => j !== i));
+              return (
+                <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#7c3aed", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 4, height: 18, background: "#7c3aed", borderRadius: 2 }} />🎒 Equipamentos e Acessórios
+                  </div>
+
+                  {/* Lista atual */}
+                  {equipamentos.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      {equipamentos.map((eq, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8f4ff", borderRadius: 10, padding: "10px 14px", marginBottom: 6, border: "1px solid #e9d5ff" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: "#7c3aed" }}>🎒 {eq.tipo}</div>
+                            <div style={{ display: "flex", gap: 12, marginTop: 3 }}>
+                              {eq.tombo && <span style={{ fontSize: 11, color: "#888" }}>🏷️ Tombo: <b>{eq.tombo}</b></span>}
+                              {eq.descricao && <span style={{ fontSize: 11, color: "#555" }}>{eq.descricao}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => removerEq(i)} style={{ background: "none", border: "none", color: "#dc2626", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Form novo equipamento */}
+                  <div style={{ background: "#f8f4ff", borderRadius: 14, padding: 16, border: "2px dashed #e9d5ff" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#7c3aed", marginBottom: 12 }}>+ Adicionar Equipamento</div>
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={lbl}>Equipamento / Acessório *</label>
+                      <select value={novoEq.tipo} onChange={e => setNovoEq(n => ({ ...n, tipo: e.target.value, outro: "" }))} style={inp}>
+                        <option value="">Selecione...</option>
+                        {EQUIPAMENTOS_LISTA.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                      </select>
+                    </div>
+                    {novoEq.tipo === "Outro" && (
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={lbl}>Descrição do equipamento *</label>
+                        <input value={novoEq.outro || ""} onChange={e => setNovoEq(n => ({ ...n, outro: e.target.value }))} placeholder="Descreva o equipamento..." style={inp} />
+                      </div>
+                    )}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                      <div>
+                        <label style={lbl}>Tombo (opcional)</label>
+                        <input value={novoEq.tombo || ""} onChange={e => setNovoEq(n => ({ ...n, tombo: e.target.value }))} placeholder="Nº do tombo..." style={inp} />
+                      </div>
+                      <div>
+                        <label style={lbl}>Descrição / Observação</label>
+                        <input value={novoEq.descricao || ""} onChange={e => setNovoEq(n => ({ ...n, descricao: e.target.value }))} placeholder="Ex: Cabo HDMI incluso..." style={inp} />
+                      </div>
+                    </div>
+                    <button onClick={addEquipamento} disabled={!novoEq.tipo || (novoEq.tipo === "Outro" && !novoEq.outro?.trim())}
+                      style={{ background: !novoEq.tipo || (novoEq.tipo === "Outro" && !novoEq.outro?.trim()) ? "#ccc" : "#7c3aed", border: "none", borderRadius: 10, padding: "9px 20px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>
+                      + Adicionar
+                    </button>
+                  </div>
+                  <BtnSalvar />
+                </div>
+              );
+            })()}
 
             {/* ===== BLOCO LOGÍSTICA DE VIAGEM ===== */}
             {blocoAtivo === "logviagem" && (
