@@ -247,7 +247,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
   const status = calcStatus(form.dataInicio, form.dataFim);
   const todosItens = [...CHECKLIST_VIAGEM_ITENS, ...itensCustom];
-  const eventosVinculados = eventosDisponiveis.filter(e => form.municipiosIds.includes(e.id));
+  const eventosVinculados = eventosDisponiveis.filter(e => form.municipiosIds.includes(e.id)).sort((a, b) => (a.data || "").localeCompare(b.data || ""));
 
   const toggleCheck = (item) => setChecklist(c => ({ ...c, [item]: { ...c[item], feito: !c[item]?.feito } }));
   const setItemResp = (item, v) => setChecklist(c => ({ ...c, [item]: { ...c[item], responsavel: v } }));
