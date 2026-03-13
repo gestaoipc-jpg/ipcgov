@@ -430,6 +430,50 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
+
+            {/* PLANO DE AÇÃO — contador resumido */}
+            {(viagem.planoAcaoViagem?.acoes || []).length > 0 && (() => {
+              const acoes = viagem.planoAcaoViagem.acoes;
+              const total = acoes.length;
+              const concluidas = acoes.filter(a => a.status === "Concluída").length;
+              const emAndamento = acoes.filter(a => a.status === "Em andamento").length;
+              const pendentes = acoes.filter(a => !a.status || a.status === "Pendente").length;
+              return (
+                <div style={card}>
+                  <div style={sec("#059669")}>📋 Plano de Ação ({total} ação{total !== 1 ? "ões" : ""})</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+                    {[
+                      { label: "Pendentes",    count: pendentes,   cor: "#E8730A" },
+                      { label: "Em andamento", count: emAndamento, cor: "#0891b2" },
+                      { label: "Concluídas",   count: concluidas,  cor: "#059669" },
+                    ].map(({ label, count, cor }) => (
+                      <div key={label} style={{ textAlign: "center", background: cor + "12", borderRadius: 12, padding: "14px 8px", border: `1px solid ${cor}33` }}>
+                        <div style={{ fontWeight: 900, fontSize: 26, color: cor }}>{count}</div>
+                        <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginTop: 2 }}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid #e8edf2" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", background: "#059669", padding: "9px 14px" }}>
+                      {["Ação", "Responsável", "Prazo", "Status"].map(h => (
+                        <div key={h} style={{ color: "#fff", fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                      ))}
+                    </div>
+                    {acoes.map((a, i) => {
+                      const corSt = { Pendente: "#E8730A", "Em andamento": "#0891b2", Concluída: "#059669" }[a.status] || "#E8730A";
+                      return (
+                        <div key={a.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "9px 14px", borderBottom: i < acoes.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb", alignItems: "center" }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "#1B3F7A" }}>{a.titulo}</div>
+                          <div style={{ fontSize: 11, color: "#555" }}>{a.responsavelNome}</div>
+                          <div style={{ fontSize: 11, color: "#888" }}>{a.prazo ? new Date(a.prazo + "T12:00:00").toLocaleDateString("pt-BR") : "—"}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: corSt, background: corSt + "18", borderRadius: 6, padding: "2px 6px", display: "inline-block" }}>{a.status || "Pendente"}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </>
         )}
 
@@ -940,6 +984,66 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
+
+            {/* PLANO DE AÇÃO — detalhado completo */}
+            {(viagem.planoAcaoViagem?.acoes || []).length > 0 && (() => {
+              const acoes = viagem.planoAcaoViagem.acoes;
+              const total = acoes.length;
+              const concluidas = acoes.filter(a => a.status === "Concluída").length;
+              return (
+                <div style={card}>
+                  <div style={sec("#059669")}>📋 Plano de Ação — {total} ação{total !== 1 ? "ões" : ""} · {concluidas} concluída{concluidas !== 1 ? "s" : ""}</div>
+                  {acoes.map((a, i) => {
+                    const corSt = { Pendente: "#E8730A", "Em andamento": "#0891b2", Concluída: "#059669" }[a.status] || "#E8730A";
+                    const corPr = { Alta: "#dc2626", Média: "#E8730A", Baixa: "#059669" }[a.prioridade] || "#888";
+                    return (
+                      <div key={a.id} style={{ background: i % 2 === 0 ? "#fff" : "#f8f9fb", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: `1px solid ${corSt}33` }}>
+                        {/* Badges */}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                          <span style={{ background: corSt + "22", borderRadius: 6, padding: "2px 10px", fontSize: 10, fontWeight: 800, color: corSt }}>{a.status || "Pendente"}</span>
+                          {a.prioridade && <span style={{ background: corPr + "22", borderRadius: 6, padding: "2px 10px", fontSize: 10, fontWeight: 700, color: corPr }}>{a.prioridade === "Alta" ? "🔴" : a.prioridade === "Média" ? "🟡" : "🟢"} {a.prioridade}</span>}
+                          {a.prazo && <span style={{ background: "#f3f4f6", borderRadius: 6, padding: "2px 10px", fontSize: 10, fontWeight: 600, color: "#888" }}>📅 {new Date(a.prazo + "T12:00:00").toLocaleDateString("pt-BR")}</span>}
+                        </div>
+                        {/* Título */}
+                        <div style={{ fontWeight: 800, fontSize: 14, color: "#1B3F7A", marginBottom: 6 }}>{a.titulo}</div>
+                        {/* Descrição */}
+                        {a.descricao && <div style={{ fontSize: 13, color: "#555", background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: 10, lineHeight: 1.6 }}>{a.descricao}</div>}
+                        {/* Responsável e criador */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: a.andamento ? 10 : 0 }}>
+                          <div style={{ background: "#eff6ff", borderRadius: 8, padding: "8px 12px" }}>
+                            <div style={{ fontSize: 10, color: "#1B3F7A", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Responsável</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#1B3F7A" }}>👤 {a.responsavelNome}</div>
+                            <div style={{ fontSize: 11, color: "#888" }}>{a.responsavelEmail}</div>
+                          </div>
+                          <div style={{ background: "#f8f9fb", borderRadius: 8, padding: "8px 12px" }}>
+                            <div style={{ fontSize: 10, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Criado por</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{a.criadoPor || "—"}</div>
+                            <div style={{ fontSize: 11, color: "#aaa" }}>{a.criadoEm ? new Date(a.criadoEm).toLocaleString("pt-BR") : "—"}</div>
+                          </div>
+                        </div>
+                        {/* Andamento */}
+                        {a.andamento && (
+                          <div style={{ background: "#e0f2fe", borderRadius: 10, padding: "10px 14px", marginTop: 8, borderLeft: "3px solid #0891b2" }}>
+                            <div style={{ fontSize: 10, color: "#0891b2", fontWeight: 700, marginBottom: 3 }}>
+                              🔄 Andamento — {a.atualizadoPor || "—"} · {a.atualizadoEm ? new Date(a.atualizadoEm).toLocaleString("pt-BR") : ""}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#333" }}>{a.andamento}</div>
+                          </div>
+                        )}
+                        {/* Conclusão */}
+                        {a.status === "Concluída" && (
+                          <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "6px 12px", marginTop: 8, borderLeft: "3px solid #059669" }}>
+                            <div style={{ fontSize: 10, color: "#059669", fontWeight: 700 }}>
+                              ✅ Concluída por {a.atualizadoPor || "—"} · {a.atualizadoEm ? new Date(a.atualizadoEm).toLocaleString("pt-BR") : ""}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </>
         )}
       </div>
