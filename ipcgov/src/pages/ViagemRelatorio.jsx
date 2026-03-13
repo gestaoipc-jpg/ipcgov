@@ -18,6 +18,16 @@ function fmtWhats(num) {
 
 const TIPO_OC = { transporte: "🚌 Transporte", hotel: "🏨 Hotel/Hospedagem", alimentacao: "🍽️ Alimentação", outro: "📌 Outro" };
 const TIPO_OC_SHORT = { transporte: "Transporte", hotel: "Hotel", alimentacao: "Alimentação", outro: "Outro" };
+const TIPO_CFG_OC_EVENTO = {
+    inscricao:      { label:"Inscrição/Frequência",       bg:"#fff3e0", cor:"#E8730A" },
+    equipamento:    { label:"Equipamentos/Material",       bg:"#e8f5e9", cor:"#059669" },
+    logistica:      { label:"Logística/Local/Transporte",  bg:"#f3f4f6", cor:"#6b7280" },
+    infraestrutura: { label:"Infraestrutura",              bg:"#f3e8ff", cor:"#7c3aed" },
+    tecnico:        { label:"Problemas Técnicos",          bg:"#fee2e2", cor:"#dc2626" },
+    comunicacao:    { label:"Comunicação",                 bg:"#e0f2fe", cor:"#0891b2" },
+    outro:          { label:"Outro",                       bg:"#f8f9fb", cor:"#888"    },
+  };
+const ORDEM_TIPOS_OC = ["inscricao","infraestrutura","tecnico","comunicacao","equipamento","logistica","outro"];
 const STATUS_COR = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
 
 const sec = (cor = "#1B3F7A") => ({
@@ -395,10 +405,10 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={sec("#E8730A")}>⚠️ Ocorrências de Viagem ({totalOcViagem})</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}>
                   {Object.entries(ocPorTipo).map(([tipo_oc, qtd]) => (
-                    <div key={tipo_oc} style={{ textAlign: "center", background: "#fff3e0", borderRadius: 10, padding: "10px 6px", border: "1px solid #fed7aa" }}>
+                    <div key={tipo_oc} style={{ textAlign: "center", background: (TIPO_CFG_OC_EVENTO[tipo_oc]||{bg:"#fff3e0"}).bg, borderRadius: 10, padding: "10px 6px", border: `1px solid ${(TIPO_CFG_OC_EVENTO[tipo_oc]||{cor:"#E8730A"}).cor}44` }}>
                       <div style={{ fontSize: 18, marginBottom: 3 }}>{TIPO_OC[tipo_oc]?.split(" ")[0] || "📌"}</div>
-                      <div style={{ fontWeight: 900, fontSize: 18, color: "#E8730A" }}>{qtd}</div>
-                      <div style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{TIPO_OC_SHORT[tipo_oc] || tipo_oc}</div>
+                      <div style={{ fontWeight: 900, fontSize: 18, color: (TIPO_CFG_OC_EVENTO[tipo_oc]||{cor:"#E8730A"}).cor }}>{qtd}</div>
+                      <div style={{ fontSize: 10, color: "#888", fontWeight: 600 }}>{TIPO_CFG_OC_EVENTO[tipo_oc]?.label || TIPO_OC_SHORT[tipo_oc] || tipo_oc}</div>
                     </div>
                   ))}
                 </div>
@@ -776,21 +786,34 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                         })}
                       </div>
                     )}
-                    {/* Ocorrências do evento */}
-                    {(ev.ocorrencias || []).length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#E8730A", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>⚠️ Ocorrências do Evento ({ev.ocorrencias.length})</div>
-                        {(ev.ocorrencias || []).map((oc, j) => (
-                          <div key={j} style={{ background: "#fff3e0", borderRadius: 8, padding: "8px 12px", marginBottom: 6, border: "1px solid #fed7aa" }}>
-                            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 3 }}>
-                              <span style={{ background: "#E8730A", color: "#fff", borderRadius: 4, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>{oc.tipo || "Outro"}</span>
-                              <span style={{ fontSize: 10, color: "#aaa" }}>{oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</span>
-                            </div>
-                            <div style={{ fontSize: 12, color: "#333" }}>{oc.descricao || oc.texto}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* Ocorrências do evento — agrupadas por tipo */}
+                    {(ev.ocorrencias || []).length > 0 && (() => {
+                      const grupos_oc = {};
+                      (ev.ocorrencias||[]).forEach(oc => { const t=oc.tipo||"outro"; if(!grupos_oc[t])grupos_oc[t]=[]; grupos_oc[t].push(oc); });
+                      return (
+                        <div>
+                          <div style={{ fontSize:12,fontWeight:700,color:"#E8730A",textTransform:"uppercase",letterSpacing:1,marginBottom:10 }}>⚠️ Ocorrências do Evento ({ev.ocorrencias.length})</div>
+                          {ORDEM_TIPOS_OC.filter(t=>grupos_oc[t]).map(tipo => {
+                            const cfg = TIPO_CFG_OC_EVENTO[tipo]||{label:tipo,bg:"#f8f9fb",cor:"#888"};
+                            return (
+                              <div key={tipo} style={{ marginBottom:10 }}>
+                                <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:6 }}>
+                                  <span style={{ background:cfg.bg,borderRadius:6,padding:"2px 10px",fontSize:10,fontWeight:800,color:cfg.cor,border:`1px solid ${cfg.cor}33` }}>{cfg.label}</span>
+                                  <span style={{ fontSize:10,color:"#aaa" }}>{grupos_oc[tipo].length}×</span>
+                                </div>
+                                {grupos_oc[tipo].map((oc,j) => (
+                                  <div key={j} style={{ background:cfg.bg,borderRadius:8,padding:"8px 12px",marginBottom:5,border:`1px solid ${cfg.cor}33` }}>
+                                    <div style={{ fontSize:10,color:"#aaa",marginBottom:3 }}>{oc.data?new Date(oc.data).toLocaleString("pt-BR"):""}{oc.autorEmail?` · ${oc.autorEmail}`:""}</div>
+                                    {oc.nome && <div style={{ fontSize:11,color:"#555",marginBottom:3 }}>👤 {oc.nome}{oc.cpf?` · CPF: ${oc.cpf}`:""}</div>}
+                                    <div style={{ fontSize:12,color:"#333" }}>{oc.descricao||oc.texto}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -812,7 +835,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 {(viagem.ocorrencias || []).map((oc, i) => (
                   <div key={oc.id || i} style={{ background: "#f8f9fb", borderRadius: 12, padding: "12px 16px", marginBottom: 8, borderLeft: "4px solid #E8730A" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700, color: "#E8730A" }}>{TIPO_OC[oc.tipo] || oc.tipo}</span>
+                      <span style={{ background: (TIPO_CFG_OC_EVENTO[oc.tipo]||{bg:"#fff3e0"}).bg, borderRadius: 6, padding: "2px 10px", fontSize: 11, fontWeight: 700, color: (TIPO_CFG_OC_EVENTO[oc.tipo]||{cor:"#E8730A"}).cor }}>{TIPO_CFG_OC_EVENTO[oc.tipo]?.label || TIPO_OC[oc.tipo] || oc.tipo}</span>
                       <span style={{ fontSize: 11, color: "#aaa" }}>{oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</span>
                     </div>
                     <div style={{ fontSize: 13, color: "#333", background: "#fff", borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>{oc.descricao}</div>
