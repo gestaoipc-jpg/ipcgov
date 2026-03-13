@@ -99,6 +99,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [equipamentos, setEquipamentos] = useState([]); // lista de equipamentos a levar
+  const [distancias, setDistancias] = useState([]); // [{ origem, destino, km }]
+  const [novaDistancia, setNovaDistancia] = useState({ origem: "", origemCustom: "", destino: "", destinoCustom: "", km: "" });
   const [equipeMunicipio, setEquipeMunicipio] = useState({}); // { [eventoId]: { motoristas:[], apoios:[] } }
   const [expandedMun, setExpandedMun] = useState(null); // eventoId com painel aberto
   // Almoxarifado materiais na viagem
@@ -144,6 +146,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAgenda(viagem.agenda || []);
       setLicoesAprendidas(viagem.licoesAprendidas || "");
       setEquipamentos(viagem.equipamentos || []);
+      setDistancias(viagem.distancias || []);
       setEquipeMunicipio(viagem.equipeMunicipio || {});
       loadMateriaisAlmox();
       loadSolicitacoesViagem(viagem.id);
@@ -267,7 +270,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, equipamentos, equipeMunicipio, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, equipamentos, equipeMunicipio, distancias, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -442,6 +445,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 { id: "checklist", icon: "📋", label: "Logística Antes", sub: `${prog.done}/${prog.total} — ${prog.pct}%`, color: "#1B3F7A", prog: true },
                 { id: "equipamentos", icon: "🎒", label: "Equipamentos", sub: `${equipamentos.length} item${equipamentos.length!==1?"s":""}`, color: "#7c3aed" },
                 { id: "logviagem",  icon: "🗺️", label: "Logística de Viagem", sub: `${hospedagens.length + horarios.length + contatos.length + alimentacao.length + agenda.length} itens`, color: "#2a5ba8" },
+                { id: "distancias", icon: "📏", label: "Distâncias", sub: `${distancias.length} trecho${distancias.length !== 1 ? "s" : ""}`, color: "#0891b2" },
                 { id: "materiais", icon: "📦", label: "Materiais Almox.", sub: `${solicitacoesViagem.length} solicitaç${solicitacoesViagem.length!==1?"ões":"ão"}`, color: "#059669" },
                 { id: "ocorrencias", icon: "⚠️", label: "Ocorrências", sub: `${ocorrencias.length} registradas`, color: "#E8730A" },
               ].map(b => (
@@ -768,6 +772,105 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 <BtnSalvar />
               </div>
             )}
+
+            {/* ===== BLOCO DISTÂNCIAS ===== */}
+            {blocoAtivo === "distancias" && (() => {
+              const nomeMun = (ev) => ev.tipo === "Municipal" ? ev.municipio : ev.regiao;
+              const opcoesSelect = [
+                ...eventosVinculados.map(ev => ({ value: ev.id, label: nomeMun(ev) })),
+                { value: "__outro__", label: "Outro município..." },
+              ];
+              const resolveLabel = (d, campo) => {
+                if (d[campo] === "__outro__") return d[campo + "Custom"] || "Outro";
+                const ev = eventosVinculados.find(e => e.id === d[campo]);
+                return ev ? nomeMun(ev) : d[campo];
+              };
+              const totalKm = distancias.reduce((s, d) => s + (parseFloat(d.km) || 0), 0);
+              const canAdd = novaDistancia.origem && novaDistancia.destino && novaDistancia.km &&
+                (novaDistancia.origem !== "__outro__" || novaDistancia.origemCustom.trim()) &&
+                (novaDistancia.destino !== "__outro__" || novaDistancia.destinoCustom.trim());
+              const addDistancia = () => {
+                const orig = novaDistancia.origem === "__outro__" ? novaDistancia.origemCustom.trim() : novaDistancia.origem;
+                const origLabel = novaDistancia.origem === "__outro__" ? novaDistancia.origemCustom.trim() : resolveLabel(novaDistancia, "origem");
+                const dest = novaDistancia.destino === "__outro__" ? novaDistancia.destinoCustom.trim() : novaDistancia.destino;
+                const destLabel = novaDistancia.destino === "__outro__" ? novaDistancia.destinoCustom.trim() : resolveLabel(novaDistancia, "destino");
+                setDistancias(prev => [...prev, { origem: orig, origemLabel: origLabel, destino: dest, destinoLabel: destLabel, km: parseFloat(novaDistancia.km) }]);
+                setNovaDistancia({ origem: "", origemCustom: "", destino: "", destinoCustom: "", km: "" });
+              };
+              return (
+                <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#0891b2", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 4, height: 18, background: "#0891b2", borderRadius: 2 }} />📏 Distâncias entre Municípios
+                  </div>
+
+                  {/* Lista de trechos */}
+                  {distancias.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ border: "1px solid #e8edf2", borderRadius: 12, overflow: "hidden" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", background: "#0891b2", padding: "10px 16px" }}>
+                          {["Origem", "Destino", "Distância", ""].map(h => (
+                            <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                          ))}
+                        </div>
+                        {distancias.map((d, i) => (
+                          <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", padding: "10px 16px", borderBottom: i < distancias.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f0f9ff", alignItems: "center" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.origemLabel || d.origem}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.destinoLabel || d.destino}</div>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: "#0891b2" }}>{d.km} km</div>
+                            <button onClick={() => setDistancias(prev => prev.filter((_, j) => j !== i))}
+                              style={{ background: "none", border: "none", color: "#dc2626", fontSize: 18, cursor: "pointer", lineHeight: 1, padding: "0 4px" }}>×</button>
+                          </div>
+                        ))}
+                        <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr auto", padding: "10px 16px", background: "#0891b2" }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", gridColumn: "1 / 3" }}>TOTAL</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>{totalKm.toFixed(0)} km</div>
+                          <div />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Formulário novo trecho */}
+                  <div style={{ background: "#f0f9ff", borderRadius: 14, padding: 16, border: "2px dashed #bae6fd" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#0891b2", marginBottom: 12 }}>+ Adicionar Trecho</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label style={lbl}>Origem *</label>
+                        <select value={novaDistancia.origem} onChange={e => setNovaDistancia(n => ({ ...n, origem: e.target.value, origemCustom: "" }))} style={inp}>
+                          <option value="">Selecione...</option>
+                          {opcoesSelect.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        {novaDistancia.origem === "__outro__" && (
+                          <input value={novaDistancia.origemCustom} onChange={e => setNovaDistancia(n => ({ ...n, origemCustom: e.target.value }))}
+                            placeholder="Nome do município..." style={{ ...inp, marginTop: 6 }} />
+                        )}
+                      </div>
+                      <div>
+                        <label style={lbl}>Destino *</label>
+                        <select value={novaDistancia.destino} onChange={e => setNovaDistancia(n => ({ ...n, destino: e.target.value, destinoCustom: "" }))} style={inp}>
+                          <option value="">Selecione...</option>
+                          {opcoesSelect.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        {novaDistancia.destino === "__outro__" && (
+                          <input value={novaDistancia.destinoCustom} onChange={e => setNovaDistancia(n => ({ ...n, destinoCustom: e.target.value }))}
+                            placeholder="Nome do município..." style={{ ...inp, marginTop: 6 }} />
+                        )}
+                      </div>
+                      <div>
+                        <label style={lbl}>Distância (km) *</label>
+                        <input type="number" min="0" step="0.1" value={novaDistancia.km} onChange={e => setNovaDistancia(n => ({ ...n, km: e.target.value }))}
+                          placeholder="Ex: 45.5" style={inp} />
+                      </div>
+                    </div>
+                    <button onClick={addDistancia} disabled={!canAdd}
+                      style={{ background: canAdd ? "#0891b2" : "#ccc", border: "none", borderRadius: 10, padding: "9px 20px", color: "#fff", fontWeight: 700, fontSize: 13, cursor: canAdd ? "pointer" : "not-allowed", fontFamily: "'Montserrat', sans-serif" }}>
+                      + Adicionar Trecho
+                    </button>
+                  </div>
+                  <BtnSalvar />
+                </div>
+              );
+            })()}
 
             {/* ===== BLOCO MATERIAIS ALMOXARIFADO ===== */}
             {blocoAtivo === "materiais" && (
