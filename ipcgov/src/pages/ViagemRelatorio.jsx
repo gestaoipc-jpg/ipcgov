@@ -71,7 +71,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
     return { nome: chave, tipo: "usuario" };
   };
 
-  const eventosVinculados = (eventos || []).filter(e => (viagem.municipiosIds || []).includes(e.id));
+  const eventosVinculados = (eventos || []).filter(e => (viagem.municipiosIds || []).includes(e.id)).sort((a, b) => (a.data || "").localeCompare(b.data || ""));
   const totalParticipantes = eventosVinculados.reduce((s, e) =>
     s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
   const totalOcEventos = eventosVinculados.reduce((s, e) => s + (e.ocorrencias || []).length, 0);
