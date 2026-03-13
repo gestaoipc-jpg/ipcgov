@@ -92,15 +92,17 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
   const totalAlimentacao = (viagem.alimentacao || []).length;
   const totalAgenda = (viagem.agenda || []).length;
 
-  // Consolidar por ação educacional
-  const porAcao = {};
+  // Consolidar por ação educacional — normaliza chave para evitar duplicatas por grafia
+  const porAcaoMap = {};
   eventosVinculados.forEach(e => {
     (e.acoesEducacionais || []).forEach(a => {
-      const nome = a.acaoNome || a.nome || "—";
-      if (!porAcao[nome]) porAcao[nome] = 0;
-      porAcao[nome] += parseInt(a.participantes) || 0;
+      const nomeOriginal = (a.acaoNome || a.nome || "—").trim();
+      const chave = nomeOriginal.toLowerCase().replace(/\s+/g, " ");
+      if (!porAcaoMap[chave]) porAcaoMap[chave] = { nomeExibido: nomeOriginal, total: 0 };
+      porAcaoMap[chave].total += parseInt(a.participantes) || 0;
     });
   });
+  const acoesOrdenadas = Object.values(porAcaoMap).sort((a, b) => b.total - a.total);
 
 
   // Ocorrências viagem agrupadas por tipo
