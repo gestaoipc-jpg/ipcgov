@@ -349,7 +349,23 @@ export default function RelatorioPage({ onBack, eventoId }) {
                                   {oc.acaoNome && <span style={{ background:"#eff6ff",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,color:"#1B3F7A" }}>📚 {oc.acaoNome}</span>}
                                   {oc.destinoNome && <span style={{ background:"#f0fdf4",borderRadius:6,padding:"2px 8px",fontSize:10,color:"#059669",fontWeight:600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
                                 </div>
-                                {(oc.nome||oc.cpf) && <div style={{ fontSize:12,color:"#888",marginBottom:6 }}>👤 {oc.nome}{oc.cpf?` · CPF: ${oc.cpf}`:""}</div>}
+                                {(oc.nome||oc.cpf) && (
+                                  <div style={{ fontSize:12,color:"#555",marginBottom:6,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap" }}>
+                                    👤
+                                    {oc.nome && (
+                                      <span>
+                                        {oc.nome.split(" ")[0]}{" "}
+                                        <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>████████</span>
+                                      </span>
+                                    )}
+                                    {oc.cpf && (
+                                      <span style={{ marginLeft:4 }}>· CPF: <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>███████████</span></span>
+                                    )}
+                                    {oc.email && (
+                                      <span>· <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>██████████████</span></span>
+                                    )}
+                                  </div>
+                                )}
                                 <div style={{ fontSize:13,color:"#333",background:"#f8f9fb",borderRadius:8,padding:"8px 12px",marginBottom:oc.resposta?8:0 }}>{oc.descricao}</div>
                                 {oc.resposta && (
                                   <div style={{ background:"#e8f5e9",borderRadius:10,padding:"10px 14px",marginTop:6,borderLeft:"3px solid #059669" }}>
