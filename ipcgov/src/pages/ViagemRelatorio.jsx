@@ -214,6 +214,33 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
             )}
 
+            {/* DISTÂNCIAS — entre municípios */}
+            {(viagem.distancias || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#0891b2")}>📏 Distâncias entre Municípios</div>
+                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", background: "#0891b2", padding: "11px 18px" }}>
+                    {["Origem", "Destino", "Distância"].map(h => (
+                      <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                    ))}
+                  </div>
+                  {(viagem.distancias || []).map((d, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", padding: "11px 18px", borderBottom: i < viagem.distancias.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f0f9ff" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.origemLabel || d.origem}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.destinoLabel || d.destino}</div>
+                      <div style={{ fontSize: 14, fontWeight: 900, color: "#0891b2" }}>{d.km} km</div>
+                    </div>
+                  ))}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", padding: "11px 18px", background: "#0891b2" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", gridColumn: "1 / 3" }}>TOTAL</div>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+                      {(viagem.distancias || []).reduce((s, d) => s + (parseFloat(d.km) || 0), 0).toFixed(0)} km
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* EQUIPAMENTOS — resumido */}
             {(viagem.equipamentos || []).length > 0 && (
               <div style={card}>
@@ -250,11 +277,11 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                         <div>
                           {((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).map((ch, i) => {
                             const { nome } = resolveMembroNome(ch);
-                            return <div key={i} style={{ fontSize: 11, color: "#0891b2", fontWeight: 700 }}>🚗 {nome}</div>;
+                            return <div key={i} style={{ fontSize: 11, color: "#0891b2", fontWeight: 400 }}>🚗 {nome}</div>;
                           })}
                           {((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).map((ch, i) => {
                             const { nome } = resolveMembroNome(ch);
-                            return <div key={i} style={{ fontSize: 11, color: "#1B3F7A" }}>👤 {nome}</div>;
+                            return <div key={i} style={{ fontSize: 11, color: "#1B3F7A", fontWeight: 700 }}>👤 {nome}</div>;
                           })}
                           {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
@@ -432,6 +459,33 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
               <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
+            )}
+
+            {/* DISTÂNCIAS — entre municípios */}
+            {(viagem.distancias || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#0891b2")}>📏 Distâncias entre Municípios</div>
+                <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", background: "#0891b2", padding: "11px 18px" }}>
+                    {["Origem", "Destino", "Distância"].map(h => (
+                      <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
+                    ))}
+                  </div>
+                  {(viagem.distancias || []).map((d, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", padding: "11px 18px", borderBottom: i < viagem.distancias.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f0f9ff" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.origemLabel || d.origem}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>📍 {d.destinoLabel || d.destino}</div>
+                      <div style={{ fontSize: 14, fontWeight: 900, color: "#0891b2" }}>{d.km} km</div>
+                    </div>
+                  ))}
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 2fr 1fr", padding: "11px 18px", background: "#0891b2" }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", gridColumn: "1 / 3" }}>TOTAL</div>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+                      {(viagem.distancias || []).reduce((s, d) => s + (parseFloat(d.km) || 0), 0).toFixed(0)} km
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* EQUIPAMENTOS — completo */}
@@ -687,7 +741,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
                             {((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).map((ch, mi) => {
                               const { nome } = resolveMembroNome(ch);
-                              return <span key={mi} style={{ background: "#e0f2fe", borderRadius: 6, padding: "2px 9px", fontSize: 11, fontWeight: 700, color: "#0891b2" }}>🚗 {nome}</span>;
+                              return <span key={mi} style={{ background: "#e0f2fe", borderRadius: 6, padding: "2px 9px", fontSize: 11, fontWeight: 400, color: "#0891b2" }}>🚗 {nome}</span>;
                             })}
                             {((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).map((ch, mi) => {
                               const { nome } = resolveMembroNome(ch);
