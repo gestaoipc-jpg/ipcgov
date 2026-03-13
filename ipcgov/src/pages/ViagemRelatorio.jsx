@@ -236,24 +236,36 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
-                    {["Município/Região", "Data", "Capacitados", "Ocorrências"].map(h => (
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
+                    {["Município/Região", "Data", "Equipe", "Capacitados", "Ocorrências"].map(h => (
                       <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
                     const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
                     return (
-                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
                         <div style={{ fontSize: 13, color: "#555" }}>{formatDate(ev.data)}</div>
+                        <div>
+                          {((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).map((ch, i) => {
+                            const { nome } = resolveMembroNome(ch);
+                            return <div key={i} style={{ fontSize: 11, color: "#0891b2", fontWeight: 700 }}>🚗 {nome}</div>;
+                          })}
+                          {((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).map((ch, i) => {
+                            const { nome } = resolveMembroNome(ch);
+                            return <div key={i} style={{ fontSize: 11, color: "#1B3F7A" }}>👤 {nome}</div>;
+                          })}
+                          {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
+                        </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
                       </div>
                     );
                   })}
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
                     <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL</div>
+                    <div />
                     <div />
                     <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalParticipantes}</div>
                     <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalOcEventos}</div>
@@ -670,6 +682,19 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                         <div style={{ fontWeight: 900, fontSize: 18, color: "#1B3F7A" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
                         <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>📅 {formatDate(ev.data)}{ev.local ? ` · 📍 ${ev.local}` : ""}</div>
                         <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>{ev.status}</div>
+                        {/* Equipe do município */}
+                        {(((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length > 0 || ((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length > 0) && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                            {((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).map((ch, mi) => {
+                              const { nome } = resolveMembroNome(ch);
+                              return <span key={mi} style={{ background: "#e0f2fe", borderRadius: 6, padding: "2px 9px", fontSize: 11, fontWeight: 700, color: "#0891b2" }}>🚗 {nome}</span>;
+                            })}
+                            {((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).map((ch, mi) => {
+                              const { nome } = resolveMembroNome(ch);
+                              return <span key={mi} style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 9px", fontSize: 11, fontWeight: 700, color: "#1B3F7A" }}>👤 {nome}</span>;
+                            })}
+                          </div>
+                        )}
                       </div>
                       <div style={{ background: "#059669", borderRadius: 12, padding: "8px 16px", textAlign: "center" }}>
                         <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>{cap}</div>
