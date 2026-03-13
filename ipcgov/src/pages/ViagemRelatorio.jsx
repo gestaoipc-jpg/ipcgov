@@ -295,7 +295,13 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                             const { nome } = resolveMembroNome(ch);
                             return <div key={i} style={{ fontSize: 11, color: "#1B3F7A", fontWeight: 700 }}>👤 {nome}</div>;
                           })}
-                          {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
+                          {(ev.acoesEducacionais || []).filter(a => a.instrutorNome).map((a, i) => (
+                            <div key={i} style={{ fontSize: 11, color: a.modalidade === "EaD" ? "#7c3aed" : "#059669", fontWeight: 600 }}>
+                              {a.modalidade === "EaD" ? "💻" : "👨‍🏫"} {a.instrutorNome}
+                              {a.modalidade === "EaD" && <span style={{ fontSize: 9, marginLeft: 3, background: "#f3e8ff", color: "#7c3aed", borderRadius: 4, padding: "1px 4px", fontWeight: 700 }}>EaD</span>}
+                            </div>
+                          ))}
+                          {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
@@ -760,7 +766,13 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                             const { nome } = resolveMembroNome(ch);
                             return <div key={i} style={{ fontSize: 11, color: "#1B3F7A", fontWeight: 700 }}>👤 {nome}</div>;
                           })}
-                          {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
+                          {(ev.acoesEducacionais || []).filter(a => a.instrutorNome).map((a, i) => (
+                            <div key={i} style={{ fontSize: 11, color: a.modalidade === "EaD" ? "#7c3aed" : "#059669", fontWeight: 600 }}>
+                              {a.modalidade === "EaD" ? "💻" : "👨‍🏫"} {a.instrutorNome}
+                              {a.modalidade === "EaD" && <span style={{ fontSize: 9, marginLeft: 3, background: "#f3e8ff", color: "#7c3aed", borderRadius: 4, padding: "1px 4px", fontWeight: 700 }}>EaD</span>}
+                            </div>
+                          ))}
+                          {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
