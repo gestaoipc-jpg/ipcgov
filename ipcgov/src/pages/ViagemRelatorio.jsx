@@ -353,7 +353,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                   const totalH = (viagem.hospedagens || []).reduce((s, h) => s + (parseFloat(h.valorDiaria || 0) * parseInt(h.qtdDiaria || 0)), 0);
                   return totalH > 0 ? (
                     <div style={{ marginTop: 12, background: "#e0f2fe", borderRadius: 10, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#0891b2" }}>💰 Total estimado hospedagens</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#0891b2" }}>💰 Total estimado hospedagens por pessoa</span>
                       <span style={{ fontSize: 15, fontWeight: 900, color: "#0891b2" }}>R$ {totalH.toFixed(2)}</span>
                     </div>
                   ) : null;
@@ -408,7 +408,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
             {/* LIÇÕES APRENDIDAS — resumo */}
             {viagem.licoesAprendidas && (
               <div style={card}>
-                <div style={sec("#059669")}>✅ Lições Aprendidas</div>
+                <div style={sec("#059669")}>✅ Avaliação e Observações da Equipe</div>
                 <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
@@ -845,7 +845,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
             {/* LIÇÕES APRENDIDAS */}
             {viagem.licoesAprendidas && (
               <div style={card}>
-                <div style={sec("#059669")}>✅ Pós Viagem — Lições Aprendidas</div>
+                <div style={sec("#059669")}>✅ Pós Viagem — Avaliação e Observações da Equipe</div>
                 <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
               </div>
             )}
