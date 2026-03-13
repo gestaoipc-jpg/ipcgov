@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
+import emailjs from "@emailjs/browser";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import ViagemPage from "./ViagemPage";
+
+const EMAILJS_SERVICE = "service_m6wjek9";
+const EMAILJS_TEMPLATE = "template_lglpt37";
+const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
 import ViagemRelatorio from "./ViagemRelatorio";
 
 const MUNICIPIOS_CE = [
@@ -81,7 +86,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias, onPlanos }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -102,6 +107,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", email: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [participantesPorAcao, setParticipantesPorAcao] = useState({});
+  const [planoAcao, setPlanoAcao] = useState(null); // { titulo, acoes:[] } do evento selecionado
+  const [novaAcaoPA, setNovaAcaoPA] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
+  const [salvandoPA, setSalvandoPA] = useState(false);
   const [infoViagem, setInfoViagem] = useState({});
   const [salvando, setSalvando] = useState(false);
   const [itemOcorrencia, setItemOcorrencia] = useState(null);
@@ -252,6 +260,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     });
     setParticipantesPorAcao(partic);
     setInfoViagem(ev.infoViagem || {});
+    setPlanoAcao(ev.planoAcao || null);
     setModal("bloco");
   };
 
@@ -268,6 +277,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       ocorrencias,
       licoesAprendidas,
       infoViagem,
+      planoAcao: planoAcao || null,
       acoesEducacionais: acoesAtualizadas,
       atualizadoEm: new Date().toISOString(),
     };
@@ -298,6 +308,82 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ...updates } : e));
     setSalvando(false);
     setModal("detalhe");
+  };
+
+
+  // ---- PLANO DE AÇÃO ----
+  const adicionarAcaoPlano = async () => {
+    const n = novaAcaoPA;
+    if (!n.titulo.trim()) return;
+    const responsavelNome  = n.responsavelTipo === "outro" ? n.responsavelOutroNome  : n.responsavelNome;
+    const responsavelEmail = n.responsavelTipo === "outro" ? n.responsavelOutroEmail : n.responsavelEmail;
+    if (!responsavelNome.trim() || !responsavelEmail.trim()) return;
+
+    setSalvandoPA(true);
+    const eventoNome = selected?.municipio || selected?.regiao || "Evento";
+    const novaAcao = {
+      id: Date.now().toString(),
+      titulo: n.titulo,
+      descricao: n.descricao,
+      prioridade: n.prioridade,
+      prazo: n.prazo,
+      responsavelId: n.responsavelId || "",
+      responsavelNome,
+      responsavelEmail,
+      status: "Pendente",
+      criadoPor: user?.displayName || user?.email || "—",
+      criadoEm: new Date().toISOString(),
+    };
+
+    // Busca ou cria plano para este evento
+    let planoAtual = planoAcao;
+    if (!planoAtual) {
+      planoAtual = { titulo: `Plano de Ação — ${eventoNome}`, eventoId: selected.id, eventoNome, acoes: [], criadoEm: new Date().toISOString() };
+    }
+    const novasAcoes = [...(planoAtual.acoes || []), novaAcao];
+    const planoAtualizado = { ...planoAtual, acoes: novasAcoes, atualizadoEm: new Date().toISOString() };
+
+    // Salva na coleção separada e no evento
+    const { collection: col, addDoc: add, updateDoc: upd, doc: docRef, getDocs: gDocs, query: q, where: wh } = await import("firebase/firestore");
+    const { db: firedb } = await import("../firebase/config");
+
+    let planoId = planoAtual.id;
+    if (!planoId) {
+      const ref = await add(col(firedb, "tceduc_planos_acao"), planoAtualizado);
+      planoId = ref.id;
+      planoAtualizado.id = planoId;
+    } else {
+      await upd(docRef(firedb, "tceduc_planos_acao", planoId), planoAtualizado);
+    }
+    await upd(docRef(firedb, "tceduc_eventos", selected.id), { planoAcao: planoAtualizado, atualizadoEm: new Date().toISOString() });
+    setPlanoAcao(planoAtualizado);
+    setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, planoAcao: planoAtualizado } : e));
+
+    // Enviar notificação por email
+    try {
+      const corpo_completo = `Olá, ${responsavelNome}!\n\nVocê tem uma nova ação delegada no Plano de Ação do TCEduc.\n\n📍 Evento: ${eventoNome}\n📋 Plano: ${planoAtualizado.titulo}\n🎯 Ação: ${novaAcao.titulo}\n${novaAcao.descricao ? "📝 Descrição: " + novaAcao.descricao + "\n" : ""}🔴 Prioridade: ${novaAcao.prioridade}\n${novaAcao.prazo ? "📅 Prazo: " + new Date(novaAcao.prazo + "T12:00:00").toLocaleDateString("pt-BR") + "\n" : ""}\nAcesse o sistema para visualizar e atualizar o andamento desta ação.\n\n---\nAtenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo\n\n🔗 Acesse: https://ipcgov.vercel.app`;
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+        to_name: responsavelNome,
+        to_email: responsavelEmail,
+        subject: `📋 Nova ação delegada — TCEduc ${eventoNome}`,
+        corpo_completo,
+      }, EMAILJS_PUBLIC_KEY);
+    } catch(e) { console.warn("Email não enviado:", e); }
+
+    setNovaAcaoPA({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
+    setSalvandoPA(false);
+  };
+
+  const removerAcaoPlano = async (acaoId) => {
+    if (!planoAcao) return;
+    const novasAcoes = (planoAcao.acoes || []).filter(a => a.id !== acaoId);
+    const planoAtualizado = { ...planoAcao, acoes: novasAcoes, atualizadoEm: new Date().toISOString() };
+    const { updateDoc: upd, doc: docRef } = await import("firebase/firestore");
+    const { db: firedb } = await import("../firebase/config");
+    await upd(docRef(firedb, "tceduc_planos_acao", planoAcao.id), planoAtualizado);
+    await upd(docRef(firedb, "tceduc_eventos", selected.id), { planoAcao: planoAtualizado, atualizadoEm: new Date().toISOString() });
+    setPlanoAcao(planoAtualizado);
+    setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, planoAcao: planoAtualizado } : e));
   };
 
   const toggleCheck = (key) => {
@@ -500,6 +586,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
+              <div onClick={onPlanos} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Plano de Ação</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
               {podeCriarEvento && <div onClick={() => { setSelected(null); setForm({ tipo: "Municipal", municipio: MUNICIPIOS_CE[0], status: "Programado" }); setModal("form"); }} style={{
                 background: "#E8730A", borderRadius: 14, padding: "10px 20px",
@@ -1115,6 +1202,119 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                     </div>
                   </div>
                 )}
+
+                {/* ---- PLANO DE AÇÃO ---- */}
+                <div style={{ marginTop: 28 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 4, display:"flex", alignItems:"center", gap:8 }}>
+                    📋 Plano de Ação
+                    {(planoAcao?.acoes || []).length > 0 && (
+                      <span style={{ background:"#e8f5e9", borderRadius:8, padding:"2px 10px", fontSize:11, color:"#059669", fontWeight:700 }}>
+                        {(planoAcao.acoes || []).length} ação{(planoAcao.acoes || []).length !== 1 ? "ões" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize:12, color:"#888", marginBottom:14 }}>Crie ações a partir das lições aprendidas e delegue responsabilidades. O responsável receberá uma notificação por e-mail.</div>
+
+                  {/* LISTA DE AÇÕES */}
+                  {(planoAcao?.acoes || []).length > 0 && (
+                    <div style={{ marginBottom:16 }}>
+                      {(planoAcao.acoes || []).map((acao, i) => {
+                        const corSt = { Pendente:"#E8730A", "Em andamento":"#0891b2", Concluída:"#059669" }[acao.status] || "#E8730A";
+                        const corPr = { Alta:"#dc2626", Média:"#E8730A", Baixa:"#059669" }[acao.prioridade] || "#888";
+                        return (
+                          <div key={acao.id} style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${corSt}33`, boxShadow:"0 2px 8px rgba(27,63,122,0.05)" }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
+                              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                                <span style={{ background:corSt+"22", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:corSt }}>{acao.status||"Pendente"}</span>
+                                <span style={{ background:corPr+"22", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:corPr }}>{acao.prioridade === "Alta" ? "🔴" : acao.prioridade === "Média" ? "🟡" : "🟢"} {acao.prioridade}</span>
+                                {acao.prazo && <span style={{ background:"#f8f9fb", borderRadius:6, padding:"2px 8px", fontSize:10, color:"#888", fontWeight:600 }}>📅 {new Date(acao.prazo+"T12:00:00").toLocaleDateString("pt-BR")}</span>}
+                              </div>
+                              {["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email) && (
+                                <div onClick={() => removerAcaoPlano(acao.id)} style={{ cursor:"pointer", color:"#dc2626", fontSize:16, padding:"0 4px" }}>×</div>
+                              )}
+                            </div>
+                            <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:4 }}>{acao.titulo}</div>
+                            {acao.descricao && <div style={{ fontSize:12, color:"#666", marginBottom:6 }}>{acao.descricao}</div>}
+                            <div style={{ fontSize:11, color:"#888" }}>👤 {acao.responsavelNome} · {acao.responsavelEmail}</div>
+                            {acao.andamento && <div style={{ fontSize:11, color:"#0891b2", marginTop:4, background:"#e0f2fe", borderRadius:6, padding:"4px 8px" }}>🔄 {acao.andamento}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* FORMULÁRIO NOVA AÇÃO */}
+                  <div style={{ background:"#f0fdf4", borderRadius:16, padding:18, border:"1px solid #bbf7d0" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#059669", marginBottom:12 }}>+ Nova Ação</div>
+                    <div style={{ marginBottom:10 }}>
+                      <label style={labelStyle}>Título da ação *</label>
+                      <input value={novaAcaoPA.titulo} onChange={e => setNovaAcaoPA(n=>({...n,titulo:e.target.value}))} placeholder="Ex: Ajustar lista de presença..." style={inputStyle} />
+                    </div>
+                    <div style={{ marginBottom:10 }}>
+                      <label style={labelStyle}>Descrição</label>
+                      <textarea value={novaAcaoPA.descricao} onChange={e => setNovaAcaoPA(n=>({...n,descricao:e.target.value}))} placeholder="Detalhe o que precisa ser feito..." style={{ ...inputStyle, minHeight:60, resize:"vertical" }} />
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                      <div>
+                        <label style={labelStyle}>Prioridade</label>
+                        <select value={novaAcaoPA.prioridade} onChange={e => setNovaAcaoPA(n=>({...n,prioridade:e.target.value}))} style={inputStyle}>
+                          <option>Alta</option><option>Média</option><option>Baixa</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Prazo</label>
+                        <input type="date" value={novaAcaoPA.prazo} onChange={e => setNovaAcaoPA(n=>({...n,prazo:e.target.value}))} style={inputStyle} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom:10 }}>
+                      <label style={labelStyle}>Responsável</label>
+                      <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                        {[["servidor","👤 Servidor"],["motorista","🚗 Motorista"],["instrutor","👨‍🏫 Instrutor"],["outro","✏️ Outro"]].map(([tipo,label]) => (
+                          <div key={tipo} onClick={() => setNovaAcaoPA(n=>({...n,responsavelTipo:tipo,responsavelId:"",responsavelNome:"",responsavelEmail:"",responsavelOutroNome:"",responsavelOutroEmail:""}))}
+                            style={{ flex:1, textAlign:"center", padding:"6px 4px", borderRadius:8, cursor:"pointer", fontSize:11, fontWeight:700,
+                              background: novaAcaoPA.responsavelTipo===tipo ? "#059669" : "#fff",
+                              color: novaAcaoPA.responsavelTipo===tipo ? "#fff" : "#888",
+                              border:`1px solid ${novaAcaoPA.responsavelTipo===tipo ? "#059669" : "#e8edf2"}` }}>
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                      {novaAcaoPA.responsavelTipo === "outro" ? (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                          <div>
+                            <label style={labelStyle}>Nome *</label>
+                            <input value={novaAcaoPA.responsavelOutroNome} onChange={e => setNovaAcaoPA(n=>({...n,responsavelOutroNome:e.target.value}))} placeholder="Nome completo" style={inputStyle} />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>E-mail *</label>
+                            <input type="email" value={novaAcaoPA.responsavelOutroEmail} onChange={e => setNovaAcaoPA(n=>({...n,responsavelOutroEmail:e.target.value}))} placeholder="email@exemplo.com" style={inputStyle} />
+                          </div>
+                        </div>
+                      ) : (
+                        <select value={novaAcaoPA.responsavelId} onChange={e => {
+                          const lista = novaAcaoPA.responsavelTipo === "motorista" ? motoristas : novaAcaoPA.responsavelTipo === "instrutor" ? instrutores : servidores;
+                          const item = lista.find(x => x.id === e.target.value);
+                          setNovaAcaoPA(n=>({...n, responsavelId:e.target.value, responsavelNome:item?.nome||item?.email||"", responsavelEmail:item?.email||""}));
+                        }} style={inputStyle}>
+                          <option value="">Selecione...</option>
+                          {(novaAcaoPA.responsavelTipo === "motorista" ? motoristas : novaAcaoPA.responsavelTipo === "instrutor" ? instrutores : servidores)
+                            .filter(x => x.email)
+                            .sort((a,b) => (a.nome||"").localeCompare(b.nome||""))
+                            .map(x => <option key={x.id} value={x.id}>{x.nome || x.email}</option>)}
+                        </select>
+                      )}
+                    </div>
+                    <button onClick={adicionarAcaoPlano} disabled={salvandoPA || !novaAcaoPA.titulo.trim() || !(novaAcaoPA.responsavelTipo==="outro" ? novaAcaoPA.responsavelOutroNome.trim() && novaAcaoPA.responsavelOutroEmail.trim() : novaAcaoPA.responsavelEmail.trim())} style={{
+                      width:"100%", background: salvandoPA ? "#ccc" : "#059669",
+                      border:"none", borderRadius:12, padding:"11px", color:"#fff",
+                      fontWeight:700, fontSize:13, cursor: salvandoPA ? "not-allowed" : "pointer",
+                      fontFamily:"'Montserrat',sans-serif",
+                    }}>
+                      {salvandoPA ? "Salvando e notificando..." : "➕ Adicionar Ação e Notificar Responsável"}
+                    </button>
+                  </div>
+                </div>
+
 
                 <label style={labelStyle}>Lições aprendidas</label>
                 <textarea value={licoesAprendidas} onChange={e => setLicoesAprendidas(e.target.value)}
