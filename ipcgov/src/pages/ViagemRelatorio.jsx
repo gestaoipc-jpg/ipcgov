@@ -101,7 +101,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
       porAcao[nome] += parseInt(a.participantes) || 0;
     });
   });
-  const acoesOrdenadas = Object.entries(porAcao).sort((a, b) => b[1] - a[1]);
+
 
   // Ocorrências viagem agrupadas por tipo
   const ocPorTipo = (viagem.ocorrencias || []).reduce((acc, oc) => {
@@ -319,7 +319,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", background: "#059669", padding: "12px 18px" }}>
                     {["Ação Educacional", "Total", "%"].map(h => <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>)}
                   </div>
-                  {acoesOrdenadas.map(([nome, total], i) => {
+                  {acoesOrdenadas.map(({ nomeExibido: nome, total }, i) => {
                     const pct = totalParticipantes > 0 ? Math.round((total / totalParticipantes) * 100) : 0;
                     const cores = ["#1B3F7A", "#059669", "#E8730A", "#7c3aed", "#0891b2", "#dc2626"];
                     return (
