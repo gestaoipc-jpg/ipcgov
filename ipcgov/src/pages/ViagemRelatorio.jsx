@@ -804,7 +804,17 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                                 {grupos_oc[tipo].map((oc,j) => (
                                   <div key={j} style={{ background:cfg.bg,borderRadius:8,padding:"8px 12px",marginBottom:5,border:`1px solid ${cfg.cor}33` }}>
                                     <div style={{ fontSize:10,color:"#aaa",marginBottom:3 }}>{oc.data?new Date(oc.data).toLocaleString("pt-BR"):""}{oc.autorEmail?` · ${oc.autorEmail}`:""}</div>
-                                    {oc.nome && <div style={{ fontSize:11,color:"#555",marginBottom:3 }}>👤 {oc.nome}{oc.cpf?` · CPF: ${oc.cpf}`:""}</div>}
+                                    {oc.nome && (
+                                    <div style={{ fontSize:11,color:"#555",marginBottom:3,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap" }}>
+                                      👤
+                                      <span>
+                                        {oc.nome.split(" ")[0]}{" "}
+                                        <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 7px",userSelect:"none" }}>████████</span>
+                                      </span>
+                                      {oc.cpf && <span>· CPF: <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 7px",userSelect:"none" }}>███████████</span></span>}
+                                      {oc.email && <span>· <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 7px",userSelect:"none" }}>██████████████</span></span>}
+                                    </div>
+                                  )}
                                     <div style={{ fontSize:12,color:"#333" }}>{oc.descricao||oc.texto}</div>
                                   </div>
                                 ))}
