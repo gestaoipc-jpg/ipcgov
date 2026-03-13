@@ -355,14 +355,14 @@ export default function RelatorioPage({ onBack, eventoId }) {
                                     {oc.nome && (
                                       <span>
                                         {oc.nome.split(" ")[0]}{" "}
-                                        <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>████████</span>
+                                        <span style={{ display:"inline-block", background:"#111", borderRadius:2, width:80, height:12, verticalAlign:"middle", WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }} />
                                       </span>
                                     )}
                                     {oc.cpf && (
-                                      <span style={{ marginLeft:4 }}>· CPF: <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>███████████</span></span>
+                                      <span style={{ marginLeft:4 }}>· CPF: <span style={{ display:"inline-block", background:"#111", borderRadius:2, width:100, height:12, verticalAlign:"middle", WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }} /></span>
                                     )}
                                     {oc.email && (
-                                      <span>· <span style={{ background:"#111",color:"#111",borderRadius:2,padding:"1px 8px",userSelect:"none" }}>██████████████</span></span>
+                                      <span>· <span style={{ display:"inline-block", background:"#111", borderRadius:2, width:130, height:12, verticalAlign:"middle", WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }} /></span>
                                     )}
                                   </div>
                                 )}
