@@ -319,36 +319,52 @@ export default function RelatorioPage({ onBack, eventoId }) {
                     <div style={{ background: "#f8f9fb", borderRadius: 12, padding: "20px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
                       ✅ Nenhuma ocorrência registrada
                     </div>
-                  ) : (ev.ocorrencias || []).map((oc, i) => {
-                    const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
-                    const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
-                    return (
-                    <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 10, border: `2px solid ${statusCor}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                          <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A", textTransform: "uppercase" }}>
-                            {TIPO_LBL[oc.tipo]||oc.tipo}
-                          </span>
-                          {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
-                          {oc.destinoNome && <span style={{ background: "#f0fdf4", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#059669", fontWeight: 600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
-                          <span style={{ background: "#f8f9fb", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status || "Pendente"}</span>
+                  ) : (() => {
+                    const TIPO_CFG = {
+                        inscricao:      { label:"Inscrição/Frequência",       bg:"#fff3e0", cor:"#E8730A" },
+                        equipamento:    { label:"Equipamentos/Material",       bg:"#e8f5e9", cor:"#059669" },
+                        logistica:      { label:"Logística/Local/Transporte",  bg:"#f3f4f6", cor:"#6b7280" },
+                        infraestrutura: { label:"Infraestrutura",              bg:"#f3e8ff", cor:"#7c3aed" },
+                        tecnico:        { label:"Problemas Técnicos",          bg:"#fee2e2", cor:"#dc2626" },
+                        comunicacao:    { label:"Comunicação",                 bg:"#e0f2fe", cor:"#0891b2" },
+                        outro:          { label:"Outro",                       bg:"#f8f9fb", cor:"#888"    },
+                      };
+                    const ORDEM = ["inscricao","infraestrutura","tecnico","comunicacao","equipamento","logistica","outro"];
+                    const grupos_oc = {};
+                    (ev.ocorrencias||[]).forEach(oc => { const t=oc.tipo||"outro"; if(!grupos_oc[t])grupos_oc[t]=[]; grupos_oc[t].push(oc); });
+                    return ORDEM.filter(t=>grupos_oc[t]).map(tipo => {
+                      const cfg = TIPO_CFG[tipo]||{label:tipo,bg:"#f8f9fb",cor:"#888"};
+                      return (
+                        <div key={tipo} style={{ marginBottom:14 }}>
+                          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
+                            <span style={{ background:cfg.bg,borderRadius:8,padding:"3px 12px",fontSize:11,fontWeight:800,color:cfg.cor,border:`1px solid ${cfg.cor}33` }}>{cfg.label}</span>
+                            <span style={{ fontSize:11,color:"#aaa",fontWeight:600 }}>{grupos_oc[tipo].length} ocorrência{grupos_oc[tipo].length!==1?"s":""}</span>
+                          </div>
+                          {grupos_oc[tipo].map((oc,i) => {
+                            const statusCor = oc.status==="Resolvido"?"#059669":oc.status==="Ciente"?"#0891b2":"#E8730A";
+                            return (
+                              <div key={i} style={{ background:"#fff",borderRadius:14,padding:"16px 18px",marginBottom:10,border:`2px solid ${statusCor}22` }}>
+                                <div style={{ display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:8 }}>
+                                  <span style={{ background:statusCor+"22",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,color:statusCor }}>{oc.status||"Pendente"}</span>
+                                  {oc.acaoNome && <span style={{ background:"#eff6ff",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700,color:"#1B3F7A" }}>📚 {oc.acaoNome}</span>}
+                                  {oc.destinoNome && <span style={{ background:"#f0fdf4",borderRadius:6,padding:"2px 8px",fontSize:10,color:"#059669",fontWeight:600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
+                                </div>
+                                {(oc.nome||oc.cpf) && <div style={{ fontSize:12,color:"#888",marginBottom:6 }}>👤 {oc.nome}{oc.cpf?` · CPF: ${oc.cpf}`:""}</div>}
+                                <div style={{ fontSize:13,color:"#333",background:"#f8f9fb",borderRadius:8,padding:"8px 12px",marginBottom:oc.resposta?8:0 }}>{oc.descricao}</div>
+                                {oc.resposta && (
+                                  <div style={{ background:"#e8f5e9",borderRadius:10,padding:"10px 14px",marginTop:6,borderLeft:"3px solid #059669" }}>
+                                    <div style={{ fontSize:10,color:"#059669",fontWeight:700,marginBottom:3 }}>✅ Respondido por {oc.respondidoPor} {oc.respondidoEm?`· ${new Date(oc.respondidoEm).toLocaleString("pt-BR")}`:""}</div>
+                                    <div style={{ fontSize:13,color:"#333" }}>{oc.resposta}</div>
+                                  </div>
+                                )}
+                                <div style={{ fontSize:10,color:"#aaa",marginTop:6 }}>Registrado por: {oc.autorEmail||"—"} · {oc.data?new Date(oc.data).toLocaleString("pt-BR"):""}</div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      </div>
-                      {(oc.nome || oc.cpf) && (
-                        <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>
-                          👤 {oc.nome}{oc.cpf ? ` · CPF: ${oc.cpf}` : ""}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 13, color: "#333", fontWeight: 500, background: "#f8f9fb", borderRadius: 8, padding: "8px 12px", marginBottom: oc.resposta ? 8 : 0 }}>{oc.descricao}</div>
-                      {oc.resposta && (
-                        <div style={{ background: "#e8f5e9", borderRadius: 10, padding: "10px 14px", marginTop: 6, borderLeft: "3px solid #059669" }}>
-                          <div style={{ fontSize: 10, color: "#059669", fontWeight: 700, marginBottom: 3 }}>✅ Respondido por {oc.respondidoPor} {oc.respondidoEm ? `· ${new Date(oc.respondidoEm).toLocaleString("pt-BR")}` : ""}</div>
-                          <div style={{ fontSize: 13, color: "#333" }}>{oc.resposta}</div>
-                        </div>
-                      )}
-                      <div style={{ fontSize: 10, color: "#aaa", marginTop: 6 }}>Registrado por: {oc.autorEmail || "—"} · {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}</div>
-                    </div>
-                  )})}
+                      );
+                    });
+                  })()}
                 </div>
 
                 {/* LIÇÕES APRENDIDAS */}
