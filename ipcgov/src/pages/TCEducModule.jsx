@@ -320,7 +320,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   };
 
   const adicionarOcorrencia = async () => {
-    if (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) return;
+    const isInscricao = novaOcorrencia.tipo === "inscricao";
+    if (!novaOcorrencia.descricao.trim()) return;
+    if (isInscricao && (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim())) return;
     const oc = {
       ...novaOcorrencia,
       id: Date.now(),
@@ -910,6 +912,10 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         <option value="inscricao">Inscrição/Frequência</option>
                         <option value="equipamento">Equipamentos/Material</option>
                         <option value="logistica">Logística/Local/Transporte</option>
+                        <option value="infraestrutura">Infraestrutura</option>
+                        <option value="tecnico">Problemas Técnicos</option>
+                        <option value="comunicacao">Comunicação</option>
+                        <option value="outro">Outro</option>
                       </select>
                     </div>
                     <div>
@@ -925,61 +931,75 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                    <div>
-                      <label style={labelStyle}>CPF *</label>
-                      <input value={novaOcorrencia.cpf} onChange={e => setNovaOcorrencia(o => ({ ...o, cpf: e.target.value }))} placeholder="000.000.000-00" style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Nome *</label>
-                      <input value={novaOcorrencia.nome} onChange={e => setNovaOcorrencia(o => ({ ...o, nome: e.target.value }))} placeholder="Nome da pessoa" style={inputStyle} />
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={labelStyle}>E-mail *</label>
-                    <input value={novaOcorrencia.email} onChange={e => setNovaOcorrencia(o => ({ ...o, email: e.target.value }))} placeholder="email@exemplo.com" type="email" style={inputStyle} />
-                  </div>
+                  {/* CPF/Nome/Email apenas para inscrição/frequência */}
+                  {novaOcorrencia.tipo === "inscricao" && (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <label style={labelStyle}>CPF *</label>
+                          <input value={novaOcorrencia.cpf} onChange={e => setNovaOcorrencia(o => ({ ...o, cpf: e.target.value }))} placeholder="000.000.000-00" style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Nome *</label>
+                          <input value={novaOcorrencia.nome} onChange={e => setNovaOcorrencia(o => ({ ...o, nome: e.target.value }))} placeholder="Nome da pessoa" style={inputStyle} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={labelStyle}>E-mail *</label>
+                        <input value={novaOcorrencia.email} onChange={e => setNovaOcorrencia(o => ({ ...o, email: e.target.value }))} placeholder="email@exemplo.com" type="email" style={inputStyle} />
+                      </div>
+                    </>
+                  )}
                   <div style={{ marginBottom: 12 }}>
                     <label style={labelStyle}>Descrição da ocorrência *</label>
                     <textarea value={novaOcorrencia.descricao} onChange={e => setNovaOcorrencia(o => ({ ...o, descricao: e.target.value }))}
                       placeholder="Descreva a ocorrência..." style={{ ...inputStyle, minHeight: 80, resize: "vertical" }} />
                   </div>
-                  <div style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1px solid #e8edf2", marginBottom: 14 }}>
-                    <label style={{ ...labelStyle, marginBottom: 10 }}>Direcionar ocorrência para</label>
-                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                      {["usuario","grupo"].map(tipo => (
-                        <div key={tipo} onClick={() => setNovaOcorrencia(o => ({ ...o, destinoTipo: tipo, destinoId: "", destinoNome: "" }))}
-                          style={{ flex: 1, textAlign: "center", padding: "8px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 12,
-                            background: novaOcorrencia.destinoTipo === tipo ? "#1B3F7A" : "#f0f4ff",
-                            color: novaOcorrencia.destinoTipo === tipo ? "#fff" : "#1B3F7A", border: `1px solid ${novaOcorrencia.destinoTipo === tipo ? "#1B3F7A" : "#e8edf2"}` }}>
-                          {tipo === "usuario" ? "👤 Usuário" : "👥 Grupo de Trabalho"}
-                        </div>
-                      ))}
-                    </div>
-                    {novaOcorrencia.destinoTipo === "usuario" ? (
-                      <select value={novaOcorrencia.destinoId} onChange={e => {
-                        const u = usuarios.find(x => x.id === e.target.value);
-                        setNovaOcorrencia(o => ({ ...o, destinoId: e.target.value, destinoNome: u?.nome || "" }));
-                      }} style={inputStyle}>
-                        <option value="">Selecione o usuário...</option>
-                        {[...usuarios].sort((a,b) => (a.nome||"").localeCompare(b.nome||"")).map(u => (
-                          <option key={u.id} value={u.id}>{u.nome} {u.cargo ? `— ${u.cargo}` : ""}</option>
+                  {/* Direcionar apenas para inscrição/frequência */}
+                  {novaOcorrencia.tipo === "inscricao" && (
+                    <div style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1px solid #e8edf2", marginBottom: 14 }}>
+                      <label style={{ ...labelStyle, marginBottom: 10 }}>Direcionar ocorrência para</label>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                        {["usuario","grupo"].map(tipo => (
+                          <div key={tipo} onClick={() => setNovaOcorrencia(o => ({ ...o, destinoTipo: tipo, destinoId: "", destinoNome: "" }))}
+                            style={{ flex: 1, textAlign: "center", padding: "8px", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 12,
+                              background: novaOcorrencia.destinoTipo === tipo ? "#1B3F7A" : "#f0f4ff",
+                              color: novaOcorrencia.destinoTipo === tipo ? "#fff" : "#1B3F7A", border: `1px solid ${novaOcorrencia.destinoTipo === tipo ? "#1B3F7A" : "#e8edf2"}` }}>
+                            {tipo === "usuario" ? "👤 Usuário" : "👥 Grupo de Trabalho"}
+                          </div>
                         ))}
-                      </select>
-                    ) : (
-                      <select value={novaOcorrencia.destinoId} onChange={e => {
-                        const g = grupos.find(x => x.id === e.target.value);
-                        setNovaOcorrencia(o => ({ ...o, destinoId: e.target.value, destinoNome: g?.nome || "" }));
-                      }} style={inputStyle}>
-                        <option value="">Selecione o grupo...</option>
-                        {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                      </select>
-                    )}
-                  </div>
-                  <button onClick={adicionarOcorrencia} disabled={!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()} style={{
-                    background: (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
-                    color: "#fff", fontWeight: 700, fontSize: 13, cursor: (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim() || !novaOcorrencia.descricao.trim()) ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif",
-                  }}>+ Adicionar Ocorrência</button>
+                      </div>
+                      {novaOcorrencia.destinoTipo === "usuario" ? (
+                        <select value={novaOcorrencia.destinoId} onChange={e => {
+                          const u = usuarios.find(x => x.id === e.target.value);
+                          setNovaOcorrencia(o => ({ ...o, destinoId: e.target.value, destinoNome: u?.nome || "" }));
+                        }} style={inputStyle}>
+                          <option value="">Selecione o usuário...</option>
+                          {[...usuarios].sort((a,b) => (a.nome||"").localeCompare(b.nome||"")).map(u => (
+                            <option key={u.id} value={u.id}>{u.nome} {u.cargo ? `— ${u.cargo}` : ""}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <select value={novaOcorrencia.destinoId} onChange={e => {
+                          const g = grupos.find(x => x.id === e.target.value);
+                          setNovaOcorrencia(o => ({ ...o, destinoId: e.target.value, destinoNome: g?.nome || "" }));
+                        }} style={inputStyle}>
+                          <option value="">Selecione o grupo...</option>
+                          {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                  {(() => {
+                    const isInscricao = novaOcorrencia.tipo === "inscricao";
+                    const disabled = !novaOcorrencia.descricao.trim() || (isInscricao && (!novaOcorrencia.nome.trim() || !novaOcorrencia.cpf.trim() || !novaOcorrencia.email.trim()));
+                    return (
+                      <button onClick={adicionarOcorrencia} disabled={disabled} style={{
+                        background: disabled ? "#ccc" : "#E8730A", border: "none", borderRadius: 12, padding: "10px 20px",
+                        color: "#fff", fontWeight: 700, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer", fontFamily: "'Montserrat', sans-serif",
+                      }}>+ Adicionar Ocorrência</button>
+                    );
+                  })()}
                 </div>
 
                 {/* LISTA DE OCORRÊNCIAS REGISTRADAS */}
@@ -988,19 +1008,42 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                     <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 12 }}>
                       Ocorrências registradas ({ocorrencias.length})
                     </div>
-                    {ocorrencias.map((oc, i) => {
+                    {(() => {
+                      const TIPO_CFG_LIST = {
+                        inscricao:      { label:"Inscrição/Frequência",       bg:"#fff3e0", cor:"#E8730A" },
+                        equipamento:    { label:"Equipamentos/Material",       bg:"#e8f5e9", cor:"#059669" },
+                        logistica:      { label:"Logística/Local/Transporte",  bg:"#f3f4f6", cor:"#6b7280" },
+                        infraestrutura: { label:"Infraestrutura",              bg:"#f3e8ff", cor:"#7c3aed" },
+                        tecnico:        { label:"Problemas Técnicos",          bg:"#fee2e2", cor:"#dc2626" },
+                        comunicacao:    { label:"Comunicação",                 bg:"#e0f2fe", cor:"#0891b2" },
+                        outro:          { label:"Outro",                       bg:"#f8f9fb", cor:"#888"    },
+                      };
+                      const ORDEM_TIPOS = ["inscricao","infraestrutura","tecnico","comunicacao","equipamento","logistica","outro"];
+                      const grupos_oc = {};
+                      ocorrencias.forEach(oc => {
+                        const t = oc.tipo || "outro";
+                        if (!grupos_oc[t]) grupos_oc[t] = [];
+                        grupos_oc[t].push(oc);
+                      });
+                      const tiposPresentes = ORDEM_TIPOS.filter(t => grupos_oc[t]);
+                      return tiposPresentes.map(tipo => {
+                        const cfg = TIPO_CFG_LIST[tipo] || { label: tipo, bg:"#f8f9fb", cor:"#888" };
+                        return (
+                          <div key={tipo} style={{ marginBottom: 16 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap: 8, marginBottom: 8 }}>
+                              <span style={{ background: cfg.bg, borderRadius: 8, padding:"3px 12px", fontSize:11, fontWeight:800, color:cfg.cor, border:`1px solid ${cfg.cor}33` }}>{cfg.label}</span>
+                              <span style={{ fontSize:11, color:"#aaa", fontWeight:600 }}>{grupos_oc[tipo].length} ocorrência{grupos_oc[tipo].length!==1?"s":""}</span>
+                            </div>
+                            {grupos_oc[tipo].map((oc, i) => {
                       const isAdm = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
                       const isCriador = oc.autorId === user?.uid || oc.autorEmail === user?.email;
                       const jaRespondida = !!(oc.resposta && oc.resposta.trim());
-                      // Admin sempre pode excluir. Criador só pode se não respondida.
                       const podeExcluir = isAdm || (isCriador && !jaRespondida);
                       const statusCor = oc.status === "Resolvido" ? "#059669" : oc.status === "Ciente" ? "#0891b2" : "#E8730A";
-                      const TIPO_LBL = { inscricao:"Inscrição/Frequência", equipamento:"Equipamentos/Material", logistica:"Logística/Local/Transporte" };
                       return (
-                        <div key={oc.id || i} style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", marginBottom: 12, border: `2px solid ${statusCor}22`, boxShadow: "0 2px 8px rgba(27,63,122,0.06)" }}>
+                        <div key={oc.id || i} style={{ background: "#fff", borderRadius: 16, padding: "16px 18px", marginBottom: 10, border: `2px solid ${statusCor}22`, boxShadow: "0 2px 8px rgba(27,63,122,0.06)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                              <span style={{ background: "#fff3e0", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#E8730A" }}>{TIPO_LBL[oc.tipo]||oc.tipo}</span>
                               <span style={{ background: statusCor+"22", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: statusCor }}>{oc.status||"Pendente"}</span>
                               {oc.acaoNome && <span style={{ background: "#eff6ff", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1B3F7A" }}>📚 {oc.acaoNome}</span>}
                               {oc.destinoNome && <span style={{ background: "#f0fdf4", borderRadius: 6, padding: "2px 8px", fontSize: 10, color: "#059669", fontWeight: 600 }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
@@ -1023,6 +1066,10 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         </div>
                       );
                     })}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
