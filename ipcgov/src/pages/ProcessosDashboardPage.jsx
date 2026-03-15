@@ -24,6 +24,8 @@ function formatDate(d) {
 export default function ProcessosDashboardPage({ onBack }) {
   const [processos, setProcessos] = useState([]);
   const [statusCustom, setStatusCustom] = useState([]);
+  const [filtrosCustom, setFiltrosCustom] = useState([]);
+  const [filtrosCustomSel, setFiltrosCustomSel] = useState({});
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroPrioridade, setFiltroPrioridade] = useState("todas");
@@ -42,6 +44,7 @@ export default function ProcessosDashboardPage({ onBack }) {
       const filtros = fSnap.docs.map(d=>({id:d.id,...d.data()}));
       const statusF = filtros.find(f=>f.tipo==="status");
       if (statusF?.opcoes) setStatusCustom(statusF.opcoes);
+      setFiltrosCustom(filtros.filter(f=>f.tipo==="custom"));
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -54,6 +57,9 @@ export default function ProcessosDashboardPage({ onBack }) {
     if (filtroStatus !== "todos" && p.status !== filtroStatus) return false;
     if (filtroPrioridade !== "todas" && p.prioridade !== filtroPrioridade) return false;
     if (filtroMes !== "todos" && !(p.criadoEm?.startsWith(filtroMes))) return false;
+    for (const [chave, val] of Object.entries(filtrosCustomSel)) {
+      if (val && p[chave] !== val) return false;
+    }
     return true;
   });
 
@@ -96,6 +102,20 @@ export default function ProcessosDashboardPage({ onBack }) {
                   {p==="todas"?"Todas prioridades":p}
                 </div>
               ))}
+              {/* Filtros custom dinâmicos */}
+              {filtrosCustom.map(f => {
+                const chave = f.nome.toLowerCase().replace(/\s+/g,"_");
+                return [
+                  <div key={`sep-${f.id}`} style={{ width:1, background:"rgba(255,255,255,0.2)", margin:"0 4px" }}/>,
+                  <span key={`lbl-${f.id}`} style={{ color:"rgba(255,255,255,0.5)", fontSize:11, whiteSpace:"nowrap" }}>{f.nome}:</span>,
+                  ...(f.opcoes||[]).map(op => (
+                    <div key={`${f.id}-${op}`} onClick={()=>setFiltrosCustomSel(s=>({...s,[chave]:s[chave]===op?"":op}))}
+                      style={{ background:filtrosCustomSel[chave]===op?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${filtrosCustomSel[chave]===op?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                      {op}
+                    </div>
+                  ))
+                ];
+              })}
             </div>
           </div>
 
