@@ -331,52 +331,44 @@ export default function HomePage({ user, onOpenModule }) {
 
         {/* MODULES */}
         <div style={{ fontWeight: 700, fontSize: 18, color: "#1B3F7A", marginBottom: 18 }}>Módulos do Sistema</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16 }}>
           {MODULES.map(mod => {
             const hasAccess = canAccess(mod.id);
             const modAlertas = alertas.filter(a => a.modulo === mod.id && !a.lido).length;
             return (
               <div key={mod.id}
                 onClick={() => hasAccess && mod.available && onOpenModule(mod.id)}
-                style={{
-                  background: "#fff", borderRadius: 22, padding: "26px 18px",
-                  textAlign: "center",
-                  boxShadow: "0 2px 12px rgba(27,63,122,0.08)",
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
                   cursor: hasAccess && mod.available ? "pointer" : "default",
-                  opacity: hasAccess ? 1 : 0.4,
-                  filter: hasAccess ? "none" : "grayscale(0.5)",
-                  transition: "transform .15s, box-shadow .15s",
-                  position: "relative",
-                  border: hasAccess && mod.available ? `2px solid ${mod.color}22` : "2px solid transparent",
+                  opacity: hasAccess ? 1 : 0.45,
+                  filter: hasAccess ? "none" : "grayscale(0.4)",
                 }}
-                onMouseEnter={e => { if (hasAccess && mod.available) { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 28px rgba(27,63,122,0.15)"; } }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(27,63,122,0.08)"; }}
+                onMouseEnter={e => { if (hasAccess && mod.available) e.currentTarget.querySelector(".mod-icon").style.transform = "scale(1.06) translateY(-3px)"; }}
+                onMouseLeave={e => { const el = e.currentTarget.querySelector(".mod-icon"); if (el) el.style.transform = "scale(1) translateY(0)"; }}
               >
-                {!hasAccess && <div style={{ position: "absolute", top: 12, right: 12, fontSize: 14, opacity: 0.5 }}>🔒</div>}
-                {!mod.available && hasAccess && (
-                  <div style={{
-                    position: "absolute", top: 10, right: 10,
-                    background: "#f0f4ff", borderRadius: 7, padding: "2px 8px",
-                    fontSize: 9, color: "#1B3F7A", fontWeight: 700, letterSpacing: 0.5,
-                  }}>EM BREVE</div>
-                )}
-                {modAlertas > 0 && (
-                  <div style={{
-                    position: "absolute", top: 10, left: 10,
-                    background: "#E8730A", borderRadius: 10, padding: "2px 8px",
-                    fontSize: 10, color: "#fff", fontWeight: 700,
-                  }}>{modAlertas}</div>
-                )}
-                <div style={{
-                  width: 68, height: 68, borderRadius: 18,
+                {/* Card colorido iOS */}
+                <div className="mod-icon" style={{
+                  width: "100%", aspectRatio: "1 / 1", borderRadius: 24,
                   background: mod.grad,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  margin: "0 auto 14px",
-                  boxShadow: `0 6px 20px ${mod.color}40`,
-                  transition: "transform .15s",
-                }}>{MODULE_ICONS[mod.id]}</div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 6 }}>{mod.name}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{mod.desc}</div>
+                  position: "relative", overflow: "hidden",
+                  boxShadow: `0 8px 24px ${mod.color}44`,
+                  transition: "transform .15s, box-shadow .15s",
+                }}>
+                  {/* blob decorativo */}
+                  <div style={{ position: "absolute", width: "70%", height: "70%", borderRadius: "50%", background: "rgba(255,255,255,0.12)", top: "-20%", right: "-20%" }} />
+                  {/* ícone SVG maior */}
+                  <div style={{ transform: "scale(1.6)", zIndex: 1 }}>{MODULE_ICONS[mod.id]}</div>
+                  {/* badges */}
+                  {!hasAccess && <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "2px 6px", fontSize: 10, color: "rgba(255,255,255,0.8)" }}>🔒</div>}
+                  {!mod.available && hasAccess && <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", borderRadius: 6, padding: "2px 7px", fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.5 }}>EM BREVE</div>}
+                  {modAlertas > 0 && <div style={{ position: "absolute", top: 8, left: 8, background: "#fff", borderRadius: 10, padding: "2px 7px", fontSize: 10, color: mod.color, fontWeight: 800 }}>{modAlertas}</div>}
+                </div>
+                {/* Nome e desc abaixo */}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "#1B3F7A", marginBottom: 2 }}>{mod.name}</div>
+                  <div style={{ fontSize: 11, color: "#888" }}>{mod.desc}</div>
+                </div>
               </div>
             );
           })}
