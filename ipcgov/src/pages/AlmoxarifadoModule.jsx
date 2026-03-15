@@ -11,6 +11,8 @@ function formatDateTime(iso) { if(!iso)return"—"; return new Date(iso).toLocal
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
+const ALMOX_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="9" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="23" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="16" y="10" width="10" height="12" rx="2" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/><line x1="19" y1="16" x2="23" y2="16" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/></svg>);
+
 export default function AlmoxarifadoModule({ user, userInfo, onBack, onDashboard, onRelatorio, onSolicitacoes }) {
   const [materiais, setMateriais] = useState([]);
   const [servidores, setServidores] = useState([]);
@@ -181,10 +183,10 @@ export default function AlmoxarifadoModule({ user, userInfo, onBack, onDashboard
             <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
             <div>
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
-              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#C2410C,#FB923C)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(194,65,12,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="9" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="23" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="16" y="10" width="10" height="12" rx="2" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/><line x1="19" y1="16" x2="23" y2="16" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/></svg></div>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#C2410C,#FB923C)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(194,65,12,0.4)" }}>{ALMOX_ICON}</div>
             <div>
-              <div style={ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }>MÓDULO</div>
-              <div style={ color:"#fff", fontWeight:900, fontSize:22 }>Almoxarifado</div>
+              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>Almoxarifado</div>
             </div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
