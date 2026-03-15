@@ -29,7 +29,7 @@ function diasRestantes(d) {
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
-export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onRelatorio, onAdminAlertas, onDashboard }) {
+export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onKanban, onRelatorio, onAdminAlertas, onDashboard }) {
   const [processos, setProcessos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -42,6 +42,7 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
   const [salvando, setSalvando] = useState(false);
   const [statusCustom, setStatusCustom] = useState([]);
   const [filtrosCustom, setFiltrosCustom] = useState([]); // todos os filtros tipo custom
+  const [grupoProcessos, setGrupoProcessos] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -57,11 +58,32 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
       const statusF = filtros.find(f => f.tipo === "status");
       if (statusF?.opcoes) setStatusCustom(statusF.opcoes);
       setFiltrosCustom(filtros.filter(f => f.tipo === "custom"));
+      // Carregar grupo Processo Administrativo
+      const gSnap = await getDocs(collection(db, "ipc_grupos_trabalho"));
+      const gPA = gSnap.docs.map(d=>({id:d.id,...d.data()})).find(g => g.nome?.toLowerCase().replace(/\s+/g," ").includes("processo") && g.nome?.toLowerCase().includes("admin"));
+      setGrupoProcessos(gPA || null);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
 
   const statusOpcoes = statusCustom.length > 0 ? statusCustom : STATUS_PADRAO;
+
+  // Permissão: admin global OU membro do grupo Processo Administrativo
+  const podeEditar = userInfo?.isAdminGlobal || (grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id));
+
+  const registrarLog = async (acao, processoId, detalhes) => {
+    try {
+      await addDoc(collection(db, "processos_log"), {
+        acao,
+        processoId: processoId || null,
+        detalhes: detalhes || {},
+        usuario: user?.email || "—",
+        usuarioNome: userInfo?.servidorNome || user?.displayName || user?.email || "—",
+        ip: null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch(e) { console.warn("Log não registrado:", e); }
+  };
 
   const abrirNovo = () => { setForm({ status: "Aguardando", prioridade: "Média", ocorrencias: [] }); setSelected(null); setModal("form"); };
   const abrirEditar = (p) => { setForm({ ...p }); setSelected(p); setModal("form"); };
@@ -75,11 +97,13 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
       if (selected) {
         await updateDoc(doc(db, "processos", selected.id), dados);
         setProcessos(p => p.map(x => x.id === selected.id ? { ...x, ...dados } : x));
+        await registrarLog("editar", selected.id, { titulo: dados.titulo, status: dados.status });
       } else {
         dados.criadoEm = new Date().toISOString();
         dados.criadoPor = user?.email || "sistema";
         const ref = await addDoc(collection(db, "processos"), dados);
         setProcessos(p => [{ id: ref.id, ...dados }, ...p]);
+        await registrarLog("criar", ref.id, { titulo: dados.titulo });
       }
       setModal(null); setForm({});
     } catch (e) { console.error(e); }
@@ -87,8 +111,10 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
   };
 
   const deletar = async (id) => {
-    if (!window.confirm("Excluir processo?")) return;
+    if (!window.confirm("Excluir processo? Esta ação será registrada em log.")) return;
+    const proc = processos.find(x => x.id === id);
     await deleteDoc(doc(db, "processos", id));
+    await registrarLog("excluir", id, { titulo: proc?.titulo, numero: proc?.numero });
     setProcessos(p => p.filter(x => x.id !== id));
     setModal(null);
   };
@@ -268,6 +294,8 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                   { label:"Data de Entrada", value:formatDate(selected.dataEntrada), icon:"📥" },
                   { label:"Prazo/Saída", value:formatDate(selected.dataSaida), icon:"📤" },
                   { label:"Área Destino", value:selected.areaDestino, icon:"🏢" },
+                  { label:"Valor", value:selected.valor ? `R$ ${selected.valor}` : null, icon:"💰" },
+                  { label:"Protocolo eTCE", value:formatDate(selected.dataProtocoloEtce), icon:"📋" },
                   { label:"Criado por", value:selected.criadoPor, icon:"✍️" },
                   { label:"Atualizado em", value:formatDateTime(selected.atualizadoEm), icon:"🔄" },
                 ].filter(f=>f.value&&f.value!=="—").map((f,i)=>(
@@ -330,9 +358,9 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
 
               {/* AÇÕES */}
               <div style={{ display:"flex", gap:10 }}>
-                <button onClick={()=>abrirEditar(selected)} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
+                {podeEditar && <button onClick={()=>abrirEditar(selected)} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>}
                 <button onClick={()=>onRelatorio&&onRelatorio(selected.id)} style={{ flex:1, background:"#f0f4ff", border:"none", borderRadius:14, padding:14, color:"#1B3F7A", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>📄 Relatório</button>
-                <button onClick={()=>deletar(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
+                {podeEditar && <button onClick={()=>deletar(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>}
               </div>
             </div>
           </div>
@@ -357,6 +385,20 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                   <label style={labelStyle}>Número do Protocolo</label>
                   <input value={form.protocolo||""} onChange={e=>setForm(f=>({...f,protocolo:e.target.value}))} placeholder="Ex: PROT-2026-001" style={inputStyle}/>
                 </div>
+                {(() => {
+                  const tipoFiltro = filtrosCustom.find(f => f.nome.toLowerCase().includes("tipo") && f.nome.toLowerCase().includes("processo"));
+                  if (!tipoFiltro) return null;
+                  const chave = tipoFiltro.nome.toLowerCase().replace(/\s+/g,"_");
+                  return (
+                    <div style={{ gridColumn:"1 / -1" }} key={tipoFiltro.id}>
+                      <label style={labelStyle}>{tipoFiltro.nome}</label>
+                      <select value={form[chave]||""} onChange={e=>setForm(f=>({...f,[chave]:e.target.value}))} style={inputStyle}>
+                        <option value="">Selecione...</option>
+                        {(tipoFiltro.opcoes||[]).map(op=><option key={op} value={op}>{op}</option>)}
+                      </select>
+                    </div>
+                  );
+                })()}
                 <div style={{ gridColumn:"1 / -1" }}>
                   <label style={labelStyle}>Título / Assunto *</label>
                   <input value={form.titulo||""} onChange={e=>setForm(f=>({...f,titulo:e.target.value}))} placeholder="Ex: Renovação de contrato fornecedor X" style={inputStyle}/>
@@ -364,6 +406,14 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                 <div style={{ gridColumn:"1 / -1" }}>
                   <label style={labelStyle}>Objetivo</label>
                   <textarea value={form.objetivo||""} onChange={e=>setForm(f=>({...f,objetivo:e.target.value}))} placeholder="Descreva o objetivo do processo..." style={{ ...inputStyle, minHeight:80, resize:"vertical" }}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Valor (R$)</label>
+                  <input value={form.valor||""} onChange={e=>setForm(f=>({...f,valor:e.target.value}))} placeholder="Ex: 15.000,00" style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data Protocolo no eTCE</label>
+                  <input type="date" value={form.dataProtocoloEtce||""} onChange={e=>setForm(f=>({...f,dataProtocoloEtce:e.target.value}))} style={inputStyle}/>
                 </div>
                 <div>
                   <label style={labelStyle}>Status</label>
@@ -397,8 +447,7 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                   <label style={labelStyle}>Observações</label>
                   <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
                 </div>
-                {/* CAMPOS DINÂMICOS — filtros custom */}
-                {filtrosCustom.map(filtro => {
+                {filtrosCustom.filter(f => !(f.nome.toLowerCase().includes("tipo") && f.nome.toLowerCase().includes("processo"))).map(filtro => {
                   const chave = filtro.nome.toLowerCase().replace(/\s+/g,"_");
                   return (
                     <div key={filtro.id}>
