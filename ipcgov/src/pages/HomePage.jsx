@@ -341,30 +341,26 @@ export default function HomePage({ user, onOpenModule }) {
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
                   cursor: hasAccess && mod.available ? "pointer" : "default",
                   opacity: hasAccess ? 1 : 0.45,
-                  filter: hasAccess ? "none" : "grayscale(0.4)",
                 }}
-                onMouseEnter={e => { if (hasAccess && mod.available) e.currentTarget.querySelector(".mod-icon").style.transform = "scale(1.06) translateY(-3px)"; }}
-                onMouseLeave={e => { const el = e.currentTarget.querySelector(".mod-icon"); if (el) el.style.transform = "scale(1) translateY(0)"; }}
+                onMouseEnter={e => { if (hasAccess && mod.available) { const ic = e.currentTarget.firstChild; if (ic) ic.style.transform = "scale(1.06) translateY(-3px)"; } }}
+                onMouseLeave={e => { const ic = e.currentTarget.firstChild; if (ic) ic.style.transform = "scale(1) translateY(0)"; }}
               >
-                {/* Card colorido iOS */}
-                <div className="mod-icon" style={{
-                  width: "100%", aspectRatio: "1 / 1", borderRadius: 24,
+                <div style={{
+                  width: "100%", paddingBottom: "100%", borderRadius: 22, position: "relative",
                   background: mod.grad,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  position: "relative", overflow: "hidden",
-                  boxShadow: `0 8px 24px ${mod.color}44`,
-                  transition: "transform .15s, box-shadow .15s",
+                  boxShadow: hasAccess ? ("0 8px 24px " + mod.color + "44") : "none",
+                  transition: "transform .15s",
+                  filter: hasAccess ? "none" : "grayscale(0.5)",
+                  overflow: "hidden",
                 }}>
-                  {/* blob decorativo */}
                   <div style={{ position: "absolute", width: "70%", height: "70%", borderRadius: "50%", background: "rgba(255,255,255,0.12)", top: "-20%", right: "-20%" }} />
-                  {/* ícone SVG maior */}
-                  <div style={{ transform: "scale(1.6)", zIndex: 1 }}>{MODULE_ICONS[mod.id]}</div>
-                  {/* badges */}
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ transform: "scale(1.6)" }}>{MODULE_ICONS[mod.id]}</div>
+                  </div>
                   {!hasAccess && <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "2px 6px", fontSize: 10, color: "rgba(255,255,255,0.8)" }}>🔒</div>}
-                  {!mod.available && hasAccess && <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", borderRadius: 6, padding: "2px 7px", fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.5 }}>EM BREVE</div>}
+                  {(!mod.available && hasAccess) && <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.35)", borderRadius: 6, padding: "2px 7px", fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: 0.5 }}>EM BREVE</div>}
                   {modAlertas > 0 && <div style={{ position: "absolute", top: 8, left: 8, background: "#fff", borderRadius: 10, padding: "2px 7px", fontSize: 10, color: mod.color, fontWeight: 800 }}>{modAlertas}</div>}
                 </div>
-                {/* Nome e desc abaixo */}
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#1B3F7A", marginBottom: 2 }}>{mod.name}</div>
                   <div style={{ fontSize: 11, color: "#888" }}>{mod.desc}</div>
