@@ -570,20 +570,20 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       `}</style>
 
       {/* HEADER */}
-      <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "24px 32px 50px", position: "relative", overflow: "hidden" }}>
+      <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "24px 32px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", right: 40, bottom: -60, fontSize: 220, opacity: 0.04 }}>🗺</div>
         <div style={{ maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 2 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div onClick={onBack} style={{
               width: 40, height: 40, background: "rgba(255,255,255,0.15)",
               borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "#fff", fontSize: 20,
+              cursor: "pointer", color: "#fff", fontSize: 20, flexShrink: 0,
             }}>←</div>
             <div>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
               <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>TCEduc</div>
             </div>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onPlanos} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Plano de Ação</div>
@@ -595,23 +595,26 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               }}>+ Novo Evento</div>}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {[
-              { label: "Municipais 2026", value: `${municipaisRealizados}/54` },
-              { label: "Regionais 2026", value: `${regionaisRealizados}/7` },
-              { label: "Total Eventos", value: eventos.length },
-            ].map((s, i) => (
-              <div key={i} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, padding: "12px 20px" }}>
-                <div style={{ color: "#fff", fontWeight: 900, fontSize: 22 }}>{s.value}</div>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 2 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* VIAGENS BLOCK */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 32px 0" }}>
+
+        {/* ESTATÍSTICAS — início da área branca */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 28 }}>
+          {[
+            { label: "Municipais 2026", value: `${municipaisRealizados}/54` },
+            { label: "Regionais 2026",  value: `${regionaisRealizados}/7` },
+            { label: "Total Eventos",   value: eventos.length },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "14px 22px", boxShadow: "0 2px 12px rgba(27,63,122,0.07)", borderLeft: "4px solid #1B3F7A" }}>
+              <div style={{ color: "#1B3F7A", fontWeight: 900, fontSize: 24 }}>{s.value}</div>
+              <div style={{ color: "#888", fontSize: 11, marginTop: 2, fontWeight: 600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontWeight: 800, fontSize: 18, color: "#1B3F7A" }}>🗺️ Viagens</div>
