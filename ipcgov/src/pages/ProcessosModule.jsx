@@ -41,6 +41,7 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
   const [busca, setBusca] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [statusCustom, setStatusCustom] = useState([]);
+  const [filtrosCustom, setFiltrosCustom] = useState([]); // todos os filtros tipo custom
 
   useEffect(() => { loadAll(); }, []);
 
@@ -55,6 +56,7 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
       const filtros = fSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const statusF = filtros.find(f => f.tipo === "status");
       if (statusF?.opcoes) setStatusCustom(statusF.opcoes);
+      setFiltrosCustom(filtros.filter(f => f.tipo === "custom"));
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -290,6 +292,25 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                 </div>
               )}
 
+              {/* CAMPOS DINÂMICOS — filtros custom */}
+              {filtrosCustom.filter(f => selected[f.nome.toLowerCase().replace(/\s+/g,"_")]).length > 0 && (
+                <div style={{ marginBottom:20, background:"#f0f4ff", borderRadius:12, padding:"14px 16px", borderLeft:"3px solid #1B3F7A" }}>
+                  <div style={{ color:"#1B3F7A", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:10 }}>📋 Informações Adicionais</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                    {filtrosCustom.map(f => {
+                      const chave = f.nome.toLowerCase().replace(/\s+/g,"_");
+                      if (!selected[chave]) return null;
+                      return (
+                        <div key={f.id} style={{ background:"#fff", borderRadius:8, padding:"6px 12px", border:"1px solid #e8edf2" }}>
+                          <div style={{ fontSize:9, color:"#888", fontWeight:700, textTransform:"uppercase", marginBottom:2 }}>{f.nome}</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:"#1B3F7A" }}>{selected[chave]}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* OCORRÊNCIAS */}
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A", marginBottom:12 }}>⚠️ Ocorrências ({(selected.ocorrencias||[]).length})</div>
@@ -376,6 +397,23 @@ export default function ProcessosModule({ user, onBack, onFiltros, onKanban, onR
                   <label style={labelStyle}>Observações</label>
                   <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
                 </div>
+                {/* CAMPOS DINÂMICOS — filtros custom */}
+                {filtrosCustom.map(filtro => {
+                  const chave = filtro.nome.toLowerCase().replace(/\s+/g,"_");
+                  return (
+                    <div key={filtro.id}>
+                      <label style={labelStyle}>{filtro.nome}</label>
+                      {filtro.opcoes?.length > 0 ? (
+                        <select value={form[chave]||""} onChange={e=>setForm(f=>({...f,[chave]:e.target.value}))} style={inputStyle}>
+                          <option value="">Selecione...</option>
+                          {filtro.opcoes.map(op=><option key={op} value={op}>{op}</option>)}
+                        </select>
+                      ) : (
+                        <input value={form[chave]||""} onChange={e=>setForm(f=>({...f,[chave]:e.target.value}))} placeholder={filtro.descricao||filtro.nome} style={inputStyle}/>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <button onClick={salvar} disabled={salvando||!form.titulo} style={{ width:"100%", marginTop:20, background:salvando||!form.titulo?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.titulo?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
                 {salvando?"Salvando...":"💾 Salvar Processo"}
