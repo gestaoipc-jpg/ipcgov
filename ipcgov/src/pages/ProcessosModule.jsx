@@ -29,6 +29,8 @@ function diasRestantes(d) {
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
+const PROC_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/><line x1="13" y1="15" x2="19" y2="15" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="13" y1="18.5" x2="19" y2="18.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="22" x2="28" y2="22" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="25.5" x2="28" y2="25.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/></svg>);
+
 export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onKanban, onRelatorio, onAdminAlertas, onDashboard }) {
   const [processos, setProcessos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -162,10 +164,10 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
             <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
             <div>
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
-              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#047857,#34D399)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(4,120,87,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/><line x1="13" y1="15" x2="19" y2="15" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="13" y1="18.5" x2="19" y2="18.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="22" x2="28" y2="22" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="25.5" x2="28" y2="25.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/></svg></div>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#047857,#34D399)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(4,120,87,0.4)" }}>{PROC_ICON}</div>
             <div>
-              <div style={ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }>MÓDULO</div>
-              <div style={ color:"#fff", fontWeight:900, fontSize:22 }>IPC Processos</div>
+              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Processos</div>
             </div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
