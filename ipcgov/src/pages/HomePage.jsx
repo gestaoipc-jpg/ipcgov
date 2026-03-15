@@ -4,13 +4,22 @@ import { doc, getDoc, setDoc, collection, getDocs, updateDoc } from "firebase/fi
 import { auth, db } from "../firebase/config";
 
 const MODULES = [
-  { id: "tceduc", name: "TCEduc", icon: "🎓", desc: "Programa de Capacitação", color: "#1B3F7A", available: true },
-  { id: "designer", name: "IPC Designer", icon: "🎨", desc: "Gestão de Atividades", color: "#7c3aed", available: true },
-  { id: "processos", name: "IPC Processos", icon: "📁", desc: "Gestão de Processos", color: "#0891b2", available: true },
-  { id: "almoxarifado", name: "Almoxarifado", icon: "🗃️", desc: "Controle de Estoque", color: "#059669", available: true },
-  { id: "pessoas", name: "IPC Pessoas", icon: "👥", desc: "Gestão de Pessoas", color: "#E8730A", available: true },
-  { id: "indicadores", name: "Indicadores", icon: "📊", desc: "Metas e Relatórios", color: "#d97706", available: false },
+  { id: "tceduc",       name: "TCEduc",        desc: "Programa de Capacitação", color: "#4338CA", grad: "linear-gradient(145deg,#4338CA,#818CF8)", available: true },
+  { id: "designer",    name: "IPC Designer",  desc: "Gestão de Atividades",    color: "#BE185D", grad: "linear-gradient(145deg,#BE185D,#F472B6)", available: true },
+  { id: "processos",   name: "IPC Processos", desc: "Gestão de Processos",     color: "#047857", grad: "linear-gradient(145deg,#047857,#34D399)", available: true },
+  { id: "almoxarifado",name: "Almoxarifado",  desc: "Controle de Estoque",     color: "#C2410C", grad: "linear-gradient(145deg,#C2410C,#FB923C)", available: true },
+  { id: "pessoas",     name: "IPC Pessoas",   desc: "Gestão de Pessoas",       color: "#0369A1", grad: "linear-gradient(145deg,#0369A1,#38BDF8)", available: true },
+  { id: "indicadores", name: "Indicadores",   desc: "Metas e Relatórios",      color: "#B45309", grad: "linear-gradient(145deg,#B45309,#FCD34D)", available: false },
 ];
+
+const MODULE_ICONS = {
+  tceduc: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><path d="M21 8L33 14V18C33 25 27.2 31.5 21 33C14.8 31.5 9 25 9 18V14L21 8Z" stroke="white" strokeWidth="2" fill="rgba(255,255,255,0.15)"/><polyline points="16,21 20,25 27,17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>,
+  designer: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="9" stroke="white" strokeWidth="2" fill="none"/><circle cx="21" cy="21" r="3" fill="white"/><line x1="21" y1="10" x2="21" y2="14.5" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="15.5" x2="27" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="26.5" x2="27" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="21" y1="32" x2="21" y2="27.5" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="26.5" x2="15" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="15.5" x2="15" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>,
+  processos: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.32)" stroke="white" strokeWidth="1.8"/><line x1="13" y1="15" x2="19" y2="15" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="13" y1="18.5" x2="19" y2="18.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="22" x2="28" y2="22" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="25.5" x2="28" y2="25.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  almoxarifado: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect x="9" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/><rect x="23" y="20" width="10" height="12" rx="2" fill="rgba(255,255,255,0.18)" stroke="white" strokeWidth="1.8"/><rect x="16" y="10" width="10" height="12" rx="2" fill="rgba(255,255,255,0.32)" stroke="white" strokeWidth="1.8"/><line x1="19" y1="16" x2="23" y2="16" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/><line x1="12" y1="26" x2="16" y2="26" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/><line x1="26" y1="26" x2="30" y2="26" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+  pessoas: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="17" r="5.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.22)"/><path d="M10 35C10 29 15 25 21 25C27 25 32 29 32 35" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/><circle cx="31.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><path d="M35 23C35 20.5 33.5 19 31.5 18.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" strokeLinecap="round"/><circle cx="10.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><path d="M7 23C7 20.5 8.5 19 10.5 18.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  indicadores: <svg width="32" height="32" viewBox="0 0 42 42" fill="none"><rect x="9" y="9" width="10" height="10" rx="2.5" fill="rgba(255,255,255,0.32)" stroke="white" strokeWidth="1.5"/><rect x="23" y="9" width="10" height="10" rx="2.5" fill="rgba(255,255,255,0.14)" stroke="white" strokeWidth="1.5"/><rect x="9" y="23" width="10" height="10" rx="2.5" fill="rgba(255,255,255,0.14)" stroke="white" strokeWidth="1.5"/><rect x="23" y="23" width="10" height="10" rx="2.5" fill="rgba(255,255,255,0.32)" stroke="white" strokeWidth="1.5"/><line x1="12" y1="29.5" x2="12" y2="31" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><line x1="15" y1="27.5" x2="15" y2="31" stroke="white" strokeWidth="1.5" strokeLinecap="round"/><line x1="18" y1="25.5" x2="18" y2="31" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+};
 
 function BottomNav({ tab, setTab }) {
   return (
@@ -29,7 +38,7 @@ function BottomNav({ tab, setTab }) {
           display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
           cursor: "pointer",
         }}>
-          <div style={{ fontSize: 24 }}>{item.icon}</div>
+          <div style={{ fontSize: 24 }}>{MODULE_ICONS[item.id] || item.icon}</div>
           <div style={{
             fontSize: 10, fontWeight: tab === item.id ? 700 : 500,
             color: tab === item.id ? "#1B3F7A" : "#aaa",
@@ -359,11 +368,13 @@ export default function HomePage({ user, onOpenModule }) {
                   }}>{modAlertas}</div>
                 )}
                 <div style={{
-                  width: 64, height: 64, borderRadius: 20,
-                  background: `${mod.color}18`,
+                  width: 68, height: 68, borderRadius: 18,
+                  background: mod.grad,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 32, margin: "0 auto 14px",
-                }}>{mod.icon}</div>
+                  margin: "0 auto 14px",
+                  boxShadow: `0 6px 20px ${mod.color}40`,
+                  transition: "transform .15s",
+                }}>{MODULE_ICONS[mod.id]}</div>
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 6 }}>{mod.name}</div>
                 <div style={{ fontSize: 12, color: "#888" }}>{mod.desc}</div>
               </div>
@@ -412,8 +423,8 @@ export default function HomePage({ user, onOpenModule }) {
                   <div style={{
                     width: 36, height: 36, borderRadius: 10,
                     background: `${mod.color}18`,
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18,
-                  }}>{mod.icon}</div>
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>{MODULE_ICONS[mod.id] ? <span style={{transform:"scale(0.55)"}}>{MODULE_ICONS[mod.id]}</span> : <span style={{fontSize:18}}>{mod.icon||"📌"}</span>}</div>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#1B3F7A" }}>{mod.name}</div>
                   <div style={{
                     background: "#E8730A", color: "#fff", borderRadius: 10,
@@ -481,7 +492,7 @@ export default function HomePage({ user, onOpenModule }) {
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(27,63,122,0.1)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
               >
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: `${d.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{d.icon}</div>
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: `${d.color}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{MODULE_ICONS[d.modulo] ? <span style={{transform:"scale(0.65)", display:"flex"}}>{MODULE_ICONS[d.modulo]}</span> : <span style={{fontSize:26}}>{d.icon}</span>}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 16, color: "#1B3F7A" }}>{d.nome}</div>
                   <div style={{ fontSize: 12, color: "#888", marginTop: 3 }}>{d.desc}</div>
