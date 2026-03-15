@@ -390,8 +390,8 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
               <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#0369A1,#38BDF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(3,105,161,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="17" r="5.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.22)"/><path d="M10 35C10 29 15 25 21 25C27 25 32 29 32 35" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/><circle cx="31.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><circle cx="10.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/></svg></div>
             <div>
-              <div style={ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }>MÓDULO</div>
-              <div style={ color:"#fff", fontWeight:900, fontSize:22 }>IPC Pessoas</div>
+              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Pessoas</div>
             </div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
