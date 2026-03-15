@@ -156,10 +156,10 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-thumb{background:#1B3F7A44;border-radius:3px} select,input,textarea{font-family:'Montserrat',sans-serif}`}</style>
 
       {/* HEADER */}
-      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 32px" }}>
+      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px" }}>
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-            <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20 }}>←</div>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+            <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
             <div>
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
               <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>📁 IPC Processos</div>
@@ -170,28 +170,28 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
               <div onClick={onKanban} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📋 Kanban</div>
               <div onClick={onRelatorio} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📄 Relatório</div>
               <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
-              <div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Processo</div>
+              {podeEditar && <div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Processo</div>}
             </div>
-          </div>
-          {/* STATS */}
-          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-            {[
-              { label:"Total", value:processos.length, cor:"rgba(255,255,255,0.12)" },
-              { label:"Em Andamento", value:processos.filter(p=>!["Concluído","Arquivado","Cancelado"].includes(p.status)).length, cor:"rgba(27,63,122,0.4)" },
-              { label:"Concluídos", value:contadores["Concluído"]||0, cor:"rgba(5,150,105,0.35)" },
-              { label:"Atrasados", value:atrasados.length, cor:atrasados.length>0?"rgba(220,38,38,0.4)":"rgba(255,255,255,0.12)" },
-              { label:"Urgentes (≤5d)", value:urgentes.length, cor:urgentes.length>0?"rgba(232,115,10,0.35)":"rgba(255,255,255,0.12)" },
-            ].map((s,i) => (
-              <div key={i} style={{ background:s.cor, borderRadius:14, padding:"10px 18px" }}>
-                <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{s.value}</div>
-                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, marginTop:2 }}>{s.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth:1300, margin:"0 auto", padding:"24px 32px 80px" }}>
+        {/* STATS */}
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
+          {[
+            { label:"Total", value:processos.length, cor:"#1B3F7A" },
+            { label:"Em Andamento", value:processos.filter(p=>!["Concluído","Arquivado","Cancelado"].includes(p.status)).length, cor:"#0891b2" },
+            { label:"Concluídos", value:contadores["Concluído"]||0, cor:"#059669" },
+            { label:"Atrasados", value:atrasados.length, cor:atrasados.length>0?"#dc2626":"#aaa" },
+            { label:"Urgentes (≤5d)", value:urgentes.length, cor:urgentes.length>0?"#E8730A":"#aaa" },
+          ].map((s,i) => (
+            <div key={i} style={{ background:"#fff", borderRadius:14, padding:"12px 20px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderLeft:`4px solid ${s.cor}` }}>
+              <div style={{ color:s.cor, fontWeight:900, fontSize:22 }}>{s.value}</div>
+              <div style={{ color:"#888", fontSize:11, marginTop:2, fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
         {/* FILTROS + BUSCA */}
         <div style={{ display:"flex", gap:10, marginBottom:24, flexWrap:"wrap", alignItems:"center" }}>
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="🔍 Buscar por número, protocolo, título..." style={{ ...inputStyle, maxWidth:320, padding:"9px 14px" }} />
