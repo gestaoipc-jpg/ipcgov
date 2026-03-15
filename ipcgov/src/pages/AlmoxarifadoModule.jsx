@@ -181,13 +181,12 @@ export default function AlmoxarifadoModule({ user, userInfo, onBack, onDashboard
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
             <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
-            <div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#C2410C,#FB923C)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(194,65,12,0.4)" }}>{ALMOX_ICON}</div>
-            <div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
-              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>Almoxarifado</div>
-            </div>
+              <div>
+                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+                <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>Almoxarifado</div>
+              </div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
               <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
