@@ -36,6 +36,7 @@ const COR_TIPO = {
   feriado_nacional: { bg:"#f0fdf4", border:"#059669", dot:"#059669", icon:"🏛️", label:"Feriado Nacional" },
   feriado_estadual: { bg:"#fdf4ff", border:"#7c3aed", dot:"#7c3aed", icon:"🌵", label:"Feriado Estadual" },
   outro:            { bg:"#fff0f0", border:"#dc2626", dot:"#dc2626", icon:"📌", label:"Outro" },
+  ferias:           { bg:"#ecfdf5", border:"#059669", dot:"#059669", icon:"🏖️", label:"Férias" },
 };
 
 function addDays(dateStr, days) {
@@ -60,7 +61,7 @@ export default function CalendarioPage({ onBack, user }) {
   const [mes, setMes] = useState(new Date().getMonth());
   const [semanaRef, setSemanaRef] = useState(new Date()); // início da semana
   const [visualizacao, setVisualizacao] = useState("mes"); // "mes" | "semana"
-  const [filtros, setFiltros] = useState({ aniversario:true, tceduc:true, feriado_nacional:true, feriado_estadual:true, outro:true });
+  const [filtros, setFiltros] = useState({ aniversario:true, tceduc:true, feriado_nacional:true, feriado_estadual:true, outro:true, ferias:true });
   const [eventos, setEventos] = useState([]);
   const [servidores, setServidores] = useState([]);
   const [feriadosDB, setFeriadosDB] = useState([]);
@@ -71,19 +72,22 @@ export default function CalendarioPage({ onBack, user }) {
   const [salvando, setSalvando] = useState(false);
   const [diaSelecionado, setDiaSelecionado] = useState(null);
   const [enviando, setEnviando] = useState(null);
+  const [feriasList, setFeriasList] = useState([]);
 
   useEffect(() => { loadAll(); }, []);
 
   // Inicializa feriados padrão no Firebase se ainda não existem
   const loadAll = async () => {
     try {
-      const [evSnap, srvSnap, ferSnap] = await Promise.all([
+      const [evSnap, srvSnap, ferSnap, feriasSnap] = await Promise.all([
         getDocs(collection(db, "tceduc_eventos")),
         getDocs(collection(db, "ipc_servidores")),
         getDocs(collection(db, "ipc_datas_comemorativas")),
+        getDocs(collection(db, "ipc_ferias_servidores")),
       ]);
       setEventos(evSnap.docs.map(d => ({ id:d.id, ...d.data() })));
       setServidores(srvSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setFeriasList(feriasSnap.docs.map(d => ({ id:d.id, ...d.data() })));
       let fer = ferSnap.docs.map(d => ({ id:d.id, ...d.data() }));
 
       // Se não há feriados ainda, inicializa com os padrões
@@ -108,6 +112,21 @@ export default function CalendarioPage({ onBack, user }) {
     }),
     ...eventos.map(e => ({ id:`ev-${e.id}`, tipo:"tceduc", nome:`${e.municipio||e.regiao||"Evento TCEduc"}`, data:e.data, status:e.status, original:e })),
     ...feriadosDB,
+    // Férias: gera um item por dia do período
+    ...feriasList.flatMap(f => {
+      if (!f.inicio || !f.fim) return [];
+      const items = [];
+      const start = new Date(f.inicio+"T12:00:00");
+      const end   = new Date(f.fim+"T12:00:00");
+      for (let d=new Date(start); d<=end; d.setDate(d.getDate()+1)) {
+        const ds = d.toISOString().split("T")[0];
+        const [fy] = ds.split("-");
+        if (parseInt(fy) === ano) {
+          items.push({ id:`ferias-${f.id}-${ds}`, tipo:"ferias", nome:`🏖️ ${f.servidorNome}`, data:ds, original:f });
+        }
+      }
+      return items;
+    }),
   ];
 
   const itensFiltrados = todosItens.filter(i => filtros[i.tipo]);
