@@ -15,6 +15,7 @@ export default function ProcessosRelatorioPage({ onBack, processoId }) {
   const [modo, setModo] = useState(processoId ? "processo" : "geral");
   const [selecionado, setSelecionado] = useState(null);
   const [gerando, setGerando] = useState(false);
+  const [filtrosCustom, setFiltrosCustom] = useState([]);
 
   useEffect(() => { loadProcessos(); }, []);
   useEffect(() => {
@@ -27,8 +28,12 @@ export default function ProcessosRelatorioPage({ onBack, processoId }) {
   const loadProcessos = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, "processos"));
+      const [snap, fSnap] = await Promise.all([
+        getDocs(collection(db, "processos")),
+        getDocs(collection(db, "processos_filtros")),
+      ]);
       setProcessos(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.criadoEm||0)-new Date(a.criadoEm||0)));
+      setFiltrosCustom(fSnap.docs.map(d=>({id:d.id,...d.data()})).filter(f=>f.tipo==="custom"));
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -172,6 +177,23 @@ export default function ProcessosRelatorioPage({ onBack, processoId }) {
                   <div style={{ marginBottom:24, background:"#f5f3ff", borderRadius:14, padding:"16px 18px", borderLeft:"4px solid #7c3aed" }}>
                     <div style={{ color:"#7c3aed", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>💬 Observações</div>
                     <div style={{ color:"#333", fontSize:14, lineHeight:1.7 }}>{p.observacoes}</div>
+                  </div>
+                )}
+                {filtrosCustom.filter(f => p[f.nome.toLowerCase().replace(/\s+/g,"_")]).length > 0 && (
+                  <div style={{ marginBottom:24, background:"#f0f4ff", borderRadius:14, padding:"16px 18px", borderLeft:"4px solid #1B3F7A" }}>
+                    <div style={{ color:"#1B3F7A", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:10, fontWeight:700 }}>📋 Informações Adicionais</div>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:10 }}>
+                      {filtrosCustom.map(f => {
+                        const chave = f.nome.toLowerCase().replace(/\s+/g,"_");
+                        if (!p[chave]) return null;
+                        return (
+                          <div key={f.id} style={{ background:"#fff", borderRadius:8, padding:"8px 14px", border:"1px solid #e8edf2" }}>
+                            <div style={{ fontSize:9, color:"#888", fontWeight:700, textTransform:"uppercase", marginBottom:2 }}>{f.nome}</div>
+                            <div style={{ fontSize:13, fontWeight:700, color:"#1B3F7A" }}>{p[chave]}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
