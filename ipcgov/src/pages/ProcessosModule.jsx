@@ -162,13 +162,12 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
             <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
-            <div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#047857,#34D399)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(4,120,87,0.4)" }}>{PROC_ICON}</div>
-            <div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
-              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Processos</div>
-            </div>
+              <div>
+                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+                <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Processos</div>
+              </div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
               <div onClick={onAdminAlertas} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🔔 Alertas</div>
