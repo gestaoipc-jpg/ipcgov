@@ -33,6 +33,7 @@ import GestaoEmailsPage from "./pages/GestaoEmailsPage";
 import CalendarioPage from "./pages/CalendarioPage";
 import OcorrenciasPage from "./pages/OcorrenciasPage";
 import PlanoAcaoPage from "./pages/PlanoAcaoPage";
+import FeriasPage from "./pages/FeriasPage";
 import OcorrenciaPublicaPage from "./pages/OcorrenciaPublicaPage";
 
 export default function App() {
@@ -198,9 +199,10 @@ export default function App() {
   if (currentModule === "almox_solicitacoes") return <AlmoxSolicitacoesPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("almoxarifado")} isAdmin={userInfo?.isAlmoxAdmin || false} />;
   if (currentModule === "almox_relatorio") return <AlmoxRelatorioPage onBack={() => setCurrentModule("almoxarifado")} />;
 
-  if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} onAniversarios={() => setCurrentModule("aniversarios")} onEstrutura={() => setCurrentModule("estrutura_pessoas")} />;
+  if (currentModule === "pessoas") return <PessoasModule user={user} onBack={() => setCurrentModule(null)} onOrganograma={() => setCurrentModule("organograma")} onAniversarios={() => setCurrentModule("aniversarios")} onEstrutura={() => setCurrentModule("estrutura_pessoas")} onFerias={() => setCurrentModule("ferias_servidores")} />;
   if (currentModule === "organograma") return <OrganogramaPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "aniversarios") return <AniversariosPage onBack={() => setCurrentModule("pessoas")} />;
+  if (currentModule === "ferias_servidores") return <FeriasPage user={user} onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "estrutura_pessoas") return <EstruturaPessoasPage onBack={() => setCurrentModule("pessoas")} />;
   if (currentModule === "gestao_emails") return <GestaoEmailsPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "calendario") return <CalendarioPage onBack={() => setCurrentModule(null)} user={user} />;
