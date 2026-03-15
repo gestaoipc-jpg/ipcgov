@@ -382,10 +382,10 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         </div>
       )}
 
-      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 32px" }}>
+      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px" }}>
         <div style={{ maxWidth:1300, margin:"0 auto" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:20 }}>
-            <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20 }}>←</div>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+            <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
             <div>
               <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
               <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>👥 IPC Pessoas</div>
@@ -401,20 +401,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
               {aba==="externos" && <div onClick={()=>{ setFormExterno({}); setSelected(null); setModal("form_externo"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Colaborador</div>}
             </div>
           </div>
-          <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:18 }}>
-            {[
-              { label:"Servidores IPC", value:servidores.length },
-              { label:"Com acesso ao sistema", value:servidores.filter(s=>s.criarAcesso).length },
-              { label:"Colaboradores externos", value:externos.length },
-              { label:"Aniversários próximos", value:aniversariosProximos.length },
-            ].map((s,i)=>(
-              <div key={i} style={{ background:i===3&&s.value>0?"rgba(232,115,10,0.35)":"rgba(255,255,255,0.12)", borderRadius:14, padding:"10px 18px" }}>
-                <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{s.value}</div>
-                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, marginTop:2 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:"flex", gap:10 }}>
+          <div style={{ display:"flex", gap:10, marginTop:14 }}>
             {[{id:"equipe",label:"👥 Equipe IPC"},{id:"externos",label:"🤝 Colaboradores Externos"}].map(a=>(
               <div key={a.id} onClick={()=>{ setAba(a.id); setBusca(""); setFiltroSetor("todos"); }} style={{ background:aba===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${aba===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
             ))}
@@ -423,6 +410,20 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
       </div>
 
       <div style={{ maxWidth:1300, margin:"0 auto", padding:"24px 32px 80px" }}>
+        {/* STATS */}
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
+          {[
+            { label:"Servidores IPC", value:servidores.length, cor:"#1B3F7A" },
+            { label:"Com acesso ao sistema", value:servidores.filter(s=>s.criarAcesso).length, cor:"#0891b2" },
+            { label:"Colaboradores externos", value:externos.length, cor:"#7c3aed" },
+            { label:"Aniversários próximos", value:aniversariosProximos.length, cor:aniversariosProximos.length>0?"#E8730A":"#aaa" },
+          ].map((s,i)=>(
+            <div key={i} style={{ background:"#fff", borderRadius:14, padding:"12px 20px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderLeft:`4px solid ${s.cor}` }}>
+              <div style={{ color:s.cor, fontWeight:900, fontSize:22 }}>{s.value}</div>
+              <div style={{ color:"#888", fontSize:11, marginTop:2, fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
         <div style={{ display:"flex", gap:10, marginBottom:24, flexWrap:"wrap", alignItems:"center" }}>
           <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder={`🔍 Buscar ${aba==="equipe"?"servidor":"colaborador"}...`} style={{ ...inputStyle, maxWidth:300, padding:"9px 14px" }}/>
           {aba==="equipe" && (
