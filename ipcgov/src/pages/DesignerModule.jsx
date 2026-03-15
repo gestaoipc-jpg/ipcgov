@@ -151,41 +151,40 @@ export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSo
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-thumb{background:#1B3F7A44;border-radius:3px}`}</style>
 
       {/* HEADER */}
-      <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "20px 32px 32px" }}>
+      <div style={{ background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", padding: "20px 32px" }}>
         <div style={{ maxWidth: 1300, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
-            <div onClick={onBack} style={{ width: 40, height: 40, background: "rgba(255,255,255,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 20 }}>←</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div onClick={onBack} style={{ width: 40, height: 40, background: "rgba(255,255,255,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 20, flexShrink: 0 }}>←</div>
             <div>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
               <div style={{ color: "#fff", fontWeight: 900, fontSize: 22 }}>🎨 IPC Designer</div>
             </div>
-            <div style={{ marginLeft: "auto" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
               <div onClick={onSolicitacoes} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📥 Solicitações</div>
-            <div onClick={onKanban} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 0 }}>📋 Kanban</div>
-            <div onClick={onFiltros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", marginRight: 8 }}>⚙️ Filtros</div>
-            <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
-            <div onClick={abrirNova} style={{ background: "#E8730A", borderRadius: 14, padding: "10px 22px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(232,115,10,0.4)" }}>+ Nova Atividade</div>
+              <div onClick={onKanban} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Kanban</div>
+              <div onClick={onFiltros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚙️ Filtros</div>
+              <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 18px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
+              <div onClick={abrirNova} style={{ background: "#E8730A", borderRadius: 14, padding: "10px 22px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(232,115,10,0.4)" }}>+ Nova Atividade</div>
             </div>
-          </div>
-
-          {/* STATUS PILLS */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {[
-              { label: "Total", value: atividades.length, cor: "rgba(255,255,255,0.12)" },
-              { label: "Em Andamento", value: contadores["Em Andamento"] || 0, cor: "rgba(27,63,122,0.4)" },
-              { label: "Concluídas", value: contadores["Concluído"] || 0, cor: "rgba(5,150,105,0.35)" },
-              { label: "Alta Prioridade", value: atividades.filter(a => a.prioridade === "Alta" && a.status !== "Concluído").length, cor: "rgba(220,38,38,0.35)" },
-            ].map((s, i) => (
-              <div key={i} style={{ background: s.cor, borderRadius: 14, padding: "10px 18px" }}>
-                <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>{s.value}</div>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, marginTop: 2 }}>{s.label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
       <div style={{ maxWidth: 1300, margin: "0 auto", padding: "24px 32px 80px" }}>
+        {/* STATS */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+          {[
+            { label: "Total", value: atividades.length, cor: "#1B3F7A" },
+            { label: "Em Andamento", value: contadores["Em Andamento"] || 0, cor: "#0891b2" },
+            { label: "Concluídas", value: contadores["Concluído"] || 0, cor: "#059669" },
+            { label: "Alta Prioridade", value: atividades.filter(a => a.prioridade === "Alta" && a.status !== "Concluído").length, cor: "#dc2626" },
+          ].map((s, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 14, padding: "12px 20px", boxShadow: "0 2px 12px rgba(27,63,122,0.07)", borderLeft: `4px solid ${s.cor}` }}>
+              <div style={{ color: s.cor, fontWeight: 900, fontSize: 22 }}>{s.value}</div>
+              <div style={{ color: "#888", fontSize: 11, marginTop: 2, fontWeight: 600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
         {/* FILTROS */}
         <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#888", fontWeight: 600 }}>Filtrar:</span>
