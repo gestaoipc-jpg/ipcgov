@@ -159,8 +159,8 @@ export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSo
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
               <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#BE185D,#F472B6)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(190,24,93,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="9" stroke="white" strokeWidth="2" fill="none"/><circle cx="21" cy="21" r="3" fill="white"/><line x1="21" y1="10" x2="21" y2="14.5" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="15.5" x2="27" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="15.5" x2="15" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="26.5" x2="27" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="26.5" x2="15" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="21" y1="32" x2="21" y2="27.5" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg></div>
             <div>
-              <div style={ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }>MÓDULO</div>
-              <div style={ color: "#fff", fontWeight: 900, fontSize: 22 }>IPC Designer</div>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 22 }}>IPC Designer</div>
             </div>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
