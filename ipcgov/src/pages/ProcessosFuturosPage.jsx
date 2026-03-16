@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-const PROC_FUTURO_ICON = ({PROC_FUTURO_ICON});
+const PROC_FUTURO_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/></svg>);
 
 export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
   const [futuros, setFuturos]       = useState([]);
