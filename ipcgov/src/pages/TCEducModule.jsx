@@ -86,7 +86,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-const TCEDUC_ICON = ({TCEDUC_ICON});
+const TCEDUC_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><path d="M21 8L33 14V18C33 25 27.2 31.5 21 33C14.8 31.5 9 25 9 18V14L21 8Z" stroke="white" strokeWidth="2" fill="rgba(255,255,255,0.2)"/><polyline points="16,21 20,25 27,17" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>);
 
 export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias, onPlanos }) {
   const [tab, setTab] = useState("eventos");
