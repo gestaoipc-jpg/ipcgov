@@ -19,6 +19,7 @@ function QRModal({ eventos, viagens, onClose }) {
   const [selecionados, setSelecionados] = useState([]);
   const [selecionadosViagem, setSelecionadosViagem] = useState([]);
   const [etapa, setEtapa] = useState("selecionar");
+  const [paginasState, setPaginasState] = useState([]);
   const printRef = useRef();
 
   const toggleViagem = (id) =>
@@ -51,7 +52,7 @@ function QRModal({ eventos, viagens, onClose }) {
 
   const imprimir = () => {
     const win = window.open("", "_blank");
-    const paginasHTML = paginas.map((p, i) => {
+    const paginasHTML = paginasState.map((p, i) => {
       const isViagem = p.tipo === "viagem";
       const nome    = isViagem ? (p.viagem.titulo||"Viagem") : (p.ev.municipio || p.ev.regiao || "Evento");
       const data    = isViagem
@@ -195,7 +196,7 @@ function QRModal({ eventos, viagens, onClose }) {
             </div>
           )}
 
-          <button onClick={() => { const temSel = aba==="eventos" ? selecionados.length>0 : selecionadosViagem.length>0; if(temSel) setEtapa("visualizar"); }}
+          <button onClick={() => { const temSel = aba==="eventos" ? selecionados.length>0 : selecionadosViagem.length>0; if(temSel) { setPaginasState([...paginas]); setEtapa("visualizar"); } }}
             disabled={aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0}
             style={{ width:"100%", background:(aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0)?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:(aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0)?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
             Visualizar {paginas.length} QR Code{paginas.length!==1?"s":""}
@@ -206,13 +207,13 @@ function QRModal({ eventos, viagens, onClose }) {
           <div style={{ display:"flex", gap:10, marginBottom:20 }}>
             <div onClick={() => setEtapa("selecionar")} style={{ background:"#f0f4ff", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, color:"#1B3F7A", cursor:"pointer" }}>← Voltar</div>
             <div onClick={imprimir} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", borderRadius:12, padding:"10px 18px", fontSize:13, fontWeight:700, color:"#fff", cursor:"pointer", textAlign:"center" }}>
-              🖨️ Imprimir PDF — {paginas.length} página{paginas.length!==1?"s":""}
+              🖨️ Imprimir PDF — {paginasState.length} página{paginasState.length!==1?"s":""}
             </div>
           </div>
 
           {/* Preview */}
           <div ref={printRef} style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            {paginas.map((p, i) => {
+            {paginasState.map((p, i) => {
               const nome     = p.ev.municipio || p.ev.regiao || "Evento";
               const data     = p.ev.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "";
               const nomeAcao = p.acao?.acaoNome || p.acao?.nome || "Geral";
@@ -242,7 +243,7 @@ function QRModal({ eventos, viagens, onClose }) {
                     Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência.
                   </div>
                   {p.ev.local && <div style={{ marginTop:8, color:"#bbb", fontSize:11 }}>🏛️ {p.ev.local}</div>}
-                  <div style={{ position:"absolute", bottom:10, right:14, fontSize:10, color:"#ddd" }}>{i+1}/{paginas.length}</div>
+                  <div style={{ position:"absolute", bottom:10, right:14, fontSize:10, color:"#ddd" }}>{i+1}/{paginasState.length}</div>
                 </div>
               );
             })}
