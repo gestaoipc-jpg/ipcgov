@@ -357,7 +357,17 @@ export default function OcorrenciasPage({ onBack, user }) {
       let paraMim = false;
       if (oc.destinoTipo==="usuario") paraMim = oc.destinoId===uid || oc.destinoId===email;
       else if (oc.destinoTipo==="grupo") paraMim = meusGrupoIds.includes(oc.destinoId);
-      if (paraMim) minhasOcs.push({ ...oc, eventoId:ev.id, eventoNome:ev.municipio||ev.regiao||"Evento", eventoData:ev.data, acoesEducacionais:ev.acoesEducacionais||[] });
+      if (isAdmin) paraMim = true;
+      if (paraMim) minhasOcs.push({ ...oc, eventoId:ev.id, eventoNome:ev.municipio||ev.regiao||"Evento", eventoData:ev.data, acoesEducacionais:ev.acoesEducacionais||[], _origem:"evento" });
+    });
+  });
+  viagens.forEach(v => {
+    (v.ocorrencias||[]).forEach(oc => {
+      let paraMim = false;
+      if (oc.destinoTipo==="usuario") paraMim = oc.destinoId===uid || oc.destinoId===email;
+      else if (oc.destinoTipo==="grupo") paraMim = meusGrupoIds.includes(oc.destinoId);
+      if (isAdmin) paraMim = true;
+      if (paraMim) minhasOcs.push({ ...oc, viagemId:v.id, eventoNome:v.titulo||"Viagem", eventoData:v.dataInicio, acoesEducacionais:[], _origem:"viagem" });
     });
   });
 
@@ -370,14 +380,24 @@ export default function OcorrenciasPage({ onBack, user }) {
     const novaResposta  = respostas[oc.id]  ?? oc.resposta ?? "";
     setSalvando(oc.id);
     try {
-      const ev = eventos.find(e=>e.id===oc.eventoId);
-      if (!ev) return;
       const primeiroNome = (meuServidor?.nome||email||"Usuário").split(" ")[0];
-      const novasOcs = (ev.ocorrencias||[]).map(o =>
-        o.id===oc.id ? { ...o, resposta:novaResposta, status:novoStatus, respondidoPor:primeiroNome, respondidoEm:new Date().toISOString() } : o
-      );
-      await updateDoc(doc(db,"tceduc_eventos",oc.eventoId), { ocorrencias:novasOcs, atualizadoEm:new Date().toISOString() });
-      setEventos(evs => evs.map(e => e.id===oc.eventoId ? {...e, ocorrencias:novasOcs} : e));
+      if (oc._origem === "viagem" && oc.viagemId) {
+        const v = viagens.find(x => x.id === oc.viagemId);
+        if (!v) return;
+        const novasOcs = (v.ocorrencias||[]).map(o =>
+          o.id===oc.id ? { ...o, resposta:novaResposta, status:novoStatus, respondidoPor:primeiroNome, respondidoEm:new Date().toISOString() } : o
+        );
+        await updateDoc(doc(db,"tceduc_viagens",oc.viagemId), { ocorrencias:novasOcs, atualizadoEm:new Date().toISOString() });
+        setViagens(vs => vs.map(v2 => v2.id===oc.viagemId ? {...v2, ocorrencias:novasOcs} : v2));
+      } else {
+        const ev = eventos.find(e=>e.id===oc.eventoId);
+        if (!ev) return;
+        const novasOcs = (ev.ocorrencias||[]).map(o =>
+          o.id===oc.id ? { ...o, resposta:novaResposta, status:novoStatus, respondidoPor:primeiroNome, respondidoEm:new Date().toISOString() } : o
+        );
+        await updateDoc(doc(db,"tceduc_eventos",oc.eventoId), { ocorrencias:novasOcs, atualizadoEm:new Date().toISOString() });
+        setEventos(evs => evs.map(e => e.id===oc.eventoId ? {...e, ocorrencias:novasOcs} : e));
+      }
       setRespostas(r  => { const n={...r}; delete n[oc.id]; return n; });
       setStatusEdit(s => { const n={...s}; delete n[oc.id]; return n; });
     } catch(e){ console.error(e); }
@@ -450,8 +470,9 @@ export default function OcorrenciasPage({ onBack, user }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                 <div>
                   <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>
-                    📅 {oc.eventoNome}
+                    {oc._origem==="viagem" ? "🗺️" : "📍"} {oc.eventoNome}
                     {oc.origem==="qrcode" && <span style={{ marginLeft:8, background:"#f0fdf4", borderRadius:6, padding:"2px 8px", fontSize:10, color:"#059669", fontWeight:700 }}>via QR</span>}
+                    {oc._origem==="viagem" && <span style={{ marginLeft:8, background:"#f0fdf4", borderRadius:6, padding:"2px 8px", fontSize:10, color:"#059669", fontWeight:700 }}>Viagem</span>}
                   </div>
                   <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
                     {oc.eventoData ? new Date(oc.eventoData+"T12:00:00").toLocaleDateString("pt-BR") : ""}{" · "}Registrado em {oc.data ? new Date(oc.data).toLocaleString("pt-BR") : ""}
