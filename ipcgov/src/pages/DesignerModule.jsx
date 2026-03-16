@@ -36,7 +36,7 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
-const DESIGNER_ICON = ({DESIGNER_ICON});
+const DESIGNER_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="21" r="9" stroke="white" strokeWidth="2" fill="none"/><circle cx="21" cy="21" r="3" fill="white"/><line x1="21" y1="10" x2="21" y2="14.5" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="15.5" x2="27" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="30.5" y1="26.5" x2="27" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="21" y1="32" x2="21" y2="27.5" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="26.5" x2="15" y2="24.6" stroke="white" strokeWidth="2" strokeLinecap="round"/><line x1="11.5" y1="15.5" x2="15" y2="17.4" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>);
 
 export default function DesignerModule({ user, onBack, onFiltros, onKanban, onSolicitacoes, onDashboard }) {
   const [atividades, setAtividades] = useState([]);
