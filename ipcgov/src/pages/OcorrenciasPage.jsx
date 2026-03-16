@@ -195,9 +195,9 @@ function QRModal({ eventos, viagens, onClose }) {
             </div>
           )}
 
-          <button onClick={() => { if(selecionados.length>0) setEtapa("visualizar"); }}
+          <button onClick={() => { const temSel = aba==="eventos" ? selecionados.length>0 : selecionadosViagem.length>0; if(temSel) setEtapa("visualizar"); }}
             disabled={aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0}
-            style={{ width:"100%", background:selecionados.length===0?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:selecionados.length===0?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+            style={{ width:"100%", background:(aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0)?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:(aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0)?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
             Visualizar {paginas.length} QR Code{paginas.length!==1?"s":""}
           </button>
         </>)}
