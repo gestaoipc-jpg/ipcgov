@@ -31,7 +31,7 @@ const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1
 
 const PROC_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/><line x1="13" y1="15" x2="19" y2="15" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="13" y1="18.5" x2="19" y2="18.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="22" x2="28" y2="22" stroke="white" strokeWidth="1.3" strokeLinecap="round"/><line x1="22" y1="25.5" x2="28" y2="25.5" stroke="white" strokeWidth="1.3" strokeLinecap="round"/></svg>);
 
-export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onKanban, onRelatorio, onAdminAlertas, onDashboard }) {
+export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onKanban, onRelatorio, onAdminAlertas, onDashboard, onFuturos }) {
   const [processos, setProcessos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -46,6 +46,8 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
   const [filtrosCustom, setFiltrosCustom] = useState([]); // todos os filtros tipo custom
   const [grupoProcessos, setGrupoProcessos] = useState(null);
   const [membrosGrupo, setMembrosGrupo] = useState([]);
+  const [futurosCount, setFuturosCount] = useState(0);
+  const [grupoCoord, setGrupoCoord] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -61,18 +63,23 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
       const statusF = filtros.find(f => f.tipo === "status");
       if (statusF?.opcoes) setStatusCustom(statusF.opcoes);
       setFiltrosCustom(filtros.filter(f => f.tipo === "custom"));
-      // Carregar grupo Processo Administrativo e seus membros
-      const [gSnap, srvSnap] = await Promise.all([
+      // Carregar grupos e membros
+      const [gSnap, srvSnap, pfSnap] = await Promise.all([
         getDocs(collection(db, "ipc_grupos_trabalho")),
         getDocs(collection(db, "ipc_servidores")),
+        getDocs(collection(db, "processos_futuros")),
       ]);
-      const gPA = gSnap.docs.map(d=>({id:d.id,...d.data()})).find(g => g.nome?.toLowerCase().replace(/\s+/g," ").includes("processo") && g.nome?.toLowerCase().includes("admin"));
+      const grupos = gSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const gPA = grupos.find(g => g.nome?.toLowerCase().replace(/\s+/g," ").includes("processo") && g.nome?.toLowerCase().includes("admin"));
       setGrupoProcessos(gPA || null);
       if (gPA) {
         const todos = srvSnap.docs.map(d=>({id:d.id,...d.data()}));
-        const membros = todos.filter(s => (s.grupos||[]).includes(gPA.id));
-        setMembrosGrupo(membros);
+        setMembrosGrupo(todos.filter(s => (s.grupos||[]).includes(gPA.id)));
       }
+      const gCoord = grupos.find(g => g.nome?.toLowerCase().includes("coordena") && g.nome?.toLowerCase().includes("infraestrutura") || g.nome?.toLowerCase().includes("logistica") || g.nome?.toLowerCase().includes("logística"));
+      const futurosCount = pfSnap.docs.filter(d => !d.data().distribuido).length;
+      setFuturosCount(futurosCount);
+      setGrupoCoord(gCoord || null);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -81,6 +88,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
 
   // Permissão: admin global OU membro do grupo Processo Administrativo
   const podeEditar = userInfo?.isAdminGlobal || (grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id));
+  const podeFuturos = userInfo?.isAdminGlobal || (grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
 
   const registrarLog = async (acao, processoId, detalhes) => {
     try {
@@ -184,6 +192,12 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
               <div onClick={onKanban} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📋 Kanban</div>
               <div onClick={onRelatorio} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📄 Relatório</div>
               <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
+              {podeFuturos && (
+                <div onClick={onFuturos} style={{ position:"relative", background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                  📋 Processos Futuros
+                  {futurosCount > 0 && <span style={{ background:"#E8730A", borderRadius:10, padding:"1px 7px", fontSize:10, color:"#fff", fontWeight:800 }}>{futurosCount}</span>}
+                </div>
+              )}
               {podeEditar && <div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Processo</div>}
             </div>
           </div>
