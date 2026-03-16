@@ -32,7 +32,7 @@ function formatDate(d) { if(!d)return"—"; const[y,m,day]=d.split("-"); return`
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
-const PESSOAS_ICON = ({PESSOAS_ICON});
+const PESSOAS_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="17" r="5.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.22)"/><path d="M10 35C10 29 15 25 21 25C27 25 32 29 32 35" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/><circle cx="31.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><circle cx="10.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/></svg>);
 
 export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios, onEstrutura, onFerias }) {
   const [servidores, setServidores] = useState([]);
