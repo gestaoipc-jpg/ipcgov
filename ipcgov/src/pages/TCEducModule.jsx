@@ -86,6 +86,8 @@ const labelStyle = {
   textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
 };
 
+const TCEDUC_ICON = ({TCEDUC_ICON});
+
 export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias, onPlanos }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
@@ -580,7 +582,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
               cursor: "pointer", color: "#fff", fontSize: 20, flexShrink: 0,
             }}>←</div>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#4338CA,#818CF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(67,56,202,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><path d="M21 8L33 14V18C33 25 27.2 31.5 21 33C14.8 31.5 9 25 9 18V14L21 8Z" stroke="white" strokeWidth="2" fill="rgba(255,255,255,0.2)"/><polyline points="16,21 20,25 27,17" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg></div>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#4338CA,#818CF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(67,56,202,0.4)" }}>{TCEDUC_ICON}</div>
               <div>
                 <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>MÓDULO</div>
                 <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>TCEduc</div>
