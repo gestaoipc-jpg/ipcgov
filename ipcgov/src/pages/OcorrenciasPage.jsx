@@ -14,10 +14,15 @@ function QRImg({ url, size }) {
   return <img src={src} alt="QR Code" style={{ width:size, height:size, borderRadius:8 }} crossOrigin="anonymous" />;
 }
 
-function QRModal({ eventos, onClose }) {
+function QRModal({ eventos, viagens, onClose }) {
+  const [aba, setAba] = useState("eventos"); // "eventos" | "viagens"
   const [selecionados, setSelecionados] = useState([]);
+  const [selecionadosViagem, setSelecionadosViagem] = useState([]);
   const [etapa, setEtapa] = useState("selecionar");
   const printRef = useRef();
+
+  const toggleViagem = (id) =>
+    setSelecionadosViagem(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
 
   const toggleEvento = (id) =>
     setSelecionados(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
@@ -25,24 +30,34 @@ function QRModal({ eventos, onClose }) {
   const eventosSelecionados = eventos.filter(e => selecionados.includes(e.id));
 
   const paginas = [];
-  eventosSelecionados.forEach(ev => {
-    const acoes = ev.acoesEducacionais || [];
-    if (acoes.length === 0) {
-      paginas.push({ ev, acao: null, url: `${BASE_URL}?evento=${ev.id}` });
-    } else {
-      acoes.forEach((acao, idx) => {
-        const acaoId = acao.acaoId || acao.id || String(idx);
-        paginas.push({ ev, acao, url: `${BASE_URL}?evento=${ev.id}&acao=${acaoId}` });
-      });
-    }
-  });
+  if (aba === "eventos") {
+    eventosSelecionados.forEach(ev => {
+      const acoes = ev.acoesEducacionais || [];
+      if (acoes.length === 0) {
+        paginas.push({ tipo:"evento", ev, acao: null, url: `${BASE_URL}?evento=${ev.id}` });
+      } else {
+        acoes.forEach((acao, idx) => {
+          const acaoId = acao.acaoId || acao.id || String(idx);
+          paginas.push({ tipo:"evento", ev, acao, url: `${BASE_URL}?evento=${ev.id}&acao=${acaoId}` });
+        });
+      }
+    });
+  } else {
+    selecionadosViagem.forEach(vId => {
+      const v = viagens.find(x => x.id === vId);
+      if (v) paginas.push({ tipo:"viagem", viagem: v, url: `${BASE_URL}?viagem=${v.id}` });
+    });
+  }
 
   const imprimir = () => {
     const win = window.open("", "_blank");
     const paginasHTML = paginas.map((p, i) => {
-      const nome    = p.ev.municipio || p.ev.regiao || "Evento";
-      const data    = p.ev.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "";
-      const nomeAcao = p.acao?.acaoNome || p.acao?.nome || "Geral";
+      const isViagem = p.tipo === "viagem";
+      const nome    = isViagem ? (p.viagem.titulo||"Viagem") : (p.ev.municipio || p.ev.regiao || "Evento");
+      const data    = isViagem
+        ? (p.viagem.dataInicio ? new Date(p.viagem.dataInicio+"T12:00:00").toLocaleDateString("pt-BR") : "")
+        : (p.ev.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "");
+      const nomeAcao = isViagem ? "Registro Geral de Ocorrência" : (p.acao?.acaoNome || p.acao?.nome || "Geral");
       const encoded  = encodeURIComponent(p.url);
       const qrSrc    = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}&bgcolor=ffffff&color=1B3F7A&margin=2`;
       return `
@@ -109,14 +124,26 @@ function QRModal({ eventos, onClose }) {
         </div>
 
         {etapa === "selecionar" && (<>
-          <div style={{ fontWeight:700, fontSize:14, color:"#555", marginBottom:12 }}>Selecione os eventos:</div>
+          {/* ABAS */}
+          <div style={{ display:"flex", gap:8, marginBottom:18 }}>
+            {[["eventos","📍 Eventos"],["viagens","🗺️ Viagens"]].map(([id,label]) => (
+              <div key={id} onClick={() => { setAba(id); setSelecionados([]); setSelecionadosViagem([]); }}
+                style={{ flex:1, textAlign:"center", padding:"9px", borderRadius:12, cursor:"pointer", fontWeight:700, fontSize:13,
+                  background: aba===id ? "#1B3F7A" : "#f0f4ff",
+                  color: aba===id ? "#fff" : "#1B3F7A",
+                  border: `1px solid ${aba===id ? "#1B3F7A" : "#e8edf2"}` }}>{label}</div>
+            ))}
+          </div>
+
+          {aba === "eventos" && <div style={{ fontWeight:700, fontSize:14, color:"#555", marginBottom:12 }}>Selecione os eventos:</div>}
+          {aba === "viagens" && <div style={{ fontWeight:700, fontSize:14, color:"#555", marginBottom:12 }}>Selecione as viagens:</div>}
           <div style={{ display:"flex", gap:10, marginBottom:14 }}>
-            <div onClick={() => setSelecionados(eventos.map(e=>e.id))} style={{ background:"#f0f4ff", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#1B3F7A", cursor:"pointer" }}>Selecionar todos</div>
-            <div onClick={() => setSelecionados([])} style={{ background:"#f8f9fb", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#888", cursor:"pointer" }}>Limpar</div>
+            <div onClick={() => aba==="eventos" ? setSelecionados(eventos.map(e=>e.id)) : setSelecionadosViagem(viagens.map(v=>v.id))} style={{ background:"#f0f4ff", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#1B3F7A", cursor:"pointer" }}>Selecionar todos</div>
+            <div onClick={() => aba==="eventos" ? setSelecionados([]) : setSelecionadosViagem([])} style={{ background:"#f8f9fb", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#888", cursor:"pointer" }}>Limpar</div>
           </div>
 
           <div style={{ maxHeight:340, overflowY:"auto", marginBottom:20 }}>
-            {[...eventos].sort((a,b)=>(a.data||"").localeCompare(b.data||"")).map(ev => {
+            {aba === "eventos" && [...eventos].sort((a,b)=>(a.data||"").localeCompare(b.data||"")).map(ev => {
               const sel    = selecionados.includes(ev.id);
               const nome   = ev.municipio || ev.regiao || "Evento";
               const data   = ev.data ? new Date(ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "";
@@ -139,16 +166,37 @@ function QRModal({ eventos, onClose }) {
                 </div>
               );
             })}
+            {aba === "viagens" && [...viagens].sort((a,b)=>(a.dataInicio||"").localeCompare(b.dataInicio||"")).map(v => {
+              const sel  = selecionadosViagem.includes(v.id);
+              const data = v.dataInicio ? new Date(v.dataInicio+"T12:00:00").toLocaleDateString("pt-BR") : "";
+              return (
+                <div key={v.id} onClick={() => toggleViagem(v.id)}
+                  style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", borderRadius:14, marginBottom:8, cursor:"pointer",
+                    background:sel ? "#f0fdf4" : "#f8f9fb", border:`2px solid ${sel ? "#059669" : "#e8edf2"}` }}>
+                  <div style={{ width:22, height:22, borderRadius:7, background:sel?"#059669":"#fff", border:`2px solid ${sel?"#059669":"#ddd"}`,
+                    display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:13, flexShrink:0 }}>
+                    {sel ? "✓" : ""}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A" }}>{v.titulo || "Viagem"}</div>
+                    <div style={{ fontSize:12, color:"#aaa" }}>{data} · Registro geral → 1 QR Code</div>
+                  </div>
+                  <div style={{ background:"#05996922", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>
+                    1 QR
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {selecionados.length > 0 && (
+          {(selecionados.length > 0 || selecionadosViagem.length > 0) && (
             <div style={{ background:"#f0fdf4", borderRadius:12, padding:"10px 16px", marginBottom:16, fontSize:13, color:"#059669", fontWeight:700 }}>
               ✅ {paginas.length} QR Code{paginas.length!==1?"s":""} serão gerados ({selecionados.length} evento{selecionados.length!==1?"s":""})
             </div>
           )}
 
           <button onClick={() => { if(selecionados.length>0) setEtapa("visualizar"); }}
-            disabled={selecionados.length===0}
+            disabled={aba==="eventos" ? selecionados.length===0 : selecionadosViagem.length===0}
             style={{ width:"100%", background:selecionados.length===0?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:selecionados.length===0?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
             Visualizar {paginas.length} QR Code{paginas.length!==1?"s":""}
           </button>
@@ -180,18 +228,18 @@ function QRModal({ eventos, onClose }) {
                   </div>
 
                   <div style={{ background:"#1B3F7A", borderRadius:14, padding:"14px 28px", marginBottom:10, minWidth:280 }}>
-                    <div style={{ color:"rgba(255,255,255,0.55)", fontSize:10, letterSpacing:2, marginBottom:4 }}>MUNICÍPIO</div>
-                    <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>📍 {nome}</div>
+                    <div style={{ color:"rgba(255,255,255,0.55)", fontSize:10, letterSpacing:2, marginBottom:4 }}>{p.tipo==="viagem" ? "VIAGEM" : "MUNICÍPIO"}</div>
+                    <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>{p.tipo==="viagem" ? "🗺️" : "📍"} {nome}</div>
                     <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, marginTop:4 }}>📅 {data}</div>
                   </div>
 
                   <div style={{ background:"#E8730A", borderRadius:14, padding:"12px 28px", minWidth:280, marginBottom:20 }}>
-                    <div style={{ color:"rgba(255,255,255,0.7)", fontSize:10, letterSpacing:2, marginBottom:4 }}>CURSO</div>
-                    <div style={{ color:"#fff", fontWeight:900, fontSize:15, lineHeight:1.4 }}>📚 {nomeAcao}</div>
+                    <div style={{ color:"rgba(255,255,255,0.7)", fontSize:10, letterSpacing:2, marginBottom:4 }}>{p.tipo==="viagem" ? "TIPO" : "CURSO"}</div>
+                    <div style={{ color:"#fff", fontWeight:900, fontSize:15, lineHeight:1.4 }}>📋 {nomeAcao}</div>
                   </div>
 
                   <div style={{ color:"#aaa", fontSize:12, lineHeight:1.8 }}>
-                    Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência sobre este curso.
+                    Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência.
                   </div>
                   {p.ev.local && <div style={{ marginTop:8, color:"#bbb", fontSize:11 }}>🏛️ {p.ev.local}</div>}
                   <div style={{ position:"absolute", bottom:10, right:14, fontSize:10, color:"#ddd" }}>{i+1}/{paginas.length}</div>
@@ -215,20 +263,23 @@ export default function OcorrenciasPage({ onBack, user }) {
   const [statusEdit, setStatusEdit] = useState({});
   const [salvando, setSalvando]     = useState(null);
   const [showQR, setShowQR]         = useState(false);
+  const [viagens, setViagens]       = useState([]);
 
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [evSnap, srvSnap, grSnap] = await Promise.all([
+      const [evSnap, srvSnap, grSnap, vSnap] = await Promise.all([
         getDocs(collection(db,"tceduc_eventos")),
         getDocs(collection(db,"ipc_servidores")),
         getDocs(collection(db,"ipc_grupos_trabalho")),
+        getDocs(collection(db,"tceduc_viagens")),
       ]);
       setEventos(evSnap.docs.map(d=>({id:d.id,...d.data()})));
       setUsuarios(srvSnap.docs.map(d=>({id:d.id,...d.data()})));
       setGrupos(grSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setViagens(vSnap.docs.map(d=>({id:d.id,...d.data()})));
     } catch(e){ console.error(e); }
     setLoading(false);
   };
@@ -387,7 +438,7 @@ export default function OcorrenciasPage({ onBack, user }) {
         })}
       </div>
 
-      {showQR && <QRModal eventos={eventos} onClose={() => setShowQR(false)} />}
+      {showQR && <QRModal eventos={eventos} viagens={viagens} onClose={() => setShowQR(false)} />}
     </div>
   );
 }
