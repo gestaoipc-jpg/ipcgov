@@ -60,24 +60,35 @@ function QRModal({ eventos, viagens, onClose }) {
         : (p.ev.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "");
       const nomeAcao = isViagem ? "Registro Geral de Ocorrência" : (p.acao?.acaoNome || p.acao?.nome || "Geral");
       const encoded  = encodeURIComponent(p.url);
-      const qrSrc    = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encoded}&bgcolor=ffffff&color=1B3F7A&margin=2`;
+      const qrSrc    = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encoded}&bgcolor=ffffff&color=000000&margin=4`;
+      const tipoLabel = isViagem ? "VIAGEM" : "MUNICÍPIO / EVENTO";
+      const cursoLabel = isViagem ? "REGISTRO" : "CURSO";
       return `
         <div class="page">
-          <div class="marca">IPC<span>educ</span></div>
+          <div class="topo">
+            <div class="marca">IPC<span>educ</span></div>
+            <div class="numeracao">${i+1} / ${paginasState.length}</div>
+          </div>
           <div class="subtitulo">REGISTRO DE OCORRÊNCIA</div>
-          <div class="qr-wrap"><img src="${qrSrc}" alt="QR Code" class="qr" /></div>
-          <div class="municipio-box">
-            <div class="label-sm">MUNICÍPIO</div>
-            <div class="municipio">📍 ${nome}</div>
-            <div class="data-ev">📅 ${data}</div>
+          <div class="qr-wrap">
+            <img src="${qrSrc}" alt="QR Code" class="qr" />
           </div>
-          <div class="curso-box">
-            <div class="label-sm">CURSO</div>
-            <div class="curso">📚 ${nomeAcao}</div>
+          <div class="instrucao">Aponte a câmera do celular para o QR Code<br>para registrar sua ocorrência</div>
+          <div class="info-box">
+            <div class="info-row border-bottom">
+              <div class="info-label">${tipoLabel}</div>
+              <div class="info-valor">${nome}</div>
+            </div>
+            <div class="info-row border-bottom">
+              <div class="info-label">DATA</div>
+              <div class="info-valor">${data || "—"}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">${cursoLabel}</div>
+              <div class="info-valor">${nomeAcao}</div>
+            </div>
           </div>
-          <div class="instrucao">Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência sobre este curso.</div>
-          ${(!isViagem && p.ev.local) ? `<div class="local">🏛️ ${p.ev.local}</div>` : ""}
-          <div class="numeracao">${i+1} / ${paginasState.length}</div>
+          ${(!isViagem && p.ev?.local) ? `<div class="local">Local: ${p.ev.local}</div>` : ""}
         </div>`;
     }).join("");
 
@@ -86,26 +97,74 @@ function QRModal({ eventos, viagens, onClose }) {
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { font-family:'Montserrat',sans-serif; background:#fff; }
-        .page { width:210mm; min-height:297mm; display:flex; flex-direction:column; align-items:center;
-                justify-content:center; padding:20mm; page-break-after:always; break-after:page; position:relative; }
-        .page:last-child { page-break-after:auto; }
+        body { font-family:'Montserrat',sans-serif; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
         @page { size:A4 portrait; margin:0; }
+        .page {
+          width:210mm; height:297mm;
+          display:flex; flex-direction:column; align-items:center; justify-content:center;
+          padding:14mm 18mm;
+          page-break-after:always; break-after:page;
+          position:relative;
+        }
+        .page:last-child { page-break-after:auto; }
         @media print { .page { page-break-after:always; } }
-        .marca { font-size:34px; font-weight:900; color:#1B3F7A; letter-spacing:-1px; margin-bottom:4px; }
-        .marca span { color:#E8730A; }
-        .subtitulo { color:#1B3F7A; font-size:16px; font-weight:900; letter-spacing:2px; margin-bottom:28px; text-transform:uppercase; }
-        .qr-wrap { background:#f0f4ff; border-radius:20px; padding:20px; margin-bottom:24px; }
-        .qr { width:220px; height:220px; border-radius:8px; display:block; }
-        .municipio-box { background:#1B3F7A; border-radius:16px; padding:16px 32px; margin-bottom:12px; min-width:320px; text-align:center; }
-        .label-sm { color:rgba(255,255,255,0.55); font-size:10px; letter-spacing:2px; margin-bottom:6px; }
-        .municipio { color:#fff; font-weight:900; font-size:22px; }
-        .data-ev { color:rgba(255,255,255,0.6); font-size:13px; margin-top:4px; }
-        .curso-box { background:#E8730A; border-radius:16px; padding:14px 32px; min-width:320px; text-align:center; margin-bottom:24px; }
-        .curso { color:#fff; font-weight:900; font-size:16px; line-height:1.4; }
-        .instrucao { color:#aaa; font-size:12px; line-height:1.8; text-align:center; }
-        .local { color:#bbb; font-size:11px; margin-top:10px; text-align:center; }
-        .numeracao { position:absolute; bottom:16px; right:20px; font-size:10px; color:#ddd; }
+
+        /* TOPO */
+        .topo { width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:8mm; }
+        .marca { font-size:42px; font-weight:900; color:#000; letter-spacing:-2px; }
+        .marca span { color:#000; text-decoration:underline; text-decoration-thickness:3px; }
+        .numeracao { font-size:13px; color:#555; font-weight:600; }
+
+        /* TITULO */
+        .subtitulo {
+          font-size:15px; font-weight:900; letter-spacing:4px;
+          text-transform:uppercase; color:#000;
+          border:2.5px solid #000; border-radius:6px;
+          padding:6px 24px; margin-bottom:8mm;
+        }
+
+        /* QR CODE */
+        .qr-wrap {
+          border:3px solid #000; border-radius:12px;
+          padding:8px; margin-bottom:6mm;
+          background:#fff;
+        }
+        .qr { width:260px; height:260px; display:block; }
+
+        /* INSTRUÇÃO */
+        .instrucao {
+          font-size:14px; color:#333; line-height:1.7;
+          text-align:center; margin-bottom:8mm;
+          font-style:italic;
+        }
+
+        /* TABELA INFO */
+        .info-box {
+          width:100%; border:2.5px solid #000; border-radius:10px;
+          overflow:hidden;
+        }
+        .info-row {
+          display:flex; align-items:stretch;
+        }
+        .border-bottom { border-bottom:2px solid #000; }
+        .info-label {
+          background:#000; color:#fff;
+          font-size:11px; font-weight:900; letter-spacing:2px;
+          text-transform:uppercase;
+          padding:10px 14px;
+          display:flex; align-items:center;
+          min-width:110px; max-width:110px;
+          writing-mode:horizontal-tb;
+        }
+        .info-valor {
+          padding:10px 18px;
+          font-size:18px; font-weight:700; color:#000;
+          display:flex; align-items:center;
+          flex:1; line-height:1.3;
+        }
+
+        /* LOCAL */
+        .local { margin-top:5mm; font-size:12px; color:#555; text-align:center; }
       </style>
       </head><body>${paginasHTML}</body></html>`);
     win.document.close();
