@@ -32,6 +32,8 @@ function formatDate(d) { if(!d)return"—"; const[y,m,day]=d.split("-"); return`
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 
+const PESSOAS_ICON = ({PESSOAS_ICON});
+
 export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios, onEstrutura, onFerias }) {
   const [servidores, setServidores] = useState([]);
   const [externos, setExternos] = useState([]);
@@ -387,7 +389,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
           <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
             <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#0369A1,#38BDF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(3,105,161,0.4)" }}><svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="17" r="5.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.22)"/><path d="M10 35C10 29 15 25 21 25C27 25 32 29 32 35" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/><circle cx="31.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><circle cx="10.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/></svg></div>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#0369A1,#38BDF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(3,105,161,0.4)" }}>{PESSOAS_ICON}</div>
               <div>
                 <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
                 <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Pessoas</div>
