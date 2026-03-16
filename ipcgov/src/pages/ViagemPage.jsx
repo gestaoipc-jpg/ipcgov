@@ -352,9 +352,78 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
     setSalvando(true);
     const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, municipiosIds: form.municipiosIds, equipe: form.equipe, status, ...todosOsDados() };
     try {
-      if (viagem?.id) { await updateDoc(doc(db, "tceduc_viagens", viagem.id), dados); onSaved({ ...viagem, ...dados }); }
-      else { dados.criadoEm = new Date().toISOString(); dados.criadoPor = user?.email || ""; const ref = await addDoc(collection(db, "tceduc_viagens"), dados); onSaved({ id: ref.id, ...dados }); }
+      let viagemId = viagem?.id;
+      if (viagem?.id) {
+        await updateDoc(doc(db, "tceduc_viagens", viagem.id), dados);
+        onSaved({ ...viagem, ...dados });
+      } else {
+        dados.criadoEm = new Date().toISOString();
+        dados.criadoPor = user?.email || "";
+        const ref = await addDoc(collection(db, "tceduc_viagens"), dados);
+        viagemId = ref.id;
+        onSaved({ id: ref.id, ...dados });
+      }
       setModoEdicao(false);
+
+      // --- PROCESSOS FUTUROS: verificar ações com pagamento de instrutoria ---
+      try {
+        const eventosVinc = eventosDisponiveis.filter(e => dados.municipiosIds.includes(e.id));
+        const acoesPagamento = [];
+        eventosVinc.forEach(ev => {
+          (ev.acoesEducacionais || []).forEach(acao => {
+            if (acao.pagamentoInstrutoria) {
+              const instrs = (acao.instrutores && acao.instrutores.length > 0)
+                ? acao.instrutores.map(i => i.instrutorNome).filter(Boolean)
+                : [acao.instrutorNome].filter(Boolean);
+              acoesPagamento.push({
+                municipio: ev.municipio || ev.regiao || "Município",
+                curso: acao.acaoNome || acao.nome || "Curso",
+                instrutores: instrs,
+                valor: acao.valorInstrutoria || "",
+                data: ev.data || "",
+              });
+            }
+          });
+        });
+
+        if (acoesPagamento.length > 0) {
+          // Verificar se já existe processo futuro para esta viagem (não duplicar)
+          const pFutSnap = await getDocs(collection(db, "processos_futuros"));
+          const jaExiste = pFutSnap.docs.some(d => d.data().viagemId === viagemId && !d.data().distribuido);
+          if (!jaExiste) {
+            // Montar objetivo
+            const linhasObj = acoesPagamento.map(a => {
+              const instr = a.instrutores.length > 0 ? a.instrutores.join(", ") : "—";
+              const data = a.data ? new Date(a.data + "T12:00:00").toLocaleDateString("pt-BR") : "";
+              return `• ${a.municipio}${data ? " (" + data + ")" : ""}
+  Curso: ${a.curso}
+  Instrutor(es): ${instr}${a.valor ? "
+  Valor: R$ " + a.valor : ""}`;
+            });
+            const objetivo = "Pagamento de instrutoria referente às seguintes ações educacionais:
+
+" + linhasObj.join("
+
+");
+            const dataEvento = acoesPagamento
+              .map(a => a.data)
+              .filter(Boolean)
+              .sort()[0] || "";
+            await addDoc(collection(db, "processos_futuros"), {
+              titulo: dados.titulo,
+              objetivo,
+              status: "Aguardando",
+              tipo_processo: "TCEduc",
+              responsavel: "",
+              viagemId,
+              dataEvento,
+              distribuido: false,
+              criadoEm: new Date().toISOString(),
+              criadoPor: user?.email || "sistema",
+            });
+          }
+        }
+      } catch(eProc) { console.warn("Erro ao criar processo futuro:", eProc); }
     } catch (e) { console.error(e); alert("Erro ao salvar."); }
     setSalvando(false);
   };
