@@ -76,8 +76,8 @@ function QRModal({ eventos, viagens, onClose }) {
             <div class="curso">📚 ${nomeAcao}</div>
           </div>
           <div class="instrucao">Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência sobre este curso.</div>
-          ${p.ev.local ? `<div class="local">🏛️ ${p.ev.local}</div>` : ""}
-          <div class="numeracao">${i+1} / ${paginas.length}</div>
+          ${(!isViagem && p.ev.local) ? `<div class="local">🏛️ ${p.ev.local}</div>` : ""}
+          <div class="numeracao">${i+1} / ${paginasState.length}</div>
         </div>`;
     }).join("");
 
@@ -214,9 +214,10 @@ function QRModal({ eventos, viagens, onClose }) {
           {/* Preview */}
           <div ref={printRef} style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {paginasState.map((p, i) => {
-              const nome     = p.ev.municipio || p.ev.regiao || "Evento";
-              const data     = p.ev.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "";
-              const nomeAcao = p.acao?.acaoNome || p.acao?.nome || "Geral";
+              const isViagem = p.tipo === "viagem";
+              const nome     = isViagem ? (p.viagem?.titulo||"Viagem") : (p.ev?.municipio || p.ev?.regiao || "Evento");
+              const data     = isViagem ? (p.viagem?.dataInicio ? new Date(p.viagem.dataInicio+"T12:00:00").toLocaleDateString("pt-BR") : "") : (p.ev?.data ? new Date(p.ev.data+"T12:00:00").toLocaleDateString("pt-BR") : "");
+              const nomeAcao = isViagem ? "Registro Geral de Ocorrência" : (p.acao?.acaoNome || p.acao?.nome || "Geral");
               return (
                 <div key={i} style={{ border:"2px solid #e8edf2", borderRadius:16, padding:24, display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", background:"#fff", position:"relative" }}>
                   <div style={{ fontFamily:"'Montserrat',sans-serif", color:"#1B3F7A", fontWeight:900, fontSize:26, letterSpacing:-1, marginBottom:2 }}>
@@ -242,7 +243,7 @@ function QRModal({ eventos, viagens, onClose }) {
                   <div style={{ color:"#aaa", fontSize:12, lineHeight:1.8 }}>
                     Aponte a câmera do celular para o QR Code acima<br/>para registrar sua ocorrência.
                   </div>
-                  {p.ev.local && <div style={{ marginTop:8, color:"#bbb", fontSize:11 }}>🏛️ {p.ev.local}</div>}
+                  {(!isViagem && p.ev?.local) && <div style={{ marginTop:8, color:"#bbb", fontSize:11 }}>🏛️ {p.ev.local}</div>}
                   <div style={{ position:"absolute", bottom:10, right:14, fontSize:10, color:"#ddd" }}>{i+1}/{paginasState.length}</div>
                 </div>
               );
