@@ -6,8 +6,10 @@ export default function OcorrenciaPublicaPage() {
   const params   = new URLSearchParams(window.location.search);
   const eventoId = params.get("evento");
   const acaoId   = params.get("acao");
+  const viagemId = params.get("viagem");
 
   const [evento,   setEvento]   = useState(null);
+  const [viagem,   setViagem]   = useState(null);
   const [acao,     setAcao]     = useState(null);
   const [grupo,    setGrupo]    = useState(null);
   const [loading,  setLoading]  = useState(true);
@@ -20,12 +22,17 @@ export default function OcorrenciaPublicaPage() {
 
   const loadDados = async () => {
     try {
-      const [evSnap, grSnap] = await Promise.all([
+      const [evSnap, grSnap, vSnap] = await Promise.all([
         getDocs(collection(db,"tceduc_eventos")),
         getDocs(collection(db,"ipc_grupos_trabalho")),
+        getDocs(collection(db,"tceduc_viagens")),
       ]);
       const ev = evSnap.docs.map(d=>({id:d.id,...d.data()})).find(e=>e.id===eventoId);
       setEvento(ev || null);
+      if (viagemId) {
+        const v = vSnap.docs.map(d=>({id:d.id,...d.data()})).find(v=>v.id===viagemId);
+        setViagem(v || null);
+      }
 
       if (ev && acaoId) {
         const ac = (ev.acoesEducacionais||[]).find((a,idx) =>
@@ -47,7 +54,7 @@ export default function OcorrenciaPublicaPage() {
     if (!form.nome.trim() || !form.cpf.trim() || !form.email.trim() || !form.descricao.trim()) {
       setErro("Preencha todos os campos obrigatórios: nome, CPF, e-mail e descrição."); return;
     }
-    if (!evento) { setErro("Evento não encontrado."); return; }
+    if (!evento && !viagem) { setErro("Evento/Viagem não encontrado."); return; }
     setErro(""); setEnviando(true);
     try {
       const novaOc = {
@@ -72,11 +79,19 @@ export default function OcorrenciaPublicaPage() {
         data:   new Date().toISOString(),
         origem: "qrcode",
       };
-      const novasOcs = [...(evento.ocorrencias||[]), novaOc];
-      await updateDoc(doc(db,"tceduc_eventos",eventoId), {
-        ocorrencias: novasOcs,
-        atualizadoEm: new Date().toISOString(),
-      });
+      if (viagemId && viagem) {
+        const novasOcs = [...(viagem.ocorrencias||[]), novaOc];
+        await updateDoc(doc(db,"tceduc_viagens",viagemId), {
+          ocorrencias: novasOcs,
+          atualizadoEm: new Date().toISOString(),
+        });
+      } else {
+        const novasOcs = [...(evento.ocorrencias||[]), novaOc];
+        await updateDoc(doc(db,"tceduc_eventos",eventoId), {
+          ocorrencias: novasOcs,
+          atualizadoEm: new Date().toISOString(),
+        });
+      }
       setEnviado(true);
     } catch(e) {
       console.error(e); setErro("Erro ao enviar. Tente novamente.");
@@ -84,9 +99,11 @@ export default function OcorrenciaPublicaPage() {
     setEnviando(false);
   };
 
-  const nomeMunicipio = evento?.municipio || evento?.regiao || "Evento";
-  const nomeAcao      = acao?.acaoNome    || acao?.nome     || "";
-  const dataEvento    = evento?.data ? new Date(evento.data+"T12:00:00").toLocaleDateString("pt-BR") : "";
+  const nomeMunicipio = viagemId ? (viagem?.titulo||"Viagem") : (evento?.municipio || evento?.regiao || "Evento");
+  const nomeAcao      = viagemId ? "" : (acao?.acaoNome || acao?.nome || "");
+  const dataEvento    = viagemId
+    ? (viagem?.dataInicio ? new Date(viagem.dataInicio+"T12:00:00").toLocaleDateString("pt-BR") : "")
+    : (evento?.data ? new Date(evento.data+"T12:00:00").toLocaleDateString("pt-BR") : "");
 
   const S = {
     page:   { minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" },
@@ -102,11 +119,11 @@ export default function OcorrenciaPublicaPage() {
     </div>
   );
 
-  if (!evento) return (
+  if (!evento && !viagem) return (
     <div style={{ ...S.page, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ ...S.card, maxWidth:360, textAlign:"center", padding:40 }}>
         <div style={{ fontSize:48, marginBottom:16 }}>❌</div>
-        <div style={{ fontWeight:800, fontSize:18, color:"#1B3F7A", marginBottom:8 }}>Evento não encontrado</div>
+        <div style={{ fontWeight:800, fontSize:18, color:"#1B3F7A", marginBottom:8 }}>Não encontrado</div>
         <div style={{ color:"#aaa", fontSize:14 }}>O link pode estar incorreto ou expirado.</div>
       </div>
     </div>
