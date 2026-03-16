@@ -1395,7 +1395,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                 {(form.acoesEducacionais || []).map((acao, idx) => (
                   <div key={idx} style={{ background:"#f8f9fb", borderRadius:14, padding:"16px", marginBottom:12, border:"1px solid #e8edf2" }}>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                      <div>
+                      <div style={{ gridColumn:"1/-1" }}>
                         <label style={labelStyle}>Ação Educacional</label>
                         <select value={acao.acaoId||""} onChange={e => {
                           const sel = tiposAcaoEdu.find(t=>t.id===e.target.value);
@@ -1403,16 +1403,6 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         }} style={inputStyle}>
                           <option value="">Selecione...</option>
                           {tiposAcaoEdu.map(t=><option key={t.id} value={t.id}>{t.nome}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Instrutor</label>
-                        <select value={acao.instrutorId||""} onChange={e => {
-                          const sel = instrutores.find(i=>i.id===e.target.value);
-                          const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],instrutorId:e.target.value,instrutorNome:sel?.nome||""}; setForm(f=>({...f,acoesEducacionais:a}));
-                        }} style={inputStyle}>
-                          <option value="">Selecione...</option>
-                          {instrutores.map(i=><option key={i.id} value={i.id}>{i.nome}</option>)}
                         </select>
                       </div>
                       <div>
@@ -1432,10 +1422,66 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         </div>
                       )}
                     </div>
+
+                    {/* INSTRUTORES */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                        <label style={labelStyle}>Instrutores</label>
+                        <div onClick={() => {
+                          const a=[...(form.acoesEducacionais||[])];
+                          a[idx]={...a[idx], instrutores:[...(a[idx].instrutores||[]), {instrutorId:"",instrutorNome:""}]};
+                          setForm(f=>({...f,acoesEducacionais:a}));
+                        }} style={{ fontSize:11, fontWeight:700, color:"#1B3F7A", cursor:"pointer", background:"#eff6ff", borderRadius:8, padding:"3px 10px" }}>
+                          + Instrutor
+                        </div>
+                      </div>
+                      {(acao.instrutores||[{instrutorId:acao.instrutorId||"",instrutorNome:acao.instrutorNome||""}]).map((inst, iIdx) => (
+                        <div key={iIdx} style={{ display:"flex", gap:8, marginBottom:6, alignItems:"center" }}>
+                          <select value={inst.instrutorId||""} onChange={e => {
+                            const sel = instrutores.find(i=>i.id===e.target.value);
+                            const a=[...(form.acoesEducacionais||[])];
+                            const insts=[...(a[idx].instrutores||[{instrutorId:a[idx].instrutorId||"",instrutorNome:a[idx].instrutorNome||""}])];
+                            insts[iIdx]={instrutorId:e.target.value,instrutorNome:sel?.nome||""};
+                            a[idx]={...a[idx],instrutores:insts,instrutorId:insts[0]?.instrutorId||"",instrutorNome:insts[0]?.instrutorNome||""};
+                            setForm(f=>({...f,acoesEducacionais:a}));
+                          }} style={{...inputStyle,flex:1}}>
+                            <option value="">Selecione...</option>
+                            {instrutores.map(i=><option key={i.id} value={i.id}>{i.nome}</option>)}
+                          </select>
+                          {(acao.instrutores||[]).length > 0 && (
+                            <div onClick={() => {
+                              const a=[...(form.acoesEducacionais||[])];
+                              const insts=(a[idx].instrutores||[]).filter((_,ii)=>ii!==iIdx);
+                              a[idx]={...a[idx],instrutores:insts,instrutorId:insts[0]?.instrutorId||"",instrutorNome:insts[0]?.instrutorNome||""};
+                              setForm(f=>({...f,acoesEducacionais:a}));
+                            }} style={{ color:"#dc2626", cursor:"pointer", fontSize:18, padding:"0 4px", flexShrink:0 }}>×</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* PAGAMENTO INSTRUTORIA */}
+                    <div style={{ display:"flex", alignItems:"center", gap:10, background: acao.pagamentoInstrutoria ? "#e8f5e9" : "#f8f9fb", borderRadius:10, padding:"10px 14px", marginBottom:10, border:`1px solid ${acao.pagamentoInstrutoria?"#c8e6c9":"#e8edf2"}`, cursor:"pointer" }}
+                      onClick={() => { const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],pagamentoInstrutoria:!a[idx].pagamentoInstrutoria}; setForm(f=>({...f,acoesEducacionais:a})); }}>
+                      <div style={{ width:20, height:20, borderRadius:6, border:`2px solid ${acao.pagamentoInstrutoria?"#059669":"#ccc"}`, background:acao.pagamentoInstrutoria?"#059669":"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {acao.pagamentoInstrutoria && <span style={{ color:"#fff", fontSize:13, fontWeight:900 }}>✓</span>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:700, color: acao.pagamentoInstrutoria?"#059669":"#555" }}>💰 Tem pagamento de instrutoria</div>
+                        <div style={{ fontSize:11, color:"#888" }}>Marque se esta ação gera pagamento para o(s) instrutor(es)</div>
+                      </div>
+                    </div>
+                    {acao.pagamentoInstrutoria && (
+                      <div style={{ marginBottom:10 }}>
+                        <label style={labelStyle}>Valor da instrutoria (R$)</label>
+                        <input value={acao.valorInstrutoria||""} onChange={e => { const a=[...(form.acoesEducacionais||[])]; a[idx]={...a[idx],valorInstrutoria:e.target.value}; setForm(f=>({...f,acoesEducacionais:a})); }} placeholder="Ex: 500,00" style={inputStyle}/>
+                      </div>
+                    )}
+
                     <div onClick={() => { const a=(form.acoesEducacionais||[]).filter((_,i)=>i!==idx); setForm(f=>({...f,acoesEducacionais:a})); }} style={{ color:"#dc2626", fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"right" }}>🗑️ Remover ação</div>
                   </div>
                 ))}
-                <div onClick={() => setForm(f=>({...f,acoesEducacionais:[...(f.acoesEducacionais||[]),{acaoId:"",acaoNome:"",instrutorId:"",instrutorNome:"",modalidade:"Presencial",cargaHoraria:"",link:""}]}))} style={{ background:"#f0f4ff", borderRadius:12, padding:"10px 16px", fontSize:13, color:"#1B3F7A", fontWeight:700, cursor:"pointer", textAlign:"center", border:"2px dashed #1B3F7A33" }}>+ Adicionar Ação Educacional</div>
+                <div onClick={() => setForm(f=>({...f,acoesEducacionais:[...(f.acoesEducacionais||[]),{acaoId:"",acaoNome:"",instrutores:[],instrutorId:"",instrutorNome:"",modalidade:"Presencial",cargaHoraria:"",link:"",pagamentoInstrutoria:false,valorInstrutoria:""}]}))} style={{ background:"#f0f4ff", borderRadius:12, padding:"10px 16px", fontSize:13, color:"#1B3F7A", fontWeight:700, cursor:"pointer", textAlign:"center", border:"2px dashed #1B3F7A33" }}>+ Adicionar Ação Educacional</div>
               </div>
             </div>
             <button onClick={saveEvento} style={{ width: "100%", marginTop: 20, background: "linear-gradient(135deg, #1B3F7A, #2a5ba8)", border: "none", borderRadius: 14, padding: 16, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>💾 Salvar Evento</button>
