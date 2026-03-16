@@ -45,6 +45,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
   const [statusCustom, setStatusCustom] = useState([]);
   const [filtrosCustom, setFiltrosCustom] = useState([]); // todos os filtros tipo custom
   const [grupoProcessos, setGrupoProcessos] = useState(null);
+  const [membrosGrupo, setMembrosGrupo] = useState([]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -60,10 +61,18 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
       const statusF = filtros.find(f => f.tipo === "status");
       if (statusF?.opcoes) setStatusCustom(statusF.opcoes);
       setFiltrosCustom(filtros.filter(f => f.tipo === "custom"));
-      // Carregar grupo Processo Administrativo
-      const gSnap = await getDocs(collection(db, "ipc_grupos_trabalho"));
+      // Carregar grupo Processo Administrativo e seus membros
+      const [gSnap, srvSnap] = await Promise.all([
+        getDocs(collection(db, "ipc_grupos_trabalho")),
+        getDocs(collection(db, "ipc_servidores")),
+      ]);
       const gPA = gSnap.docs.map(d=>({id:d.id,...d.data()})).find(g => g.nome?.toLowerCase().replace(/\s+/g," ").includes("processo") && g.nome?.toLowerCase().includes("admin"));
       setGrupoProcessos(gPA || null);
+      if (gPA) {
+        const todos = srvSnap.docs.map(d=>({id:d.id,...d.data()}));
+        const membros = todos.filter(s => (s.grupos||[]).includes(gPA.id));
+        setMembrosGrupo(membros);
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -434,7 +443,16 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                 </div>
                 <div>
                   <label style={labelStyle}>Responsável</label>
-                  <input value={form.responsavel||""} onChange={e=>setForm(f=>({...f,responsavel:e.target.value}))} placeholder="Nome do responsável" style={inputStyle}/>
+                  {membrosGrupo.length > 0 ? (
+                    <select value={form.responsavel||""} onChange={e=>setForm(f=>({...f,responsavel:e.target.value}))} style={inputStyle}>
+                      <option value="">Selecione o responsável...</option>
+                      {[...membrosGrupo].sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).map(s=>(
+                        <option key={s.id} value={s.nome}>{s.nome}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={form.responsavel||""} onChange={e=>setForm(f=>({...f,responsavel:e.target.value}))} placeholder="Nome do responsável" style={inputStyle}/>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Área Destino</label>
