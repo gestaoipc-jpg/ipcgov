@@ -395,16 +395,10 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
             const linhasObj = acoesPagamento.map(a => {
               const instr = a.instrutores.length > 0 ? a.instrutores.join(", ") : "—";
               const data = a.data ? new Date(a.data + "T12:00:00").toLocaleDateString("pt-BR") : "";
-              return `• ${a.municipio}${data ? " (" + data + ")" : ""}
-  Curso: ${a.curso}
-  Instrutor(es): ${instr}${a.valor ? "
-  Valor: R$ " + a.valor : ""}`;
+              const valorLinha = a.valor ? "\n  Valor: R$ " + a.valor : "";
+              return "• " + a.municipio + (data ? " (" + data + ")" : "") + "\n  Curso: " + a.curso + "\n  Instrutor(es): " + instr + valorLinha;
             });
-            const objetivo = "Pagamento de instrutoria referente às seguintes ações educacionais:
-
-" + linhasObj.join("
-
-");
+            const objetivo = "Pagamento de instrutoria referente às seguintes ações educacionais:\n\n" + linhasObj.join("\n\n");
             const dataEvento = acoesPagamento
               .map(a => a.data)
               .filter(Boolean)
