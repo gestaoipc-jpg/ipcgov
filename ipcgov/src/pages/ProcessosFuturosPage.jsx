@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
+const PROC_FUTURO_ICON = ({PROC_FUTURO_ICON});
+
 export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
   const [futuros, setFuturos]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -79,7 +81,7 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
             <div onClick={onBack} style={{ width: 40, height: 40, background: "rgba(255,255,255,0.15)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 20, flexShrink: 0 }}>←</div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(145deg,#047857,#34D399)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 3px 10px rgba(4,120,87,0.4)" }}>
-                <svg width="20" height="20" viewBox="0 0 42 42" fill="none"><rect x="10" y="9" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.8"/><rect x="19" y="16" width="13" height="17" rx="2.5" fill="rgba(255,255,255,0.35)" stroke="white" strokeWidth="1.8"/></svg>
+                {PROC_FUTURO_ICON}
               </div>
               <div>
                 <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, letterSpacing: 3 }}>IPC PROCESSOS</div>
