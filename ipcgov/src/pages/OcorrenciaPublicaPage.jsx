@@ -167,7 +167,7 @@ export default function OcorrenciaPublicaPage() {
         <div style={{ ...S.card, marginTop:-28, marginBottom:16 }}>
           <div style={{ fontWeight:800, fontSize:17, color:"#1B3F7A", marginBottom:2 }}>📍 {nomeMunicipio}</div>
           {dataEvento && <div style={{ fontSize:13, color:"#888", marginBottom:4 }}>📅 {dataEvento}</div>}
-          {evento.local && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}>🏛️ {evento.local}</div>}
+          {evento?.local && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}>🏛️ {evento.local}</div>}
           {nomeAcao && (
             <div style={{ background:"#eff6ff", borderRadius:12, padding:"10px 14px", marginTop:8 }}>
               <div style={{ fontSize:10, color:"#1B3F7A", fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Curso</div>
