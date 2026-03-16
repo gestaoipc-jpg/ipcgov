@@ -15,6 +15,7 @@ import FiltrosAdminPage from "./pages/FiltrosAdminPage";
 import KanbanPage from "./pages/KanbanPage";
 import SolicitacoesPage from "./pages/SolicitacoesPage";
 import ProcessosModule from "./pages/ProcessosModule";
+import ProcessosFuturosPage from "./pages/ProcessosFuturosPage";
 import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
 import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
 import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
@@ -187,7 +188,8 @@ export default function App() {
   if (currentModule === "designer_solicitacoes") return <SolicitacoesPage user={user} onBack={() => setCurrentModule("designer")} />;
   if (currentModule === "designer_dashboard") return <DesignerDashboardPage onBack={() => setCurrentModule("designer")} />;
 
-  if (currentModule === "processos") return <ProcessosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} onDashboard={() => setCurrentModule("processos_dashboard")} />;
+  if (currentModule === "processos") return <ProcessosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} onDashboard={() => setCurrentModule("processos_dashboard")} onFuturos={() => setCurrentModule("processos_futuros")} />;
+  if (currentModule === "processos_futuros") return <ProcessosFuturosPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
