@@ -103,6 +103,9 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
+  const [autorizacaoInstrutoria, setAutorizacaoInstrutoria] = useState({ autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" });
+  const [instutoriaPaga, setInstutoriaPaga] = useState(false);
+  const [instutoriaPagaEm, setInstutoriaPagaEm] = useState("");
   const [planoAcaoViagem, setPlanoAcaoViagem] = useState(null);
   const [novaAcaoV, setNovaAcaoV] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
   const [salvandoAcaoV, setSalvandoAcaoV] = useState(false);
@@ -153,6 +156,9 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAlimentacao(viagem.alimentacao || []);
       setAgenda(viagem.agenda || []);
       setLicoesAprendidas(viagem.licoesAprendidas || "");
+      setAutorizacaoInstrutoria(viagem.autorizacaoInstrutoria || { autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" });
+      setInstutoriaPaga(viagem.instutoriaPaga || false);
+      setInstutoriaPagaEm(viagem.instutoriaPagaEm || "");
       setPlanoAcaoViagem(viagem.planoAcaoViagem || null);
       setEquipamentos(viagem.equipamentos || []);
       setDistancias(viagem.distancias || []);
@@ -334,7 +340,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, autorizacaoInstrutoria, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -1451,6 +1457,90 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                     </button>
                   </div>
                 </div>
+
+                {/* ---- PAGAMENTO DE INSTRUTORIA CONCLUÍDO ---- */}
+                {instutoriaPaga && (
+                  <div style={{ marginTop:24, border:"2px solid #059669", borderRadius:16, padding:20, background:"#f0fdf4" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ fontSize:26 }}>✅</span>
+                      <div>
+                        <div style={{ fontWeight:800, fontSize:15, color:"#059669" }}>Pagamentos de Instrutoria Realizados</div>
+                        <div style={{ fontSize:12, color:"#888", marginTop:2 }}>
+                          {"Processo concluído" + (instutoriaPagaEm ? " em " + new Date(instutoriaPagaEm).toLocaleDateString("pt-BR") : "") + ". Os pagamentos das instrutorias desta viagem foram efetuados."}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ---- AUTORIZAÇÃO DE PAGAMENTO DE INSTRUTORIA ---- */}
+                {(() => {
+                  const eventosVinc = eventosDisponiveis.filter(e => (form.municipiosIds||[]).includes(e.id));
+                  const temInstrutoria = eventosVinc.some(ev => (ev.acoesEducacionais||[]).some(a => a.pagamentoInstrutoria));
+                  if (!temInstrutoria) return null;
+                  const auth = autorizacaoInstrutoria || {};
+                  const jaAutorizado = auth.autorizado;
+                  return (
+                    <div style={{ marginTop:24, border: jaAutorizado ? "2px solid #059669" : "2px solid #E8730A", borderRadius:16, padding:20, background: jaAutorizado ? "#f0fdf4" : "#fffbeb" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+                        <span style={{ fontSize:22 }}>{jaAutorizado ? "✅" : "💰"}</span>
+                        <div>
+                          <div style={{ fontWeight:800, fontSize:15, color: jaAutorizado ? "#059669" : "#E8730A" }}>
+                            {jaAutorizado ? "Pagamento de Instrutoria Autorizado" : "Autorização de Pagamento de Instrutoria"}
+                          </div>
+                          <div style={{ fontSize:12, color:"#888", marginTop:2 }}>
+                            {jaAutorizado
+                              ? ("Autorizado por " + auth.autorizadoPor + " em " + (auth.autorizadoEm ? new Date(auth.autorizadoEm).toLocaleDateString("pt-BR") : ""))
+                              : "Esta viagem possui ações educacionais com pagamento de instrutoria pendente."}
+                          </div>
+                        </div>
+                      </div>
+                      {jaAutorizado && auth.observacao && (
+                        <div style={{ background:"#dcfce7", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#166534", marginBottom:12 }}>
+                          📝 {auth.observacao}
+                        </div>
+                      )}
+                      {!jaAutorizado && podeEditar && (
+                        <div>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:6, textTransform:"uppercase", letterSpacing:1 }}>Observação / Justificativa</div>
+                          <textarea
+                            value={auth.observacao||""}
+                            onChange={e => setAutorizacaoInstrutoria(a => ({...a, observacao: e.target.value}))}
+                            placeholder="Descreva as condições ou observações para autorizar o pagamento..."
+                            style={{ width:"100%", background:"#fff", border:"1px solid #fde68a", borderRadius:10, padding:"10px 14px", fontSize:13, fontFamily:"'Montserrat',sans-serif", resize:"vertical", minHeight:80, marginBottom:12, outline:"none" }}
+                          />
+                          <div
+                            onClick={async () => {
+                              const nova = { autorizado: true, observacao: auth.observacao||"", autorizadoPor: user?.displayName || user?.email || "Coordenação", autorizadoEm: new Date().toISOString() };
+                              setAutorizacaoInstrutoria(nova);
+                              if (viagem?.id) {
+                                await updateDoc(doc(db, "tceduc_viagens", viagem.id), { autorizacaoInstrutoria: nova, atualizadoEm: new Date().toISOString() });
+                                // Marcar processos vinculados como liberados
+                                try {
+                                  const pfSnap = await getDocs(collection(db, "processos_futuros"));
+                                  for (const d of pfSnap.docs) {
+                                    if (d.data().viagemId === viagem.id && !d.data().distribuido) {
+                                      await updateDoc(doc(db, "processos_futuros", d.id), { liberadoPagamento: true, liberadoEm: new Date().toISOString() });
+                                    }
+                                  }
+                                  const procSnap = await getDocs(collection(db, "processos"));
+                                  for (const d of procSnap.docs) {
+                                    if (d.data().viagemId === viagem.id) {
+                                      await updateDoc(doc(db, "processos", d.id), { instrutoriaLiberada: true, instutoriaLiberadaEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
+                                    }
+                                  }
+                                } catch(e) { console.warn("Erro ao liberar processo:", e); }
+                              }
+                            }}
+                            style={{ background:"linear-gradient(135deg,#059669,#34D399)", borderRadius:12, padding:"12px 24px", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", textAlign:"center", boxShadow:"0 4px 14px rgba(5,150,105,0.3)" }}
+                          >
+                            ✅ Autorizar Pagamento de Instrutoria
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <BtnSalvar />
               </div>
