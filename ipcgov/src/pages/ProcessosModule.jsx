@@ -85,17 +85,17 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
   };
 
   const statusOpcoes = statusCustom.length > 0 ? statusCustom : STATUS_PADRAO;
-  // Grupo Processo Administrativo não pode usar "Arquivado"
-  const statusOpcoesForm = isGrupoProcessos && !podeArquivar
-    ? statusOpcoes.filter(s => s !== "Arquivado")
-    : statusOpcoes;
 
   // Permissão: admin global OU membro do grupo Processo Administrativo
-  const isGrupoProcessos = grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id);
+  const isGrupoProcessos = !!(grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id));
   const podeEditar = userInfo?.isAdminGlobal || isGrupoProcessos;
-  const podeFuturos = userInfo?.isAdminGlobal || (grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  const podeFuturos = userInfo?.isAdminGlobal || !!(grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
   // Só admin e coordenadora podem arquivar
-  const podeArquivar = userInfo?.isAdminGlobal || (grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  const podeArquivar = userInfo?.isAdminGlobal || !!(grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  // Grupo Processo Administrativo não pode usar "Arquivado"
+  const statusOpcoesForm = (isGrupoProcessos && !podeArquivar)
+    ? statusOpcoes.filter(s => s !== "Arquivado")
+    : statusOpcoes;
   // Minha caixa de entrada: processos onde sou responsável
   const meuNome = (() => { 
     const srv = membrosGrupo.find(m => m.email === user?.email || m.id === user?.uid);
