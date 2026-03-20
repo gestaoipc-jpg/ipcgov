@@ -296,7 +296,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             await addDoc(collection(db, "alertas"), {
               chave, modulo: "tceduc", tipo: "checklist",
               titulo: "Checklist pendente: " + key,
-              mensagem: "Item "" + key + "" do evento " + (selected.municipio || selected.regiao) + " vence em " + (diff === 0 ? "hoje" : diff + " dia(s)"),
+              mensagem: 'Item "' + key + '" do evento ' + (selected.municipio || selected.regiao || "") + ' vence em ' + (diff === 0 ? "hoje" : diff + " dia(s)") + ".",
               responsavel: val.responsavel,
               eventoId: selected.id,
               lido: false,
