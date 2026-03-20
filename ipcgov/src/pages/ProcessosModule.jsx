@@ -239,7 +239,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                 const dias = diasRestantes(p.dataSaida);
                 const atrasado = dias !== null && dias < 0;
                 const urgente = dias !== null && dias >= 0 && dias <= 5;
-                const corStatus = STATUS_CORES[p.status] || "#888";
+                const corStatus = COR_STATUS[p.status] || "#888";
                 return (
                   <div key={p.id} onClick={() => abrirDetalhe(p)}
                     style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", borderRadius:12, cursor:"pointer", background:"#f8f9fb", border:`1px solid ${atrasado?"#dc262622":urgente?"#E8730A22":"#e8edf2"}`, transition:"background .15s" }}
