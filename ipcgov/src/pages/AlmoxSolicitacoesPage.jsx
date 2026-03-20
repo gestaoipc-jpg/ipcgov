@@ -139,14 +139,13 @@ export default function AlmoxSolicitacoesPage({ user, userInfo, onBack, isAdmin 
 
       // Dar baixa no estoque para itens entregues
       if (entregar) {
-        for (const it of itensFinais) {
+        await Promise.all(itensFinais.map(async it => {
           const mat = materiais.find(m=>m.id===it.materialId);
-          if (!mat) continue;
+          if (!mat) return;
           const qtd = parseInt(it.quantidade)||0;
           const novoEstoque = Math.max(0, (mat.estoqueAtual||0) - qtd);
           await updateDoc(doc(db,"almox_materiais",mat.id), { estoqueAtual:novoEstoque, atualizadoEm:new Date().toISOString() });
           setMateriais(m=>m.map(x=>x.id===mat.id?{...x,estoqueAtual:novoEstoque}:x));
-          // Registrar movimentação
           await addDoc(collection(db,"almox_movimentacoes"),{
             tipo:"saida_solicitacao", materialId:mat.id, materialNome:mat.nome,
             quantidade:qtd, solicitacaoId:selected.id,
@@ -157,7 +156,7 @@ export default function AlmoxSolicitacoesPage({ user, userInfo, onBack, isAdmin 
             await criarAlerta({ tipo:"estoque_minimo", materialId:mat.id, materialNome:mat.nome, grupo:"Almoxarifado Administrativo",
               mensagem:`⚠️ Estoque de "${mat.nome}" em ${novoEstoque} un. (mínimo: ${mat.estoqueMinimo})` });
           }
-        }
+        }))
       }
 
       // Alerta para solicitante
@@ -220,9 +219,9 @@ export default function AlmoxSolicitacoesPage({ user, userInfo, onBack, isAdmin 
       });
 
       if (aceito) {
-        for (const it of itensDev) {
+        await Promise.all(itensDev.map(async it => {
           const mat = materiais.find(m=>m.id===it.materialId);
-          if (!mat) continue;
+          if (!mat) return;
           const qtd = parseInt(it.qtdDevolvida)||0;
           const novoEstoque = (mat.estoqueAtual||0)+qtd;
           await updateDoc(doc(db,"almox_materiais",mat.id),{estoqueAtual:novoEstoque,atualizadoEm:agora});
@@ -233,7 +232,7 @@ export default function AlmoxSolicitacoesPage({ user, userInfo, onBack, isAdmin 
             solicitanteNome:selected.solicitanteNome,
             registradoPor:user?.email, criadoEm:agora,
           });
-        }
+        }))
       }
 
       await criarAlerta({
