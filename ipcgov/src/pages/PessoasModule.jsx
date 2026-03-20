@@ -265,26 +265,25 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
       .map(d => d.data())
       .filter(t => t.tipo === "aniversario");
 
-    for (const servidor of listaServidores) {
-      if (!servidor.dataAniversario) continue;
+    await Promise.all(listaServidores.map(async servidor => {
+      if (!servidor.dataAniversario) return;
       const [,mes,dia] = servidor.dataAniversario.split("-");
-      const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
+      const proxAniv = new Date(anoAtual + "-" + mes + "-" + dia);
       if (proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
       const diasAte = Math.ceil((proxAniv - hoje) / 86400000);
 
       if (diasAte <= 5 && diasAte >= 0) {
-        // Verifica se já existe tarefa para este servidor neste ano
         const jaExiste = tarefasExistentes.some(t =>
           t.servidorId === servidor.id &&
-          t.dataEntrega?.startsWith(proxAniv.getFullYear().toString())
+          t.dataEntrega && t.dataEntrega.startsWith(proxAniv.getFullYear().toString())
         );
-        if (jaExiste) continue;
+        if (jaExiste) return;
 
         const dataEntrega = new Date(proxAniv);
         dataEntrega.setDate(dataEntrega.getDate() - 1);
         await addDoc(collection(db,"designer_atividades"), {
-          titulo: `Fazer arte de aniversário de ${servidor.nome}`,
-          descricao: `Criar arte comemorativa para o aniversário de ${servidor.nome} em ${dia}/${mes}`,
+          titulo: "Fazer arte de aniversário de " + servidor.nome,
+          descricao: "Criar arte comemorativa para o aniversário de " + servidor.nome + " em " + dia + "/" + mes,
           status: "Aguardando", prioridade: "Alta",
           dataEntrega: dataEntrega.toISOString().split("T")[0],
           tipo: "aniversario", servidorId: servidor.id,
@@ -292,7 +291,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
           ocorrencias: [],
         });
       }
-    }
+    }));
   };
 
   // Verifica aniversário de um servidor específico (no cadastro)
