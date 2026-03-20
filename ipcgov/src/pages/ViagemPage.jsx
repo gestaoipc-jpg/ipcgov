@@ -1518,17 +1518,15 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                                 // Marcar processos vinculados como liberados
                                 try {
                                   const pfSnap = await getDocs(collection(db, "processos_futuros"));
-                                  for (const d of pfSnap.docs) {
-                                    if (d.data().viagemId === viagem.id && !d.data().distribuido) {
-                                      await updateDoc(doc(db, "processos_futuros", d.id), { liberadoPagamento: true, liberadoEm: new Date().toISOString() });
-                                    }
-                                  }
+                                  await Promise.all(pfSnap.docs
+                                    .filter(d => d.data().viagemId === viagem.id && !d.data().distribuido)
+                                    .map(d => updateDoc(doc(db, "processos_futuros", d.id), { liberadoPagamento: true, liberadoEm: new Date().toISOString() }))
+                                  );
                                   const procSnap = await getDocs(collection(db, "processos"));
-                                  for (const d of procSnap.docs) {
-                                    if (d.data().viagemId === viagem.id) {
-                                      await updateDoc(doc(db, "processos", d.id), { instrutoriaLiberada: true, instutoriaLiberadaEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
-                                    }
-                                  }
+                                  await Promise.all(procSnap.docs
+                                    .filter(d => d.data().viagemId === viagem.id)
+                                    .map(d => updateDoc(doc(db, "processos", d.id), { instrutoriaLiberada: true, instutoriaLiberadaEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() }))
+                                  );
                                 } catch(e) { console.warn("Erro ao liberar processo:", e); }
                               }
                             }}
