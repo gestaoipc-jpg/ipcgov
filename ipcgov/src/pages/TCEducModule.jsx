@@ -285,18 +285,18 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     await updateDoc(doc(db, "tceduc_eventos", selected.id), updates);
     // Gerar alertas para itens com data limite e responsável
     const hoje = new Date();
-    for (const [key, val] of Object.entries(checklist)) {
-      if (val?.dataLimite && val?.responsavel && !val?.feito) {
+    await Promise.all(Object.entries(checklist).map(async ([key, val]) => {
+      if (val && val.dataLimite && val.responsavel && !val.feito) {
         const diff = Math.ceil((new Date(val.dataLimite) - hoje) / 86400000);
         if (diff <= 2 && diff >= 0) {
-          const chave = `tceduc_${selected.id}_${key}`;
+          const chave = "tceduc_" + selected.id + "_" + key;
           const alertasSnap = await getDocs(collection(db, "alertas"));
           const jaExiste = alertasSnap.docs.find(d => d.data().chave === chave);
           if (!jaExiste) {
             await addDoc(collection(db, "alertas"), {
               chave, modulo: "tceduc", tipo: "checklist",
-              titulo: `Checklist pendente: ${key}`,
-              mensagem: `Item "${key}" do evento ${selected.municipio || selected.regiao} vence em ${diff === 0 ? "hoje" : `${diff} dia(s)`}`,
+              titulo: "Checklist pendente: " + key,
+              mensagem: "Item "" + key + "" do evento " + (selected.municipio || selected.regiao) + " vence em " + (diff === 0 ? "hoje" : diff + " dia(s)"),
               responsavel: val.responsavel,
               eventoId: selected.id,
               lido: false,
@@ -305,7 +305,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           }
         }
       }
-    }
+    }));
     setEventos(ev => ev.map(e => e.id === selected.id ? { ...e, ...updates } : e));
     setSalvando(false);
     setModal("detalhe");
