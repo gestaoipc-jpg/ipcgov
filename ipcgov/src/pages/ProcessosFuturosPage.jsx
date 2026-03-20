@@ -109,7 +109,7 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
         {loading ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#888" }}>Carregando...</div>
         ) : futuros.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 0" }}>
+          <div style={{ textAlign: "center", padding: "60px 0" }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
             <div style={{ fontWeight: 700, fontSize: 18, color: "#1B3F7A", marginBottom: 8 }}>Nenhum processo futuro pendente</div>
             <div style={{ color: "#aaa", fontSize: 14 }}>Todos os processos pré-criados foram distribuídos.</div>
@@ -130,6 +130,7 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                         <span style={{ background: "#eff6ff", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#1B3F7A" }}>TCEduc</span>
                         <span style={{ background: "#f0fdf4", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#059669" }}>Aguardando distribuição</span>
+                      {futuro.liberadoPagamento && <span style={{ background: "#dcfce7", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#166534" }}>💰 Liberado para pagamento</span>}
                         {urgente && <span style={{ background: "#fee2e2", borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#dc2626" }}>⚡ {diasRestantes}d para o evento</span>}
                         {diasRestantes !== null && !urgente && <span style={{ background: "#f8f9fb", borderRadius: 8, padding: "3px 10px", fontSize: 11, color: "#888" }}>📅 {diasRestantes}d para o evento</span>}
                       </div>
