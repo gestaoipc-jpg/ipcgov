@@ -6,6 +6,7 @@ const PROC_FUTURO_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="
 
 export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
   const [futuros, setFuturos]       = useState([]);
+  const [liberados, setLiberados]   = useState([]); // processos_futuros não distribuídos com liberadoPagamento
   const [loading, setLoading]       = useState(true);
   const [membros, setMembros]       = useState([]);
   const [responsaveis, setResponsaveis] = useState({});
@@ -21,10 +22,10 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
         getDocs(collection(db, "ipc_grupos_trabalho")),
         getDocs(collection(db, "ipc_servidores")),
       ]);
-      const lista = fSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .filter(p => !p.distribuido)
-        .sort((a, b) => (a.dataEvento || "").localeCompare(b.dataEvento || ""));
+      const todos = fSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.distribuido);
+      const lista = todos.sort((a, b) => (a.dataEvento || "").localeCompare(b.dataEvento || ""));
       setFuturos(lista);
+      setLiberados(lista.filter(p => p.liberadoPagamento));
 
       // Membros do grupo Processo Administrativo para selecionar responsável
       const todos = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -96,6 +97,21 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
       </div>
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 32px 60px" }}>
+
+        {/* LIBERADOS PARA PAGAMENTO — destaque */}
+        {liberados.length > 0 && (
+          <div style={{ background: "#dcfce7", border: "2px solid #059669", borderRadius: 16, padding: "16px 20px", marginBottom: 24 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+              <span style={{ fontSize:22 }}>💰</span>
+              <div style={{ fontWeight:800, fontSize:15, color:"#166534" }}>
+                {liberados.length} processo{liberados.length!==1?"s":""} liberado{liberados.length!==1?"s":""} para pagamento
+              </div>
+            </div>
+            <div style={{ fontSize:13, color:"#166534", marginLeft:32 }}>
+              A coordenação do TCEduc autorizou o pagamento de instrutoria. Distribua o processo para que a ordem de pagamento seja emitida.
+            </div>
+          </div>
+        )}
 
         {/* INFO */}
         <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 14, padding: "14px 18px", marginBottom: 24, display: "flex", gap: 12, alignItems: "flex-start" }}>
