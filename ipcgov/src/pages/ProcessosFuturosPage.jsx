@@ -28,8 +28,8 @@ export default function ProcessosFuturosPage({ onBack, user, userInfo }) {
       setLiberados(lista.filter(p => p.liberadoPagamento));
 
       // Membros do grupo Processo Administrativo para selecionar responsável
-      const todos = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const gPA = todos.find(g => g.nome?.toLowerCase().includes("processo") && g.nome?.toLowerCase().includes("admin"));
+      const gruposList = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const gPA = gruposList.find(g => g.nome?.toLowerCase().includes("processo") && g.nome?.toLowerCase().includes("admin"));
       const servidores = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       if (gPA) {
         setMembros(servidores.filter(s => (s.grupos || []).includes(gPA.id)).sort((a, b) => (a.nome || "").localeCompare(b.nome || "")));
