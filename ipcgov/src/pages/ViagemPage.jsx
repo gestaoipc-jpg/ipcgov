@@ -1500,6 +1500,33 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                           📝 {auth.observacao}
                         </div>
                       )}
+                      {jaAutorizado && isAdmin && (
+                        <div
+                          onClick={async () => {
+                            if (!window.confirm("Desfazer a autorização de pagamento de instrutoria? Esta ação removerá a liberação dos processos vinculados.")) return;
+                            const nova = { autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" };
+                            setAutorizacaoInstrutoria(nova);
+                            if (viagem?.id) {
+                              await updateDoc(doc(db, "tceduc_viagens", viagem.id), { autorizacaoInstrutoria: nova, atualizadoEm: new Date().toISOString() });
+                              try {
+                                const pfSnap = await getDocs(collection(db, "processos_futuros"));
+                                await Promise.all(pfSnap.docs
+                                  .filter(d => d.data().viagemId === viagem.id)
+                                  .map(d => updateDoc(doc(db, "processos_futuros", d.id), { liberadoPagamento: false, liberadoEm: "" }))
+                                );
+                                const procSnap = await getDocs(collection(db, "processos"));
+                                await Promise.all(procSnap.docs
+                                  .filter(d => d.data().viagemId === viagem.id)
+                                  .map(d => updateDoc(doc(db, "processos", d.id), { instrutoriaLiberada: false, atualizadoEm: new Date().toISOString() }))
+                                );
+                              } catch(e) { console.warn("Erro ao desfazer:", e); }
+                            }
+                          }}
+                          style={{ marginTop:10, background:"#fee2e2", borderRadius:10, padding:"9px 16px", color:"#dc2626", fontWeight:700, fontSize:12, cursor:"pointer", textAlign:"center", border:"1px solid #fecaca" }}
+                        >
+                          🔄 Desfazer Autorização (Admin)
+                        </div>
+                      )}
                       {!jaAutorizado && podeEditar && (
                         <div>
                           <div style={{ fontSize:12, fontWeight:700, color:"#555", marginBottom:6, textTransform:"uppercase", letterSpacing:1 }}>Observação / Justificativa</div>
