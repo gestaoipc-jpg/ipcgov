@@ -153,11 +153,10 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     try {
       const snap = await getDocs(collection(db, "tceduc_eventos"));
       if (snap.empty) {
-        const saved = [];
-        for (const ev of EVENTOS_INICIAIS) {
-          const ref = await addDoc(collection(db, "tceduc_eventos"), { ...ev, criadoEm: new Date().toISOString() });
-          saved.push({ id: ref.id, ...ev });
-        }
+        const savedRefs = await Promise.all(
+          EVENTOS_INICIAIS.map(ev => addDoc(collection(db, "tceduc_eventos"), { ...ev, criadoEm: new Date().toISOString() }))
+        );
+        const saved = savedRefs.map((ref, i) => ({ id: ref.id, ...EVENTOS_INICIAIS[i] }));
         setEventos(saved.map(ev => ({
           ...ev,
           status: ev.status !== "Cancelado" ? calcStatusEvento(ev.data) : ev.status,
