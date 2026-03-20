@@ -47,6 +47,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
   const [grupoProcessos, setGrupoProcessos] = useState(null);
   const [membrosGrupo, setMembrosGrupo] = useState([]);
   const [futurosCount, setFuturosCount] = useState(0);
+  const [futurosLiberados, setFuturosLiberados] = useState(0);
   const [grupoCoord, setGrupoCoord] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
@@ -77,7 +78,10 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
         setMembrosGrupo(todos.filter(s => (s.grupos||[]).includes(gPA.id)));
       }
       const gCoord = grupos.find(g => g.nome?.toLowerCase().includes("coordena") && g.nome?.toLowerCase().includes("infraestrutura") || g.nome?.toLowerCase().includes("logistica") || g.nome?.toLowerCase().includes("logística"));
-      const futurosCount = pfSnap.docs.filter(d => !d.data().distribuido).length;
+      const futurosDocs = pfSnap.docs.map(d => ({id:d.id,...d.data()}));
+      const futurosCount = futurosDocs.filter(d => !d.distribuido).length;
+      const futurosLiberados = futurosDocs.filter(d => !d.distribuido && d.liberadoPagamento).length;
+      setFuturosLiberados(futurosLiberados);
       setFuturosCount(futurosCount);
       setGrupoCoord(gCoord || null);
     } catch (e) { console.error(e); }
@@ -97,11 +101,21 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
     ? statusOpcoes.filter(s => s !== "Arquivado")
     : statusOpcoes;
   // Minha caixa de entrada: processos onde sou responsável
-  const meuNome = (() => { 
-    const srv = membrosGrupo.find(m => m.email === user?.email || m.id === user?.uid);
-    return srv?.nome || "";
+  const meuNome = (() => {
+    // Try to find by email or uid in membrosGrupo
+    const srv = membrosGrupo.find(m =>
+      (m.email && m.email === user?.email) ||
+      (m.id && m.id === user?.uid) ||
+      (m.uid && m.uid === user?.uid)
+    );
+    // Fallback to userInfo.servidorNome
+    return srv?.nome || userInfo?.servidorNome || "";
   })();
-  const minhasCaixaEntrada = processos.filter(p => p.responsavel && meuNome && p.responsavel === meuNome && p.status !== "Arquivado" && p.status !== "Cancelado");
+  const minhasCaixaEntrada = processos.filter(p =>
+    p.responsavel && meuNome &&
+    p.responsavel.trim().toLowerCase() === meuNome.trim().toLowerCase() &&
+    p.status !== "Arquivado" && p.status !== "Cancelado"
+  );
 
   const registrarLog = async (acao, processoId, detalhes) => {
     try {
@@ -217,9 +231,10 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
               <div onClick={onRelatorio} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📄 Relatório</div>
               <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
               {podeFuturos && (
-                <div onClick={onFuturos} style={{ position:"relative", background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                <div onClick={onFuturos} style={{ position:"relative", background: futurosLiberados > 0 ? "rgba(5,150,105,0.3)" : "rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
                   📋 Processos Futuros
-                  {futurosCount > 0 && <span style={{ background:"#E8730A", borderRadius:10, padding:"1px 7px", fontSize:10, color:"#fff", fontWeight:800 }}>{futurosCount}</span>}
+                  {futurosLiberados > 0 && <span style={{ background:"#059669", borderRadius:10, padding:"1px 7px", fontSize:10, color:"#fff", fontWeight:800 }}>💰 {futurosLiberados}</span>}
+                  {futurosCount > futurosLiberados && <span style={{ background:"#E8730A", borderRadius:10, padding:"1px 7px", fontSize:10, color:"#fff", fontWeight:800 }}>{futurosCount - futurosLiberados}</span>}
                 </div>
               )}
               {podeEditar && <div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Processo</div>}
