@@ -85,10 +85,23 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
   };
 
   const statusOpcoes = statusCustom.length > 0 ? statusCustom : STATUS_PADRAO;
+  // Grupo Processo Administrativo não pode usar "Arquivado"
+  const statusOpcoesForm = isGrupoProcessos && !podeArquivar
+    ? statusOpcoes.filter(s => s !== "Arquivado")
+    : statusOpcoes;
 
   // Permissão: admin global OU membro do grupo Processo Administrativo
-  const podeEditar = userInfo?.isAdminGlobal || (grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id));
+  const isGrupoProcessos = grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id);
+  const podeEditar = userInfo?.isAdminGlobal || isGrupoProcessos;
   const podeFuturos = userInfo?.isAdminGlobal || (grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  // Só admin e coordenadora podem arquivar
+  const podeArquivar = userInfo?.isAdminGlobal || (grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  // Minha caixa de entrada: processos onde sou responsável
+  const meuNome = (() => { 
+    const srv = membrosGrupo.find(m => m.email === user?.email || m.id === user?.uid);
+    return srv?.nome || "";
+  })();
+  const minhasCaixaEntrada = processos.filter(p => p.responsavel && meuNome && p.responsavel === meuNome && p.status !== "Arquivado" && p.status !== "Cancelado");
 
   const registrarLog = async (acao, processoId, detalhes) => {
     try {
@@ -205,6 +218,53 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
       </div>
 
       <div style={{ maxWidth:1300, margin:"0 auto", padding:"24px 32px 80px" }}>
+
+        {/* CAIXA DE ENTRADA — só para membros do grupo Processo Administrativo */}
+        {isGrupoProcessos && minhasCaixaEntrada.length > 0 && (
+          <div style={{ background:"#fff", borderRadius:18, padding:20, marginBottom:24, boxShadow:"0 2px 12px rgba(27,63,122,0.08)", border:"2px solid #1B3F7A22" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <span style={{ fontSize:18 }}>📥</span>
+              </div>
+              <div>
+                <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Minha Caixa de Entrada</div>
+                <div style={{ fontSize:11, color:"#888" }}>Processos distribuídos para você</div>
+              </div>
+              <div style={{ marginLeft:"auto", background:"#1B3F7A", borderRadius:10, padding:"3px 12px", fontSize:12, fontWeight:700, color:"#fff" }}>
+                {minhasCaixaEntrada.length} processo{minhasCaixaEntrada.length!==1?"s":""}
+              </div>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {minhasCaixaEntrada.map(p => {
+                const dias = diasRestantes(p.dataSaida);
+                const atrasado = dias !== null && dias < 0;
+                const urgente = dias !== null && dias >= 0 && dias <= 5;
+                const corStatus = STATUS_CORES[p.status] || "#888";
+                return (
+                  <div key={p.id} onClick={() => abrirDetalhe(p)}
+                    style={{ display:"flex", alignItems:"center", gap:14, padding:"12px 16px", borderRadius:12, cursor:"pointer", background:"#f8f9fb", border:`1px solid ${atrasado?"#dc262622":urgente?"#E8730A22":"#e8edf2"}`, transition:"background .15s" }}
+                    onMouseEnter={e=>e.currentTarget.style.background="#eff6ff"}
+                    onMouseLeave={e=>e.currentTarget.style.background="#f8f9fb"}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:corStatus, flexShrink:0 }}></div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.titulo}</div>
+                      <div style={{ fontSize:11, color:"#888", marginTop:2 }}>
+                        {p.numero && <span style={{ marginRight:8 }}>#{p.numero}</span>}
+                        {p.tipo_processo && <span style={{ background:"#eff6ff", borderRadius:5, padding:"1px 6px", marginRight:6, color:"#1B3F7A", fontWeight:600 }}>{p.tipo_processo}</span>}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                      <span style={{ background:corStatus+"22", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:corStatus }}>{p.status}</span>
+                      {atrasado && <span style={{ fontSize:10, color:"#dc2626", fontWeight:700 }}>⚠️ {Math.abs(dias)}d atrasado</span>}
+                      {urgente && <span style={{ fontSize:10, color:"#E8730A", fontWeight:700 }}>⏰ {dias}d restantes</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* STATS */}
         <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
           {[
@@ -285,7 +345,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                   </div>
 
                   <select value={p.status} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();mudarStatus(p,e.target.value);}} style={{ background:(COR_STATUS[p.status]||"#aaa")+"18", border:`1px solid ${(COR_STATUS[p.status]||"#aaa")}40`, borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:COR_STATUS[p.status]||"#aaa", cursor:"pointer", outline:"none", flexShrink:0 }}>
-                    {statusOpcoes.map(s => <option key={s} value={s} style={{ color:"#1B3F7A", background:"#fff" }}>{s}</option>)}
+                    {(isGrupoProcessos && !podeArquivar ? statusOpcoes.filter(s=>s!=="Arquivado") : statusOpcoes).map(s => <option key={s} value={s} style={{ color:"#1B3F7A", background:"#fff" }}>{s}</option>)}
                   </select>
                 </div>
               );
@@ -386,7 +446,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
 
               {/* AÇÕES */}
               <div style={{ display:"flex", gap:10 }}>
-                {podeEditar && <button onClick={()=>abrirEditar(selected)} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>}
+                {podeEditar && !(isGrupoProcessos && !podeArquivar && selected?.status === "Arquivado") && <button onClick={()=>abrirEditar(selected)} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>}
                 <button onClick={()=>onRelatorio&&onRelatorio(selected.id)} style={{ flex:1, background:"#f0f4ff", border:"none", borderRadius:14, padding:14, color:"#1B3F7A", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>📄 Relatório</button>
                 {podeEditar && <button onClick={()=>deletar(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>}
               </div>
@@ -446,7 +506,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                 <div>
                   <label style={labelStyle}>Status</label>
                   <select value={form.status||"Aguardando"} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={inputStyle}>
-                    {statusOpcoes.map(s=><option key={s} value={s}>{s}</option>)}
+                    {statusOpcoesForm.map(s=><option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
