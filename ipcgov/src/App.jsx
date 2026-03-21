@@ -22,6 +22,7 @@ import IPCCursosInstrutoresPage from "./pages/IPCCursosInstrutoresPage";
 import IPCIndicadoresModule from "./pages/IPCIndicadoresModule";
 import IPCIndicadoresDashboard from "./pages/IPCIndicadoresDashboard";
 import IPCIndicadoresSeedPage from "./pages/IPCIndicadoresSeedPage";
+import TCEduc2026SeedPage from "./pages/TCEduc2026SeedPage";
 import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
 import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
 import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
@@ -180,7 +181,7 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
-  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onOcorrencias={() => setCurrentModule("tceduc_ocorrencias")} onPlanos={() => setCurrentModule("tceduc_planos")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} />;
+  if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onOcorrencias={() => setCurrentModule("tceduc_ocorrencias")} onPlanos={() => setCurrentModule("tceduc_planos")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} onSeed={() => setCurrentModule("tceduc_2026_seed")} />;
   if (currentModule === "tceduc_ocorrencias") return <OcorrenciasPage user={user} onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "tceduc_planos") return <PlanoAcaoPage user={user} onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "usuarios") return <UsuariosPage onBack={() => setCurrentModule(null)} />;
@@ -203,6 +204,7 @@ export default function App() {
   if (currentModule === "ipc_indicadores") return <IPCIndicadoresModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("ipc_indicadores_dashboard")} onSeed={() => setCurrentModule("ipc_indicadores_seed")} />;
   if (currentModule === "ipc_indicadores_dashboard") return <IPCIndicadoresDashboard user={user} onBack={() => setCurrentModule("ipc_indicadores")} onIndicador={() => setCurrentModule("ipc_indicadores")} />;
   if (currentModule === "ipc_indicadores_seed") return <IPCIndicadoresSeedPage onBack={() => setCurrentModule("ipc_indicadores")} />;
+  if (currentModule === "tceduc_2026_seed") return <TCEduc2026SeedPage onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
