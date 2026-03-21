@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
 import TCEduc2025Dashboard from "./TCEduc2025Dashboard";
+import TCEducDashboardDinamico from "./TCEducDashboardDinamico";
 
 const MUNICIPIO_PATH_MAP = {
   "ABAIARA":"path608","ACARAPE":"path8001","ACARAÚ":"path640","ACOPIARA":"path892",
@@ -216,6 +217,10 @@ export default function DashboardPage({ onBack }) {
 
   if (filtroAno === "2025") {
     return <TCEduc2025Dashboard onBack={onBack} />;
+  }
+
+  if (filtroAno === "2026" || filtroAno === "2027") {
+    return <TCEducDashboardDinamico ano={filtroAno} onBack={onBack} />;
   }
 
   return (
