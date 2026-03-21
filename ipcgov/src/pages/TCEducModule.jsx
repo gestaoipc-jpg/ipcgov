@@ -88,7 +88,7 @@ const labelStyle = {
 
 const TCEDUC_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><path d="M21 8L33 14V18C33 25 27.2 31.5 21 33C14.8 31.5 9 25 9 18V14L21 8Z" stroke="white" strokeWidth="2" fill="rgba(255,255,255,0.2)"/><polyline points="16,21 20,25 27,17" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>);
 
-export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias, onPlanos }) {
+export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onDashboard, onRelatorio, onOcorrencias, onPlanos, onSeed }) {
   const [tab, setTab] = useState("eventos");
   const [eventos, setEventos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -602,6 +602,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
+              {["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email) && onSeed && (
+                <div onClick={onSeed} style={{ background: "rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 16px", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", border:"1px solid rgba(255,255,255,0.2)" }}>🗄️ Seed 2026</div>
+              )}
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onPlanos} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Plano de Ação</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
