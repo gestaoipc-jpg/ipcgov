@@ -2,16 +2,30 @@ import { useState, useEffect } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-const STATUS_COLUNAS = [
-  { id:"Aguardando", cor:"#aaa", bg:"#f5f5f5" },
-  { id:"Em Análise", cor:"#1B3F7A", bg:"#f0f4ff" },
-  { id:"Em Tramitação", cor:"#0891b2", bg:"#f0f9ff" },
-  { id:"Aguardando Documentos", cor:"#E8730A", bg:"#fff8f0" },
-  { id:"Aguardando Outra Área", cor:"#7c3aed", bg:"#f5f3ff" },
-  { id:"Aguardando Assinatura", cor:"#d97706", bg:"#fffbeb" },
-  { id:"Concluído", cor:"#059669", bg:"#f0fdf4" },
-];
+const STATUS_PADRAO = ["Aguardando","Em Análise","Em Tramitação","Aguardando Documentos","Aguardando Assinatura","Aguardando Outra Área","Concluído","Arquivado","Cancelado"];
 const COR_PRIORIDADE = { "Alta":"#dc2626","Média":"#E8730A","Baixa":"#059669" };
+
+const COR_STATUS_FIXAS = {
+  "Aguardando": { cor:"#aaa", bg:"#f5f5f5" },
+  "Em Análise": { cor:"#1B3F7A", bg:"#f0f4ff" },
+  "Em Tramitação": { cor:"#0891b2", bg:"#f0f9ff" },
+  "Aguardando Documentos": { cor:"#E8730A", bg:"#fff8f0" },
+  "Aguardando Assinatura": { cor:"#d97706", bg:"#fffbeb" },
+  "Aguardando Outra Área": { cor:"#7c3aed", bg:"#f5f3ff" },
+  "Aguardando Ordem de Pagamento": { cor:"#0891b2", bg:"#f0f9ff" },
+  "Concluído": { cor:"#059669", bg:"#f0fdf4" },
+  "Arquivado": { cor:"#555", bg:"#f5f5f5" },
+  "Cancelado": { cor:"#dc2626", bg:"#fff0f0" },
+};
+const CORES_EXTRAS = [
+  { cor:"#7c3aed", bg:"#f5f3ff" }, { cor:"#0891b2", bg:"#f0f9ff" },
+  { cor:"#d97706", bg:"#fffbeb" }, { cor:"#059669", bg:"#f0fdf4" },
+  { cor:"#E8730A", bg:"#fff8f0" }, { cor:"#1B3F7A", bg:"#f0f4ff" },
+];
+function corParaStatus(nome, idx) {
+  if (COR_STATUS_FIXAS[nome]) return COR_STATUS_FIXAS[nome];
+  return CORES_EXTRAS[idx % CORES_EXTRAS.length];
+}
 
 function formatDate(d) { if(!d)return null; const[y,m,day]=d.split("-"); return `${day}/${m}`; }
 function diasRestantes(d) { if(!d)return null; return Math.ceil((new Date(d)-new Date())/86400000); }
@@ -25,17 +39,23 @@ export default function ProcessosKanbanPage({ onBack, user, userInfo }) {
   const [grupoProcessos, setGrupoProcessos] = useState(null);
   const [grupoCoord, setGrupoCoord] = useState(null);
   const [meuNome, setMeuNome] = useState("");
+  const [statusColunas, setStatusColunas] = useState([]);
 
   useEffect(() => { loadProcessos(); }, []);
 
   const loadProcessos = async () => {
     setLoading(true);
     try {
-      const [pSnap, gSnap, sSnap] = await Promise.all([
+      const [pSnap, gSnap, sSnap, fSnap] = await Promise.all([
         getDocs(collection(db, "processos")),
         getDocs(collection(db, "ipc_grupos_trabalho")),
         getDocs(collection(db, "ipc_servidores")),
+        getDocs(collection(db, "processos_filtros")),
       ]);
+      const filtros = fSnap.docs.map(d => ({id:d.id,...d.data()}));
+      const statusF = filtros.find(f => f.tipo === "status");
+      const statusLista = statusF?.opcoes?.length > 0 ? statusF.opcoes : STATUS_PADRAO;
+      setStatusColunas(statusLista.map((nome, idx) => ({ id: nome, ...corParaStatus(nome, idx) })));
       setProcessos(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       const grupos = gSnap.docs.map(d => ({id:d.id,...d.data()}));
       const gPA = grupos.find(g => g.nome?.toLowerCase().includes("processo") && g.nome?.toLowerCase().includes("admin"));
@@ -95,7 +115,7 @@ export default function ProcessosKanbanPage({ onBack, user, userInfo }) {
       ) : (
         <div style={{ overflowX:"auto", padding:"24px 24px 60px" }}>
           <div style={{ display:"flex", gap:16, minWidth:"max-content" }}>
-            {STATUS_COLUNAS.map(col => {
+            {statusColunas.map(col => {
               const cards = filtrados.filter(p => p.status === col.id);
               const isDragOver = dragOver === col.id;
               return (
