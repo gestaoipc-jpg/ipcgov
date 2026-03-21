@@ -16,25 +16,51 @@ const COR_PRIORIDADE = { "Alta":"#dc2626","Média":"#E8730A","Baixa":"#059669" }
 function formatDate(d) { if(!d)return null; const[y,m,day]=d.split("-"); return `${day}/${m}`; }
 function diasRestantes(d) { if(!d)return null; return Math.ceil((new Date(d)-new Date())/86400000); }
 
-export default function ProcessosKanbanPage({ onBack }) {
+export default function ProcessosKanbanPage({ onBack, user, userInfo }) {
   const [processos, setProcessos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [filtroPrioridade, setFiltroPrioridade] = useState("todas");
+  const [grupoProcessos, setGrupoProcessos] = useState(null);
+  const [grupoCoord, setGrupoCoord] = useState(null);
+  const [meuNome, setMeuNome] = useState("");
 
   useEffect(() => { loadProcessos(); }, []);
 
   const loadProcessos = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, "processos"));
-      setProcessos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [pSnap, gSnap, sSnap] = await Promise.all([
+        getDocs(collection(db, "processos")),
+        getDocs(collection(db, "ipc_grupos_trabalho")),
+        getDocs(collection(db, "ipc_servidores")),
+      ]);
+      setProcessos(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const grupos = gSnap.docs.map(d => ({id:d.id,...d.data()}));
+      const gPA = grupos.find(g => g.nome?.toLowerCase().includes("processo") && g.nome?.toLowerCase().includes("admin"));
+      const gCoord = grupos.find(g => g.nome?.toLowerCase().includes("coordena") && (g.nome?.toLowerCase().includes("infraestrutura") || g.nome?.toLowerCase().includes("logistica") || g.nome?.toLowerCase().includes("logística")));
+      setGrupoProcessos(gPA || null);
+      setGrupoCoord(gCoord || null);
+      // Find my name
+      const servidores = sSnap.docs.map(d => ({id:d.id,...d.data()}));
+      const srv = servidores.find(s => s.email === user?.email || s.id === user?.uid);
+      setMeuNome(srv?.nome || userInfo?.servidorNome || "");
     } catch(e) { console.error(e); }
     setLoading(false);
   };
 
-  const filtrados = processos.filter(p => filtroPrioridade === "todas" || p.prioridade === filtroPrioridade);
+  const isAdminGlobal = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
+  const isCoord = !!(grupoCoord && (userInfo?.grupos||[]).includes(grupoCoord.id));
+  const isGrupoPA = !!(grupoProcessos && (userInfo?.grupos||[]).includes(grupoProcessos.id));
+  // Admins e coordenadora veem tudo; grupo PA vê só seus processos
+  const processosFiltrados = (isAdminGlobal || isCoord)
+    ? processos
+    : isGrupoPA && meuNome
+      ? processos.filter(p => p.responsavel && p.responsavel.trim().toLowerCase() === meuNome.trim().toLowerCase())
+      : processos;
+
+  const filtrados = processosFiltrados.filter(p => filtroPrioridade === "todas" || p.prioridade === filtroPrioridade);
 
   const onDragStart = (e, p) => { setDragging(p); e.dataTransfer.effectAllowed = "move"; };
   const onDragEnd = () => { setDragging(null); setDragOver(null); };
