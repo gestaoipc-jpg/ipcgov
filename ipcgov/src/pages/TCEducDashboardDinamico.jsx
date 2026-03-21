@@ -31,10 +31,24 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
         getDocs(collection(db,"tceduc_eventos")),
         getDocs(collection(db,"tceduc_viagens")),
       ]);
-      const evs = evSnap.docs.map(d=>({id:d.id,...d.data()}))
-        .filter(e => e.data && e.data.startsWith(ano) && e.status === "Realizado");
+      const todosEvs = evSnap.docs.map(d=>({id:d.id,...d.data()}));
       const vgs = vSnap.docs.map(d=>({id:d.id,...d.data()}))
-        .filter(v => v.dataInicio && v.dataInicio.startsWith(ano));
+        .filter(v => (v.dataInicio && v.dataInicio.startsWith(ano)) || (v.dataFim && v.dataFim.startsWith(ano)));
+      // Link eventos to viagens: viagem has municipiosIds = array of evento IDs
+      const eventoIdToViagemId = {};
+      vgs.forEach(v => {
+        (v.municipiosIds || []).forEach(evId => {
+          eventoIdToViagemId[evId] = v.id;
+        });
+      });
+      // Filter events: match year AND (has status Realizado OR belongs to a viagem of this year)
+      const evs = todosEvs
+        .filter(e => {
+          if (e.data && e.data.startsWith(ano)) return true;
+          if (eventoIdToViagemId[e.id]) return true;
+          return false;
+        })
+        .map(e => ({ ...e, _viagemId: eventoIdToViagemId[e.id] || e.viagemId || null }));
       setEventos(evs);
       setViagens(vgs);
     } catch(e) { console.error(e); }
@@ -44,7 +58,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   // Apply filters
   const eventosFiltrados = eventos.filter(e => {
     if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
-    if (filtroViagem !== "todos" && e.viagemId !== filtroViagem) return false;
+    if (filtroViagem !== "todos" && e._viagemId !== filtroViagem) return false;
     if (filtroMunicipio !== "todos" && (e.municipio || e.regiao) !== filtroMunicipio) return false;
     if (filtroMes !== "todos") {
       const mes = parseInt((e.data||"").split("-")[1]);
@@ -56,8 +70,9 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   const viagensFiltradas = viagens.filter(v => {
     if (filtroViagem !== "todos" && v.id !== filtroViagem) return false;
     if (filtroMes !== "todos") {
-      const mes = parseInt((v.dataInicio||"").split("-")[1]);
-      if (mes !== parseInt(filtroMes)) return false;
+      const mesInicio = parseInt((v.dataInicio||"").split("-")[1]);
+      const mesFim = parseInt((v.dataFim||v.dataInicio||"").split("-")[1]);
+      if (mesInicio !== parseInt(filtroMes) && mesFim !== parseInt(filtroMes)) return false;
     }
     return true;
   });
@@ -112,7 +127,10 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   const acoesOrdenadas = Object.entries(acoesSummary).sort((a,b) => b[1].aprovados - a[1].aprovados);
 
   // Listas para filtros
-  const mesesDisp = [...new Set(eventos.map(e => parseInt((e.data||"").split("-")[1])))].filter(Boolean).sort((a,b)=>a-b);
+  const mesesDisp = [...new Set([
+    ...eventos.map(e => parseInt((e.data||"").split("-")[1])),
+    ...viagens.map(v => parseInt((v.dataInicio||"").split("-")[1])),
+  ])].filter(Boolean).sort((a,b)=>a-b);
   const municDisp = [...new Set(eventos.map(e => e.municipio||e.regiao).filter(Boolean))].sort();
   const viagensDisp = viagens.sort((a,b) => (a.dataInicio||"").localeCompare(b.dataInicio||""));
   const temRegional = eventos.some(e => e.tipo === "Regional");
