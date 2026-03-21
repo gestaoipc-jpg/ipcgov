@@ -79,7 +79,7 @@ const btnDel = {
 };
 
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
-  const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", municipiosIds: [], equipe: [] });
+  const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
@@ -149,7 +149,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
   useEffect(() => {
     if (viagem) {
-      setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", municipiosIds: viagem.municipiosIds || [], equipe: viagem.equipe || [] });
+      setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", modalidade: viagem.modalidade || "Municipal", municipiosIds: viagem.municipiosIds || [], equipe: viagem.equipe || [] });
       setChecklist(viagem.checklist || {});
       setItensCustom(viagem.itensCustom || []);
       setOcorrencias(viagem.ocorrencias || []);
@@ -362,7 +362,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const salvar = async () => {
     if (!form.titulo.trim()) { alert("Informe o título da viagem."); return; }
     setSalvando(true);
-    const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, municipiosIds: form.municipiosIds, equipe: form.equipe, status, ...todosOsDados() };
+    const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, modalidade: form.modalidade || "Municipal", municipiosIds: form.municipiosIds, equipe: form.equipe, status, ...todosOsDados() };
     try {
       let viagemId = viagem?.id;
       if (viagem?.id) {
@@ -517,7 +517,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
           </div>
           {viagem && !modoEdicao && (
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {form.dataInicio && <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>📅 {formatDate(form.dataInicio)}{form.dataFim ? ` → ${formatDate(form.dataFim)}` : ""}</div>}
+              {form.dataInicio && <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>📅 {formatDate(form.dataInicio)}{form.dataFim ? " → " + formatDate(form.dataFim) : ""}</div>}
+              {form.modalidade && <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 }}>{form.modalidade === "Regional" ? "🗺️ Regional" : "🏘️ Municipal"}</div>}
               <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>📍 {form.municipiosIds.length} município{form.municipiosIds.length !== 1 ? "s" : ""}</div>
               <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13 }}>👥 {form.equipe.length} membro{form.equipe.length !== 1 ? "s" : ""}</div>
             </div>
@@ -532,6 +533,19 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
           <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 20, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
             <div style={{ fontWeight: 800, fontSize: 16, color: "#1B3F7A", marginBottom: 20 }}>✏️ {viagem ? "Editar Viagem" : "Criar Viagem"}</div>
             <div style={{ marginBottom: 14 }}><label style={lbl}>Título *</label><input value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Ex: TCEduc Municipal 1" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Modalidade</label>
+              <div style={{ display: "flex", gap: 10 }}>
+                {["Municipal","Regional"].map(mod => (
+                  <div key={mod} onClick={() => setForm(f => ({ ...f, modalidade: mod }))}
+                    style={{ flex: 1, border: "2px solid " + (form.modalidade === mod ? "#1B3F7A" : "#e8edf2"), borderRadius: 12, padding: "12px 0", textAlign: "center", cursor: "pointer",
+                      background: form.modalidade === mod ? "#1B3F7A" : "#f8f9fb",
+                      color: form.modalidade === mod ? "#fff" : "#888", fontWeight: 700, fontSize: 14 }}>
+                    {mod === "Municipal" ? "🏘️ Municipal" : "🗺️ Regional"}
+                  </div>
+                ))}
+              </div>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
               <div><label style={lbl}>Início</label><input type="date" value={form.dataInicio} onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))} style={inp} /></div>
               <div><label style={lbl}>Fim</label><input type="date" value={form.dataFim} onChange={e => setForm(f => ({ ...f, dataFim: e.target.value }))} style={inp} /></div>
