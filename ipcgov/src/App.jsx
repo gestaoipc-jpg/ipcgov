@@ -190,7 +190,7 @@ export default function App() {
 
   if (currentModule === "processos") return <ProcessosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} onDashboard={() => setCurrentModule("processos_dashboard")} onFuturos={() => setCurrentModule("processos_futuros")} />;
   if (currentModule === "processos_futuros") return <ProcessosFuturosPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
-  if (currentModule === "processos_kanban") return <ProcessosKanbanPage onBack={() => setCurrentModule("processos")} />;
+  if (currentModule === "processos_kanban") return <ProcessosKanbanPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_relatorio") return <ProcessosRelatorioPage onBack={() => setCurrentModule("processos")} processoId={processoRelatorioId} />;
