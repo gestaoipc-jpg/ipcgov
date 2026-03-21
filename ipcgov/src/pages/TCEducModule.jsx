@@ -109,6 +109,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [novaOcorrencia, setNovaOcorrencia] = useState({ tipo: "inscricao", descricao: "", cpf: "", nome: "", email: "", destinoTipo: "usuario", destinoId: "", destinoNome: "", acaoId: "", acaoNome: "" });
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [participantesPorAcao, setParticipantesPorAcao] = useState({});
+  const [inscritosPorAcao, setInscritosPorAcao] = useState({});
   const [planoAcao, setPlanoAcao] = useState(null); // { titulo, acoes:[] } do evento selecionado
   const [novaAcaoPA, setNovaAcaoPA] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
   const [salvandoPA, setSalvandoPA] = useState(false);
@@ -253,13 +254,16 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     setOcorrencias(ev.ocorrencias || []);
     setLicoesAprendidas(ev.licoesAprendidas || "");
     setItensCustomEvento(ev.itensCustom || []);
-    // Carrega participantes de cada ação educacional
+    // Carrega participantes e inscritos de cada ação educacional
     const partic = {};
+    const inscr = {};
     (ev.acoesEducacionais || []).forEach((a, idx) => {
       const key = a.acaoId || a.id || String(idx);
       partic[key] = a.participantes || 0;
+      inscr[key] = a.inscritos || 0;
     });
     setParticipantesPorAcao(partic);
+    setInscritosPorAcao(inscr);
     setInfoViagem(ev.infoViagem || {});
     setPlanoAcao(ev.planoAcao || null);
     setModal("bloco");
@@ -270,7 +274,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     // Atualiza participantes nas ações educacionais
     const acoesAtualizadas = (selected.acoesEducacionais || []).map((a, idx) => {
       const key = a.acaoId || a.id || String(idx);
-      return { ...a, participantes: parseInt(participantesPorAcao[key]) || 0 };
+      return { ...a, participantes: parseInt(participantesPorAcao[key]) || 0, inscritos: parseInt(inscritosPorAcao[key]) || 0 };
     });
     const updates = {
       checklist,
@@ -1179,15 +1183,30 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                     <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Informe a quantidade de participantes de cada curso realizado neste evento.</div>
                     <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
                       {/* Header */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", background: "#1B3F7A", padding: "10px 16px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", background: "#1B3F7A", padding: "10px 16px" }}>
                         <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Curso / Ação Educacional</div>
-                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Participantes</div>
+                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Inscritos</div>
+                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Aprovados</div>
                       </div>
                       {(selected.acoesEducacionais || []).map((a, idx) => {
                         const key = a.acaoId || a.id || String(idx);
+                        const insc = parseInt(inscritosPorAcao[key]) || 0;
+                        const aprov = parseInt(participantesPorAcao[key]) || 0;
+                        const ausencia = insc > 0 ? Math.round((insc - aprov) / insc * 100) : null;
                         return (
-                          <div key={key} style={{ display: "grid", gridTemplateColumns: "1fr 140px", padding: "12px 16px", borderBottom: idx < (selected.acoesEducacionais.length - 1) ? "1px solid #f0f0f0" : "none", background: idx % 2 === 0 ? "#fff" : "#f8f9fb", alignItems: "center" }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: "#333" }}>{a.acaoNome || a.nome || "Ação " + (idx + 1)}</div>
+                          <div key={key} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", padding: "12px 16px", borderBottom: idx < (selected.acoesEducacionais.length - 1) ? "1px solid #f0f0f0" : "none", background: idx % 2 === 0 ? "#fff" : "#f8f9fb", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: "#333" }}>{a.acaoNome || a.nome || "Ação " + (idx + 1)}</div>
+                              {ausencia !== null && <div style={{ fontSize: 11, color: ausencia > 30 ? "#dc2626" : "#059669", fontWeight: 700, marginTop: 2 }}>Ausência: {ausencia}%</div>}
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={inscritosPorAcao[key] || ""}
+                              onChange={e => setInscritosPorAcao(p => ({ ...p, [key]: e.target.value }))}
+                              placeholder="0"
+                              style={{ ...inputStyle, textAlign: "center", fontWeight: 700, fontSize: 16, color: "#0891b2", padding: "8px 12px" }}
+                            />
                             <input
                               type="number"
                               min="0"
@@ -1200,9 +1219,12 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
                         );
                       })}
                       {/* Total */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", padding: "12px 16px", background: "#E8730A", alignItems: "center" }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>TOTAL DE CAPACITADOS</div>
-                        <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", textAlign: "center" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", padding: "12px 16px", background: "#E8730A", alignItems: "center" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>TOTAL</div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", textAlign: "center" }}>
+                          {Object.values(inscritosPorAcao).reduce((s, v) => s + (parseInt(v) || 0), 0)}
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", textAlign: "center" }}>
                           {Object.values(participantesPorAcao).reduce((s, v) => s + (parseInt(v) || 0), 0)}
                         </div>
                       </div>
