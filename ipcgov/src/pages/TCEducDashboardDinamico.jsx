@@ -32,23 +32,24 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
         getDocs(collection(db,"tceduc_viagens")),
       ]);
       const todosEvs = evSnap.docs.map(d=>({id:d.id,...d.data()}));
-      const vgs = vSnap.docs.map(d=>({id:d.id,...d.data()}))
-        .filter(v => (v.dataInicio && v.dataInicio.startsWith(ano)) || (v.dataFim && v.dataFim.startsWith(ano)));
-      // Link eventos to viagens: viagem has municipiosIds = array of evento IDs
+      const todasVgs = vSnap.docs.map(d=>({id:d.id,...d.data()}));
+      // Viagens do ano: dataInicio ou dataFim contém o ano
+      const vgs = todasVgs.filter(v =>
+        (v.dataInicio && v.dataInicio.startsWith(ano)) ||
+        (v.dataFim && v.dataFim.startsWith(ano))
+      );
+      // Mapa: eventoId -> viagemId (viagem tem municipiosIds = array de IDs de eventos)
       const eventoIdToViagemId = {};
       vgs.forEach(v => {
         (v.municipiosIds || []).forEach(evId => {
           eventoIdToViagemId[evId] = v.id;
         });
       });
-      // Filter events: match year AND (has status Realizado OR belongs to a viagem of this year)
+      // Eventos do ano: data começa com o ano OU pertence a uma viagem do ano
+      const idsViagensAno = new Set(Object.keys(eventoIdToViagemId));
       const evs = todosEvs
-        .filter(e => {
-          if (e.data && e.data.startsWith(ano)) return true;
-          if (eventoIdToViagemId[e.id]) return true;
-          return false;
-        })
-        .map(e => ({ ...e, _viagemId: eventoIdToViagemId[e.id] || e.viagemId || null }));
+        .filter(e => (e.data && e.data.startsWith(ano)) || idsViagensAno.has(e.id))
+        .map(e => ({ ...e, _viagemId: eventoIdToViagemId[e.id] || null }));
       setEventos(evs);
       setViagens(vgs);
     } catch(e) { console.error(e); }
@@ -196,6 +197,12 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
       <div style={{ padding:"20px 20px 60px", maxWidth:1200, margin:"0 auto" }}>
         {loading ? (
           <div style={{ textAlign:"center", padding:"80px 0", color:"#aaa" }}>Carregando dados de {ano}...</div>
+        ) : eventos.length === 0 && viagens.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"80px 0" }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>📭</div>
+            <div style={{ fontWeight:700, fontSize:18, color:"#1B3F7A", marginBottom:8 }}>Nenhum dado encontrado para {ano}</div>
+            <div style={{ color:"#aaa", fontSize:13 }}>Cadastre eventos e viagens com datas em {ano} no módulo TCEduc para visualizar o dashboard.</div>
+          </div>
         ) : (
           <>
             {/* LAYOUT: sidebar + grade de KPIs */}
