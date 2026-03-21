@@ -180,9 +180,13 @@ export default function TCEduc2025Dashboard({ onBack }) {
   const municipiosVisitados = new Set(dadosFiltrados.map(r => r.municipio)).size;
 
   // Costs - filter by viagem
-  const viagensFiltradas = filtroViagem !== "todos"
-    ? CUSTOS_2025.filter(c => c.viagem === parseInt(filtroViagem))
-    : CUSTOS_2025;
+  // Custos: filtrar pelas viagens que aparecem nos dados filtrados
+  const viagensNaSelecao = new Set(dadosFiltrados.map(r => r.viagem));
+  const viagensFiltradas = CUSTOS_2025.filter(c => {
+    if (filtroViagem !== "todos" && c.viagem !== parseInt(filtroViagem)) return false;
+    if (filtroMes !== "todos" && !viagensNaSelecao.has(c.viagem)) return false;
+    return true;
+  });
   const custoTotal = viagensFiltradas.reduce((s,c) => s + c.custo_transp + c.custo_instrutoria + c.custo_diarias, 0);
   const totalPartCusto = viagensFiltradas.reduce((s,c) => s + c.total_part, 0);
   const custoPorAluno = totalPartCusto > 0 ? custoTotal / totalPartCusto : 0;
