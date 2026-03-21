@@ -40,7 +40,9 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
       );
       // Mapa: eventoId -> viagemId (viagem tem municipiosIds = array de IDs de eventos)
       const eventoIdToViagemId = {};
+      const viagemIdToModalidade = {};
       vgs.forEach(v => {
+        viagemIdToModalidade[v.id] = v.modalidade || "Municipal";
         (v.municipiosIds || []).forEach(evId => {
           eventoIdToViagemId[evId] = v.id;
         });
@@ -49,7 +51,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
       const idsViagensAno = new Set(Object.keys(eventoIdToViagemId));
       const evs = todosEvs
         .filter(e => (e.data && e.data.startsWith(ano)) || idsViagensAno.has(e.id))
-        .map(e => ({ ...e, _viagemId: eventoIdToViagemId[e.id] || null }));
+        .map(e => ({ ...e, _viagemId: eventoIdToViagemId[e.id] || null, _modalidade: viagemIdToModalidade[eventoIdToViagemId[e.id]] || e.tipo || "Municipal" }));
       setEventos(evs);
       setViagens(vgs);
     } catch(e) { console.error(e); }
@@ -58,7 +60,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
 
   // Apply filters
   const eventosFiltrados = eventos.filter(e => {
-    if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
+    if (filtroTipo !== "todos" && e._modalidade !== filtroTipo) return false;
     if (filtroViagem !== "todos" && e._viagemId !== filtroViagem) return false;
     if (filtroMunicipio !== "todos" && (e.municipio || e.regiao) !== filtroMunicipio) return false;
     if (filtroMes !== "todos") {
@@ -134,8 +136,8 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   ])].filter(Boolean).sort((a,b)=>a-b);
   const municDisp = [...new Set(eventos.map(e => e.municipio||e.regiao).filter(Boolean))].sort();
   const viagensDisp = viagens.sort((a,b) => (a.dataInicio||"").localeCompare(b.dataInicio||""));
-  const temRegional = eventos.some(e => e.tipo === "Regional");
-  const temMunicipal = eventos.some(e => e.tipo === "Municipal");
+  const temRegional = eventos.some(e => e._modalidade === "Regional");
+  const temMunicipal = eventos.some(e => e._modalidade === "Municipal");
 
   const cardStyle = (bg) => ({
     background: bg || "#fff",
@@ -322,7 +324,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
                         <td style={{ padding:"7px 10px", color:"#555" }}>{ev.data ? ev.data.split("-").reverse().join("/") : "—"}</td>
                         <td style={{ padding:"7px 10px", fontWeight:600 }}>{ev.municipio||ev.regiao||"—"}</td>
                         <td style={{ padding:"7px 10px" }}>
-                          <span style={{ background:ev.tipo==="Regional"?"#f5f3ff":"#eff6ff", color:ev.tipo==="Regional"?"#7c3aed":"#1B3F7A", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>{ev.tipo||"—"}</span>
+                          <span style={{ background:ev._modalidade==="Regional"?"#f5f3ff":"#eff6ff", color:ev._modalidade==="Regional"?"#7c3aed":"#1B3F7A", borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>{ev._modalidade||"—"}</span>
                         </td>
                         {acoesOrdenadas.map(([nome]) => {
                           const acao = (ev.acoesEducacionais||[]).find(a=>(a.acaoNome||a.nome)===nome);
