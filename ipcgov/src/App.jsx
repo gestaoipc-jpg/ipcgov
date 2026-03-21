@@ -16,6 +16,9 @@ import KanbanPage from "./pages/KanbanPage";
 import SolicitacoesPage from "./pages/SolicitacoesPage";
 import ProcessosModule from "./pages/ProcessosModule";
 import ProcessosFuturosPage from "./pages/ProcessosFuturosPage";
+import IPCCursosModule from "./pages/IPCCursosModule";
+import IPCCursosFormPage from "./pages/IPCCursosFormPage";
+import IPCCursosInstrutoresPage from "./pages/IPCCursosInstrutoresPage";
 import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
 import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
 import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
@@ -43,6 +46,7 @@ export default function App() {
   const [currentModule, setCurrentModule] = useState(null);
   const [relatorioEventoId, setRelatorioEventoId] = useState(null);
   const [processoRelatorioId, setProcessoRelatorioId] = useState(null);
+  const [projetoCursoSelected, setProjetoCursoSelected] = useState(null);
   const [userInfo, setUserInfo] = useState(null); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
   const [pendAutorizacoes, setPendAutorizacoes] = useState([]); // solicitações esperando autorização deste user
   const [modalAutorizacao, setModalAutorizacao] = useState(null); // solicitação aberta para autorizar
@@ -190,6 +194,9 @@ export default function App() {
 
   if (currentModule === "processos") return <ProcessosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onFiltros={() => setCurrentModule("processos_filtros")} onKanban={() => setCurrentModule("processos_kanban")} onRelatorio={(id) => { setProcessoRelatorioId(id||null); setCurrentModule("processos_relatorio"); }} onAdminAlertas={() => setCurrentModule("processos_alertas")} onDashboard={() => setCurrentModule("processos_dashboard")} onFuturos={() => setCurrentModule("processos_futuros")} />;
   if (currentModule === "processos_futuros") return <ProcessosFuturosPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
+  if (currentModule === "ipc_cursos") return <IPCCursosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onInstrutores={() => setCurrentModule("ipc_cursos_instrutores")} onFormProjeto={(p) => { setProjetoCursoSelected(p); setCurrentModule("ipc_cursos_form"); }} />;
+  if (currentModule === "ipc_cursos_form") return <IPCCursosFormPage user={user} projeto={projetoCursoSelected} onBack={() => setCurrentModule("ipc_cursos")} onSaved={() => setCurrentModule("ipc_cursos")} />;
+  if (currentModule === "ipc_cursos_instrutores") return <IPCCursosInstrutoresPage user={user} onBack={() => setCurrentModule("ipc_cursos")} />;
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
