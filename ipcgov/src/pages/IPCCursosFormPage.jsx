@@ -35,8 +35,16 @@ export default function IPCCursosFormPage({ user, projeto, onBack, onSaved }) {
 
   const loadInstrutores = async () => {
     try {
-      const snap = await getDocs(collection(db, "ipc_cursos_instrutores"));
-      setInstrutoresCadastrados(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [iSnap, tcSnap] = await Promise.all([
+        getDocs(collection(db, "ipc_cursos_instrutores")),
+        getDocs(collection(db, "tceduc_instrutores")),
+      ]);
+      const ipcCursos = iSnap.docs.map(d => ({ id: d.id, _origem: "ipc_cursos", ...d.data() }));
+      const tcEduc = tcSnap.docs.map(d => ({ id: "tc_" + d.id, _origem: "tceduc", ...d.data() }));
+      // Merge: tcEduc only if not already in ipcCursos by name
+      const nomesCadastrados = ipcCursos.map(i => (i.nome||"").toLowerCase().trim());
+      const tcSomente = tcEduc.filter(i => !nomesCadastrados.includes((i.nome||"").toLowerCase().trim()));
+      setInstrutoresCadastrados([...ipcCursos, ...tcSomente]);
     } catch(e) { console.error(e); }
   };
 
@@ -293,7 +301,20 @@ export default function IPCCursosFormPage({ user, projeto, onBack, onSaved }) {
                   <label style={lbl}>Selecionar Instrutor</label>
                   <select value={inst.instrutorId||""} onChange={e=>updateInstrutor(i,"instrutorId",e.target.value)} style={inp} disabled={isTramitado}>
                     <option value="">Selecione ou preencha manualmente...</option>
-                    {instrutoresCadastrados.map(x => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                    {instrutoresCadastrados.filter(x => x._origem === "ipc_cursos").length > 0 && (
+                      <optgroup label="— Cadastro IPC Cursos —">
+                        {instrutoresCadastrados.filter(x => x._origem === "ipc_cursos").map(x => (
+                          <option key={x.id} value={x.id}>{x.nome}{x.ehServidor ? " (Servidor IPC)" : ""}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {instrutoresCadastrados.filter(x => x._origem === "tceduc").length > 0 && (
+                      <optgroup label="— Instrutores TCEduc —">
+                        {instrutoresCadastrados.filter(x => x._origem === "tceduc").map(x => (
+                          <option key={x.id} value={x.id}>{x.nome}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div style={{ gridColumn:"1/-1" }}>
