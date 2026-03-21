@@ -69,14 +69,35 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   let totalInscritos = 0, totalAprovados = 0;
   const acoesSummary = {};
   eventosFiltrados.forEach(e => {
-    (e.acoesEducacionais||[]).forEach(a => {
-      const nome = a.acaoNome || a.nome || "Sem nome";
-      if (!acoesSummary[nome]) acoesSummary[nome] = { inscritos:0, aprovados:0 };
-      acoesSummary[nome].inscritos += parseInt(a.inscritos)||0;
-      acoesSummary[nome].aprovados += parseInt(a.participantes)||0;
-      totalInscritos += parseInt(a.inscritos)||0;
-      totalAprovados += parseInt(a.participantes)||0;
-    });
+    if (e.modoTotalManual) {
+      // Modo total direto — usa o total manual, distribui proporcionalmente nas ações se existirem
+      const totalAprovM = parseInt(e.totalAprovadosManual)||0;
+      const totalInscM = parseInt(e.totalInscritosManual)||0;
+      totalInscritos += totalInscM;
+      totalAprovados += totalAprovM;
+      // Para o summary de ações, distribui pelo número de ações
+      const nAcoes = (e.acoesEducacionais||[]).length || 1;
+      (e.acoesEducacionais||[]).forEach(a => {
+        const nome = a.acaoNome || a.nome || "Sem nome";
+        if (!acoesSummary[nome]) acoesSummary[nome] = { inscritos:0, aprovados:0 };
+        acoesSummary[nome].inscritos += Math.round(totalInscM / nAcoes);
+        acoesSummary[nome].aprovados += Math.round(totalAprovM / nAcoes);
+      });
+      if ((e.acoesEducacionais||[]).length === 0) {
+        if (!acoesSummary["Total"]) acoesSummary["Total"] = { inscritos:0, aprovados:0 };
+        acoesSummary["Total"].inscritos += totalInscM;
+        acoesSummary["Total"].aprovados += totalAprovM;
+      }
+    } else {
+      (e.acoesEducacionais||[]).forEach(a => {
+        const nome = a.acaoNome || a.nome || "Sem nome";
+        if (!acoesSummary[nome]) acoesSummary[nome] = { inscritos:0, aprovados:0 };
+        acoesSummary[nome].inscritos += parseInt(a.inscritos)||0;
+        acoesSummary[nome].aprovados += parseInt(a.participantes)||0;
+        totalInscritos += parseInt(a.inscritos)||0;
+        totalAprovados += parseInt(a.participantes)||0;
+      });
+    }
   });
   const ausenciaAcum = totalInscritos > 0 ? Math.round((totalInscritos - totalAprovados) / totalInscritos * 100) : 0;
 
