@@ -110,6 +110,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [participantesPorAcao, setParticipantesPorAcao] = useState({});
   const [inscritosPorAcao, setInscritosPorAcao] = useState({});
+  const [modoTotalManual, setModoTotalManual] = useState(false);
+  const [totalInscritosManual, setTotalInscritosManual] = useState("");
+  const [totalAprovadosManual, setTotalAprovadosManual] = useState("");
   const [planoAcao, setPlanoAcao] = useState(null); // { titulo, acoes:[] } do evento selecionado
   const [novaAcaoPA, setNovaAcaoPA] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
   const [salvandoPA, setSalvandoPA] = useState(false);
@@ -264,6 +267,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
     });
     setParticipantesPorAcao(partic);
     setInscritosPorAcao(inscr);
+    setModoTotalManual(ev.modoTotalManual || false);
+    setTotalInscritosManual(ev.totalInscritosManual || "");
+    setTotalAprovadosManual(ev.totalAprovadosManual || "");
     setInfoViagem(ev.infoViagem || {});
     setPlanoAcao(ev.planoAcao || null);
     setModal("bloco");
@@ -284,6 +290,9 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
       infoViagem,
       planoAcao: planoAcao || null,
       acoesEducacionais: acoesAtualizadas,
+      modoTotalManual,
+      totalInscritosManual: modoTotalManual ? totalInscritosManual : "",
+      totalAprovadosManual: modoTotalManual ? totalAprovadosManual : "",
       atualizadoEm: new Date().toISOString(),
     };
     await updateDoc(doc(db, "tceduc_eventos", selected.id), updates);
@@ -1177,60 +1186,121 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             {blocoAtivo === "pos" && (
               <div>
                 {/* PARTICIPANTES POR CURSO */}
-                {(selected?.acoesEducacionais || []).length > 0 && (
+                {(selected?.acoesEducacionais || []).length > 0 && (() => {
+                  const totalInscDetalhado = Object.values(inscritosPorAcao).reduce((s,v)=>s+(parseInt(v)||0),0);
+                  const totalAprovDetalhado = Object.values(participantesPorAcao).reduce((s,v)=>s+(parseInt(v)||0),0);
+                  const totalInscExib = modoTotalManual ? (parseInt(totalInscritosManual)||0) : totalInscDetalhado;
+                  const totalAprovExib = modoTotalManual ? (parseInt(totalAprovadosManual)||0) : totalAprovDetalhado;
+                  const ausenciaGeral = totalInscExib > 0 ? Math.round((totalInscExib - totalAprovExib) / totalInscExib * 100) : null;
+                  return (
                   <div style={{ marginBottom: 24 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", marginBottom: 4 }}>📊 Participantes por Curso</div>
-                    <div style={{ fontSize: 12, color: "#888", marginBottom: 14 }}>Informe a quantidade de participantes de cada curso realizado neste evento.</div>
-                    <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                      {/* Header */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", background: "#1B3F7A", padding: "10px 16px" }}>
-                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Curso / Ação Educacional</div>
-                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Inscritos</div>
-                        <div style={{ color: "#fff", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }}>Aprovados</div>
+                    {/* Título + Toggle */}
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                      <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>📊 Participantes por Curso</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:11, color:"#888", fontWeight:600 }}>Modo:</span>
+                        <div style={{ display:"flex", background:"#f0f4ff", borderRadius:10, padding:2, gap:2 }}>
+                          <div onClick={()=>setModoTotalManual(false)}
+                            style={{ borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer",
+                              background:!modoTotalManual?"#1B3F7A":"transparent",
+                              color:!modoTotalManual?"#fff":"#888" }}>
+                            Por ação
+                          </div>
+                          <div onClick={()=>setModoTotalManual(true)}
+                            style={{ borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer",
+                              background:modoTotalManual?"#E8730A":"transparent",
+                              color:modoTotalManual?"#fff":"#888" }}>
+                            Total direto
+                          </div>
+                        </div>
                       </div>
+                    </div>
+                    <div style={{ fontSize:12, color:"#888", marginBottom:12 }}>
+                      {modoTotalManual ? "Informe o total geral diretamente. Os campos por ação ficam desabilitados." : "Informe os valores por ação educacional. O total é calculado automaticamente."}
+                    </div>
+
+                    <div style={{ border:"1px solid #e8edf2", borderRadius:14, overflow:"hidden" }}>
+                      {/* Header */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 130px 130px", background:"#1B3F7A", padding:"10px 16px" }}>
+                        <div style={{ color:"#fff", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1 }}>Curso / Ação Educacional</div>
+                        <div style={{ color:"#fff", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, textAlign:"center" }}>Inscritos</div>
+                        <div style={{ color:"#fff", fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, textAlign:"center" }}>Aprovados</div>
+                      </div>
+
+                      {/* Linhas por ação */}
                       {(selected.acoesEducacionais || []).map((a, idx) => {
                         const key = a.acaoId || a.id || String(idx);
                         const insc = parseInt(inscritosPorAcao[key]) || 0;
                         const aprov = parseInt(participantesPorAcao[key]) || 0;
-                        const ausencia = insc > 0 ? Math.round((insc - aprov) / insc * 100) : null;
+                        const ausencia = !modoTotalManual && insc > 0 ? Math.round((insc - aprov) / insc * 100) : null;
                         return (
-                          <div key={key} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", padding: "12px 16px", borderBottom: idx < (selected.acoesEducacionais.length - 1) ? "1px solid #f0f0f0" : "none", background: idx % 2 === 0 ? "#fff" : "#f8f9fb", alignItems: "center" }}>
+                          <div key={key} style={{ display:"grid", gridTemplateColumns:"1fr 130px 130px", padding:"12px 16px",
+                            borderBottom: idx < (selected.acoesEducacionais.length - 1) ? "1px solid #f0f0f0" : "none",
+                            background: modoTotalManual ? "#f5f5f5" : idx % 2 === 0 ? "#fff" : "#f8f9fb",
+                            alignItems:"center", opacity: modoTotalManual ? 0.5 : 1 }}>
                             <div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: "#333" }}>{a.acaoNome || a.nome || "Ação " + (idx + 1)}</div>
-                              {ausencia !== null && <div style={{ fontSize: 11, color: ausencia > 30 ? "#dc2626" : "#059669", fontWeight: 700, marginTop: 2 }}>Ausência: {ausencia}%</div>}
+                              <div style={{ fontSize:14, fontWeight:600, color:modoTotalManual?"#aaa":"#333" }}>{a.acaoNome || a.nome || "Ação " + (idx+1)}</div>
+                              {ausencia !== null && <div style={{ fontSize:11, color:ausencia>30?"#dc2626":"#059669", fontWeight:700, marginTop:2 }}>Ausência: {ausencia}%</div>}
                             </div>
-                            <input
-                              type="number"
-                              min="0"
+                            <input type="number" min="0"
                               value={inscritosPorAcao[key] || ""}
-                              onChange={e => setInscritosPorAcao(p => ({ ...p, [key]: e.target.value }))}
+                              onChange={e => !modoTotalManual && setInscritosPorAcao(p=>({...p,[key]:e.target.value}))}
+                              disabled={modoTotalManual}
                               placeholder="0"
-                              style={{ ...inputStyle, textAlign: "center", fontWeight: 700, fontSize: 16, color: "#0891b2", padding: "8px 12px" }}
+                              style={{ ...inputStyle, textAlign:"center", fontWeight:700, fontSize:16, color:"#0891b2", padding:"8px 12px",
+                                background:modoTotalManual?"#ececec":"#f8f9fb", cursor:modoTotalManual?"not-allowed":"text" }}
                             />
-                            <input
-                              type="number"
-                              min="0"
+                            <input type="number" min="0"
                               value={participantesPorAcao[key] || ""}
-                              onChange={e => setParticipantesPorAcao(p => ({ ...p, [key]: e.target.value }))}
+                              onChange={e => !modoTotalManual && setParticipantesPorAcao(p=>({...p,[key]:e.target.value}))}
+                              disabled={modoTotalManual}
                               placeholder="0"
-                              style={{ ...inputStyle, textAlign: "center", fontWeight: 700, fontSize: 16, color: "#1B3F7A", padding: "8px 12px" }}
+                              style={{ ...inputStyle, textAlign:"center", fontWeight:700, fontSize:16, color:"#1B3F7A", padding:"8px 12px",
+                                background:modoTotalManual?"#ececec":"#f8f9fb", cursor:modoTotalManual?"not-allowed":"text" }}
                             />
                           </div>
                         );
                       })}
-                      {/* Total */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px", padding: "12px 16px", background: "#E8730A", alignItems: "center" }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>TOTAL</div>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", textAlign: "center" }}>
-                          {Object.values(inscritosPorAcao).reduce((s, v) => s + (parseInt(v) || 0), 0)}
+
+                      {/* Linha de total — editável no modo manual */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 130px 130px", padding:"12px 16px",
+                        background: modoTotalManual ? "#E8730A" : "#E8730A", alignItems:"center" }}>
+                        <div style={{ fontSize:14, fontWeight:800, color:"#fff" }}>
+                          TOTAL {modoTotalManual && <span style={{ fontSize:11, fontWeight:600, opacity:0.85 }}>(editar abaixo)</span>}
                         </div>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", textAlign: "center" }}>
-                          {Object.values(participantesPorAcao).reduce((s, v) => s + (parseInt(v) || 0), 0)}
-                        </div>
+                        {modoTotalManual ? (
+                          <>
+                            <input type="number" min="0"
+                              value={totalInscritosManual}
+                              onChange={e => setTotalInscritosManual(e.target.value)}
+                              placeholder="0"
+                              style={{ ...inputStyle, textAlign:"center", fontWeight:900, fontSize:18, color:"#E8730A", padding:"6px 10px", background:"#fff", border:"none", borderRadius:8 }}
+                            />
+                            <input type="number" min="0"
+                              value={totalAprovadosManual}
+                              onChange={e => setTotalAprovadosManual(e.target.value)}
+                              placeholder="0"
+                              style={{ ...inputStyle, textAlign:"center", fontWeight:900, fontSize:18, color:"#E8730A", padding:"6px 10px", background:"#fff", border:"none", borderRadius:8 }}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontSize:18, fontWeight:900, color:"#fff", textAlign:"center" }}>{totalInscDetalhado}</div>
+                            <div style={{ fontSize:18, fontWeight:900, color:"#fff", textAlign:"center" }}>{totalAprovDetalhado}</div>
+                          </>
+                        )}
                       </div>
+
+                      {/* Ausência geral */}
+                      {ausenciaGeral !== null && (
+                        <div style={{ padding:"8px 16px", background:ausenciaGeral>30?"#fff0f0":"#f0fdf4", textAlign:"right", fontSize:12, fontWeight:700, color:ausenciaGeral>30?"#dc2626":"#059669" }}>
+                          Ausência geral: {ausenciaGeral}%
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* ---- PLANO DE AÇÃO ---- */}
                 <div style={{ marginTop: 28 }}>
