@@ -106,6 +106,9 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [autorizacaoInstrutoria, setAutorizacaoInstrutoria] = useState({ autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" });
   const [instutoriaPaga, setInstutoriaPaga] = useState(false);
   const [instutoriaPagaEm, setInstutoriaPagaEm] = useState("");
+  const [custoTransporte, setCustoTransporte] = useState("");
+  const [custoInstrutoria, setCustoInstrutoria] = useState("");
+  const [custoDiarias, setCustoDiarias] = useState("");
   const [planoAcaoViagem, setPlanoAcaoViagem] = useState(null);
   const [novaAcaoV, setNovaAcaoV] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
   const [salvandoAcaoV, setSalvandoAcaoV] = useState(false);
@@ -159,6 +162,9 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
       setAutorizacaoInstrutoria(viagem.autorizacaoInstrutoria || { autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" });
       setInstutoriaPaga(viagem.instutoriaPaga || false);
       setInstutoriaPagaEm(viagem.instutoriaPagaEm || "");
+      setCustoTransporte(viagem.custoTransporte || "");
+      setCustoInstrutoria(viagem.custoInstrutoria || "");
+      setCustoDiarias(viagem.custoDiarias || "");
       setPlanoAcaoViagem(viagem.planoAcaoViagem || null);
       setEquipamentos(viagem.equipamentos || []);
       setDistancias(viagem.distancias || []);
@@ -340,7 +346,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, autorizacaoInstrutoria, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, autorizacaoInstrutoria, custoTransporte, custoInstrutoria, custoDiarias, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -1456,6 +1462,38 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                       {salvandoAcaoV ? "Salvando e notificando..." : "➕ Adicionar Ação e Notificar Responsável"}
                     </button>
                   </div>
+                </div>
+
+                {/* ---- CUSTOS DA VIAGEM ---- */}
+                <div style={{ background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:16, padding:20, marginBottom:16 }}>
+                  <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ width:4, height:18, background:"#1B3F7A", borderRadius:2 }} />💰 Custos da Viagem
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                    <div>
+                      <label style={{ display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Transporte (R$)</label>
+                      <input type="number" min="0" step="0.01" value={custoTransporte} onChange={e=>setCustoTransporte(e.target.value)} placeholder="0,00"
+                        style={{ width:"100%", background:"#fff", border:"1px solid #e8edf2", borderRadius:10, padding:"10px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" }}/>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Instrutoria (R$)</label>
+                      <input type="number" min="0" step="0.01" value={custoInstrutoria} onChange={e=>setCustoInstrutoria(e.target.value)} placeholder="0,00"
+                        style={{ width:"100%", background:"#fff", border:"1px solid #e8edf2", borderRadius:10, padding:"10px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" }}/>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>Diárias (R$)</label>
+                      <input type="number" min="0" step="0.01" value={custoDiarias} onChange={e=>setCustoDiarias(e.target.value)} placeholder="0,00"
+                        style={{ width:"100%", background:"#fff", border:"1px solid #e8edf2", borderRadius:10, padding:"10px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" }}/>
+                    </div>
+                  </div>
+                  {(parseFloat(custoTransporte)||0) + (parseFloat(custoInstrutoria)||0) + (parseFloat(custoDiarias)||0) > 0 && (
+                    <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:12, color:"#888", fontWeight:600 }}>Total:</span>
+                      <span style={{ fontWeight:900, fontSize:18, color:"#1B3F7A" }}>
+                        {((parseFloat(custoTransporte)||0)+(parseFloat(custoInstrutoria)||0)+(parseFloat(custoDiarias)||0)).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* ---- PAGAMENTO DE INSTRUTORIA CONCLUÍDO ---- */}
