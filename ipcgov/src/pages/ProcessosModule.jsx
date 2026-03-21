@@ -283,7 +283,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                       <span style={{ background:corStatus+"22", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:corStatus }}>{p.status}</span>
                       {atrasado && <span style={{ fontSize:10, color:"#dc2626", fontWeight:700 }}>⚠️ {Math.abs(dias)}d atrasado</span>}
                       {urgente && <span style={{ fontSize:10, color:"#E8730A", fontWeight:700 }}>⏰ {dias}d restantes</span>}
-                      {p.instutoriaLiberada && <span style={{ fontSize:10, color:"#166534", fontWeight:700, background:"#dcfce7", borderRadius:5, padding:"1px 6px" }}>💰 Autorizado — seguir com OP</span>}
+                      {p.instrutoriaLiberada && <span style={{ fontSize:10, color:"#166534", fontWeight:700, background:"#dcfce7", borderRadius:5, padding:"1px 6px" }}>💰 Autorizado — seguir com OP</span>}
                     </div>
                   </div>
                 );
@@ -364,7 +364,7 @@ export default function ProcessosModule({ user, userInfo, onBack, onFiltros, onK
                       <div style={{ background:(COR_STATUS[p.status]||"#aaa")+"18", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:COR_STATUS[p.status]||"#aaa" }}>{p.status}</div>
                       <div style={{ background:(COR_PRIORIDADE[p.prioridade]||"#aaa")+"18", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:COR_PRIORIDADE[p.prioridade]||"#aaa" }}>⚡ {p.prioridade}</div>
                       {p.responsavel && <div style={{ fontSize:11, color:"#888" }}>👤 {p.responsavel}</div>}
-                      {p.instutoriaLiberada && <div style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#dcfce7", borderRadius:6, padding:"1px 7px", display:"inline-block", marginTop:3 }}>💰 Instrutoria liberada para pagamento</div>}
+                      {p.instrutoriaLiberada && <div style={{ fontSize:10, fontWeight:700, color:"#059669", background:"#dcfce7", borderRadius:6, padding:"1px 7px", display:"inline-block", marginTop:3 }}>💰 Instrutoria liberada para pagamento</div>}
                       {p.dataEntrada && <div style={{ fontSize:11, color:"#888" }}>📥 {formatDate(p.dataEntrada)}</div>}
                       {p.dataSaida && <div style={{ fontSize:11, color:atrasado?"#dc2626":urgente?"#E8730A":"#888", fontWeight:atrasado||urgente?700:400 }}>
                         📤 {formatDate(p.dataSaida)}{dias!==null?` (${atrasado?`${Math.abs(dias)}d atraso`:dias===0?"hoje":`${dias}d`})`:""}</div>}
