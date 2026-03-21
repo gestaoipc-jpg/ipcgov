@@ -19,6 +19,8 @@ import ProcessosFuturosPage from "./pages/ProcessosFuturosPage";
 import IPCCursosModule from "./pages/IPCCursosModule";
 import IPCCursosFormPage from "./pages/IPCCursosFormPage";
 import IPCCursosInstrutoresPage from "./pages/IPCCursosInstrutoresPage";
+import IPCIndicadoresModule from "./pages/IPCIndicadoresModule";
+import IPCIndicadoresDashboard from "./pages/IPCIndicadoresDashboard";
 import ProcessosKanbanPage from "./pages/ProcessosKanbanPage";
 import ProcessosFiltrosPage from "./pages/ProcessosFiltrosPage";
 import ProcessosAlertasPage from "./pages/ProcessosAlertasPage";
@@ -197,6 +199,8 @@ export default function App() {
   if (currentModule === "ipc_cursos") return <IPCCursosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onInstrutores={() => setCurrentModule("ipc_cursos_instrutores")} onFormProjeto={(p) => { setProjetoCursoSelected(p); setCurrentModule("ipc_cursos_form"); }} />;
   if (currentModule === "ipc_cursos_form") return <IPCCursosFormPage user={user} projeto={projetoCursoSelected} onBack={() => setCurrentModule("ipc_cursos")} onSaved={() => setCurrentModule("ipc_cursos")} />;
   if (currentModule === "ipc_cursos_instrutores") return <IPCCursosInstrutoresPage user={user} onBack={() => setCurrentModule("ipc_cursos")} />;
+  if (currentModule === "ipc_indicadores") return <IPCIndicadoresModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("ipc_indicadores_dashboard")} />;
+  if (currentModule === "ipc_indicadores_dashboard") return <IPCIndicadoresDashboard user={user} onBack={() => setCurrentModule("ipc_indicadores")} onIndicador={() => setCurrentModule("ipc_indicadores")} />;
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
