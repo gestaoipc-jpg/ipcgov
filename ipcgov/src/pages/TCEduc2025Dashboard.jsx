@@ -279,98 +279,88 @@ export default function TCEduc2025Dashboard({ onBack }) {
 
       <div style={{ padding:"20px 20px 60px", maxWidth:1200, margin:"0 auto" }}>
 
-        {/* RESULTADOS CHAVE sidebar + KPIs principais */}
-        <div style={{ display:"grid", gridTemplateColumns:"200px 1fr 1fr 1fr", gap:14, marginBottom:14, alignItems:"start" }}>
+        {/* LAYOUT PRINCIPAL: sidebar + grade de KPIs */}
+        <div style={{ display:"flex", gap:14, marginBottom:14, alignItems:"flex-start" }}>
 
-          {/* RESULTADOS CHAVE */}
-          <div style={{ background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", gap:10 }}>
+          {/* RESULTADOS CHAVE sidebar */}
+          <div style={{ width:180, flexShrink:0, background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", gap:8 }}>
             <div style={{ fontWeight:800, fontSize:13, color:"#1B3F7A", marginBottom:4, textAlign:"center" }}>Resultados<br/>Chave</div>
-            <div style={{ background:"#7c3aed", borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-              <div style={{ fontWeight:900, fontSize:28, color:"#fff" }}>{fmtNum(municipiosVisitados)}</div>
+            <div style={{ background:"#7c3aed", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>{fmtNum(municipiosVisitados)}</div>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>Municípios</div>
             </div>
-            <div style={{ background:"#0891b2", borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-              <div style={{ fontWeight:900, fontSize:28, color:"#fff" }}>{fmtNum(totalPresentes)}</div>
+            <div style={{ background:"#0891b2", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>{fmtNum(totalPresentes)}</div>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>Pessoas<br/>Capacitadas</div>
             </div>
-            <div style={{ background:"#059669", borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-              <div style={{ fontWeight:900, fontSize:28, color:"#fff" }}>90%</div>
+            <div style={{ background:"#059669", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>90%</div>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>Satisfação</div>
             </div>
-            <div style={{ background:"#ec4899", borderRadius:12, padding:"12px 10px", textAlign:"center" }}>
-              <div style={{ fontWeight:900, fontSize:20, color:"#fff" }}>{fmtBRL(custoTotal)}</div>
+            <div style={{ background:"#ec4899", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
+              <div style={{ fontWeight:900, fontSize:16, color:"#fff" }}>{fmtBRL(custoTotal)}</div>
               <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>Custo Total</div>
             </div>
           </div>
 
-          {/* KPI: Municípios visitados */}
-          <div style={cardStyle()}>
-            <div style={bigNum("#222")}>{fmtNum(municipiosVisitados)}</div>
-            <div style={label("#888")}>Municípios visitados</div>
-          </div>
+          {/* GRADE DE KPIs — 3 colunas × 3 linhas */}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", gap:10 }}>
+            {/* Linha 1: KPIs principais */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              <div style={cardStyle()}>
+                <div style={bigNum("#222")}>{fmtNum(municipiosVisitados)}</div>
+                <div style={label("#888")}>Municípios visitados</div>
+              </div>
+              <div style={cardStyle()}>
+                <div style={bigNum("#222")}>{fmtNum(totalPresentes)}</div>
+                <div style={label("#888")}>Participantes capacitados</div>
+              </div>
+              <div style={cardStyle()}>
+                <div style={{ fontWeight:900, fontSize:24, color:"#222", lineHeight:1, marginBottom:6 }}>{fmtBRL(custoTotal)}</div>
+                <div style={label("#888")}>Custo total</div>
+              </div>
+            </div>
 
-          {/* KPI: Participantes capacitados */}
-          <div style={cardStyle()}>
-            <div style={bigNum("#222")}>{fmtNum(totalPresentes)}</div>
-            <div style={label("#888")}>Participantes capacitados</div>
-          </div>
+            {/* Linha 2: KPIs secundários */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              <div style={cardStyle()}>
+                <div style={bigNum("#222")}>{fmtNum(totalInscritos)}</div>
+                <div style={label("#888")}>Participantes inscritos</div>
+              </div>
+              <div style={cardStyle()}>
+                <div style={bigNum("#222")}>{ausenciaAcum}%</div>
+                <div style={label("#888")}>Ausência acumulada</div>
+              </div>
+              <div style={cardStyle()}>
+                <div style={{ fontWeight:900, fontSize:26, color:"#222", lineHeight:1, marginBottom:6 }}>{fmtBRL(custoPorAluno)}</div>
+                <div style={label("#888")}>Custo por participante capacitado</div>
+              </div>
+            </div>
 
-          {/* KPI: Custo total */}
-          <div style={cardStyle()}>
-            <div style={{ fontWeight:900, fontSize:26, color:"#222", lineHeight:1, marginBottom:6 }}>{fmtBRL(custoTotal)}</div>
-            <div style={label("#888")}>Custo total</div>
-          </div>
-        </div>
-
-        {/* SEGUNDA LINHA */}
-        <div style={{ display:"grid", gridTemplateColumns:"200px 1fr 1fr 1fr", gap:14, marginBottom:14 }}>
-          <div/>
-          {/* Participantes inscritos */}
-          <div style={cardStyle()}>
-            <div style={bigNum("#222")}>{fmtNum(totalInscritos)}</div>
-            <div style={label("#888")}>Participantes inscritos</div>
-          </div>
-          {/* Ausência acumulada */}
-          <div style={cardStyle()}>
-            <div style={bigNum("#222")}>{ausenciaAcum}%</div>
-            <div style={label("#888")}>Ausência acumulada</div>
-          </div>
-          {/* Custo por participante */}
-          <div style={cardStyle()}>
-            <div style={{ fontWeight:900, fontSize:30, color:"#222", lineHeight:1, marginBottom:6 }}>{fmtBRL(custoPorAluno)}</div>
-            <div style={label("#888")}>Custo por participante capacitado</div>
-          </div>
-        </div>
-
-        {/* TERCEIRA LINHA: NLL / Conselhos / Ouvidoria */}
-        <div style={{ display:"grid", gridTemplateColumns:"200px 1fr 1fr 1fr", gap:14, marginBottom:14 }}>
-          <div/>
-
-          {/* NLL */}
-          <div style={{ ...cardStyle("#e8f4ff"), border:"none" }}>
-            <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A", marginBottom:12, borderBottom:"2px solid #1B3F7A", paddingBottom:8 }}>NLL</div>
-            <div style={{ fontWeight:700, fontSize:12, color:"#888", marginBottom:6 }}>Participantes</div>
-            <div style={bigNum("#1B3F7A")}>{fmtNum(nllPresentes)}</div>
-            <div style={{ marginTop:12, fontWeight:700, fontSize:12, color:"#888" }}>Média de participantes<br/>por município</div>
-            <div style={{ fontWeight:900, fontSize:28, color:"#1B3F7A" }}>{nllMediaMun}</div>
-          </div>
-
-          {/* Conselhos */}
-          <div style={{ ...cardStyle("#fce4ec"), border:"none" }}>
-            <div style={{ fontWeight:800, fontSize:16, color:"#c2185b", marginBottom:12, borderBottom:"2px solid #c2185b", paddingBottom:8 }}>Conselhos</div>
-            <div style={{ fontWeight:700, fontSize:12, color:"#888", marginBottom:6 }}>Participantes</div>
-            <div style={{ fontWeight:900, fontSize:36, color:"#c2185b", lineHeight:1, marginBottom:6 }}>{fmtNum(consPresentes)}</div>
-            <div style={{ marginTop:12, fontWeight:700, fontSize:12, color:"#888" }}>Média de participantes<br/>por regional</div>
-            <div style={{ fontWeight:900, fontSize:28, color:"#c2185b" }}>{consMediaReg}</div>
-          </div>
-
-          {/* Ouvidoria */}
-          <div style={{ ...cardStyle("#e8f5e9"), border:"none" }}>
-            <div style={{ fontWeight:800, fontSize:16, color:"#2e7d32", marginBottom:12, borderBottom:"2px solid #2e7d32", paddingBottom:8 }}>Ouvidoria</div>
-            <div style={{ fontWeight:700, fontSize:12, color:"#888", marginBottom:6 }}>Participantes</div>
-            <div style={{ fontWeight:900, fontSize:36, color:"#2e7d32", lineHeight:1, marginBottom:6 }}>{fmtNum(ouvPresentes)}</div>
-            <div style={{ marginTop:12, fontWeight:700, fontSize:12, color:"#888" }}>Média de participantes<br/>por regional</div>
-            <div style={{ fontWeight:900, fontSize:28, color:"#2e7d32" }}>{ouvMediaReg}</div>
+            {/* Linha 3: NLL / Conselhos / Ouvidoria */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              <div style={{ ...cardStyle("#e8f4ff"), border:"none" }}>
+                <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A", marginBottom:10, borderBottom:"2px solid #1B3F7A", paddingBottom:6 }}>NLL</div>
+                <div style={{ fontWeight:700, fontSize:11, color:"#888", marginBottom:4 }}>Participantes</div>
+                <div style={bigNum("#1B3F7A")}>{fmtNum(nllPresentes)}</div>
+                <div style={{ marginTop:10, fontWeight:700, fontSize:11, color:"#888" }}>Média por município</div>
+                <div style={{ fontWeight:900, fontSize:24, color:"#1B3F7A" }}>{nllMediaMun}</div>
+              </div>
+              <div style={{ ...cardStyle("#fce4ec"), border:"none" }}>
+                <div style={{ fontWeight:800, fontSize:15, color:"#c2185b", marginBottom:10, borderBottom:"2px solid #c2185b", paddingBottom:6 }}>Conselhos</div>
+                <div style={{ fontWeight:700, fontSize:11, color:"#888", marginBottom:4 }}>Participantes</div>
+                <div style={{ fontWeight:900, fontSize:32, color:"#c2185b", lineHeight:1, marginBottom:4 }}>{fmtNum(consPresentes)}</div>
+                <div style={{ marginTop:10, fontWeight:700, fontSize:11, color:"#888" }}>Média por regional</div>
+                <div style={{ fontWeight:900, fontSize:24, color:"#c2185b" }}>{consMediaReg}</div>
+              </div>
+              <div style={{ ...cardStyle("#e8f5e9"), border:"none" }}>
+                <div style={{ fontWeight:800, fontSize:15, color:"#2e7d32", marginBottom:10, borderBottom:"2px solid #2e7d32", paddingBottom:6 }}>Ouvidoria</div>
+                <div style={{ fontWeight:700, fontSize:11, color:"#888", marginBottom:4 }}>Participantes</div>
+                <div style={{ fontWeight:900, fontSize:32, color:"#2e7d32", lineHeight:1, marginBottom:4 }}>{fmtNum(ouvPresentes)}</div>
+                <div style={{ marginTop:10, fontWeight:700, fontSize:11, color:"#888" }}>Média por regional</div>
+                <div style={{ fontWeight:900, fontSize:24, color:"#2e7d32" }}>{ouvMediaReg}</div>
+              </div>
+            </div>
           </div>
         </div>
 
