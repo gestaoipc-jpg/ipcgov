@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase/config";
+import TCEduc2025Dashboard from "./TCEduc2025Dashboard";
 
 const MUNICIPIO_PATH_MAP = {
   "ABAIARA":"path608","ACARAPE":"path8001","ACARAÚ":"path640","ACOPIARA":"path892",
@@ -213,6 +214,10 @@ export default function DashboardPage({ onBack }) {
 
   const s = { fontFamily: "'Montserrat', sans-serif" };
 
+  if (filtroAno === "2025") {
+    return <TCEduc2025Dashboard onBack={onBack} />;
+  }
+
   return (
     <div style={{ minHeight:"100vh", background:"#E8EDF2", ...s }}>
       <style>{`
@@ -250,7 +255,7 @@ export default function DashboardPage({ onBack }) {
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end" }}>
               {/* Filtro Ano */}
-              {[{v:"todos",l:"Todos"},{v:"2026",l:"2026"},{v:"2027",l:"2027"}].map(a => (
+              {[{v:"todos",l:"Todos"},{v:"2025",l:"2025"},{v:"2026",l:"2026"},{v:"2027",l:"2027"}].map(a => (
                 <div key={a.v} onClick={() => setFiltroAno(a.v)} style={{ background: filtroAno===a.v ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)", border:`1px solid ${filtroAno===a.v ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{a.l}</div>
               ))}
               <div style={{ width:1, background:"rgba(255,255,255,0.2)", margin:"0 4px" }}/>
