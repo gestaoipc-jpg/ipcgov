@@ -9,7 +9,6 @@ const TIPOS = ["Curso Presencial","Curso EaD","Ambos"];
 
 export default function IPCCursosInstrutoresPage({ user, onBack }) {
   const [instrutores, setInstrutores] = useState([]);
-  const [servidores, setServidores]   = useState([]);
   const [loading, setLoading]         = useState(true);
   const [modal, setModal]             = useState(null);
   const [selected, setSelected]       = useState(null);
@@ -17,8 +16,7 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
   const [busca, setBusca]             = useState("");
   const [form, setForm]               = useState({
     nome:"", email:"", cpf:"", telefone:"", miniCurriculo:"",
-    tipo:"Ambos", servidorId:"", ehServidor:false,
-    banco:"", agencia:"", conta:"", pix:"",
+    tipo:"Ambos",
   });
 
   const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
@@ -29,22 +27,17 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [iSnap, sSnap, tcSnap] = await Promise.all([
-        getDocs(collection(db,"ipc_cursos_instrutores")),
-        getDocs(collection(db,"ipc_servidores")),
-        getDocs(collection(db,"tceduc_instrutores")),
-      ]);
+      const iSnap = await getDocs(collection(db,"ipc_cursos_instrutores"));
       setInstrutores(iSnap.docs.map(d=>({id:d.id,...d.data()})));
-      setServidores(sSnap.docs.map(d=>({id:d.id,...d.data()})));
       // Store TCEduc instrutores for import
-      window._tcInstrutores = tcSnap.docs.map(d=>({id:d.id,...d.data()}));
+
     } catch(e) { console.error(e); }
     setLoading(false);
   };
 
   const abrirNovo = () => {
     setSelected(null);
-    setForm({ nome:"", email:"", cpf:"", telefone:"", miniCurriculo:"", tipo:"Ambos", servidorId:"", ehServidor:false, banco:"", agencia:"", conta:"", pix:"" });
+    setForm({ nome:"", email:"", cpf:"", telefone:"", miniCurriculo:"", tipo:"Ambos" });
     setModal("form");
   };
 
@@ -79,35 +72,9 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
     setInstrutores(is => is.filter(x => x.id!==id));
   };
 
-  const importarDoTCEduc = async () => {
-    const tc = window._tcInstrutores || [];
-    if (!tc.length) { alert("Nenhum instrutor encontrado no TCEduc."); return; }
-    const existentes = instrutores.map(i => i.nome?.toLowerCase().trim());
-    const novos = tc.filter(i => !existentes.includes((i.nome||"").toLowerCase().trim()));
-    if (!novos.length) { alert("Todos os instrutores do TCEduc já estão cadastrados."); return; }
-    if (!window.confirm("Importar " + novos.length + " instrutor(es) do TCEduc?")) return;
-    setSalvando(true);
-    try {
-      await Promise.all(novos.map(inst => addDoc(collection(db,"ipc_cursos_instrutores"), {
-        nome: inst.nome||"", email: inst.email||"", cpf: inst.cpf||"",
-        miniCurriculo: inst.miniCurriculo||"", tipo:"Ambos",
-        ehServidor: false, importadoDoTCEduc: true,
-        criadoEm: new Date().toISOString(), criadoPor: user?.email||"sistema",
-      })));
-      await loadAll();
-      alert(novos.length + " instrutor(es) importado(s) com sucesso!");
-    } catch(e) { console.error(e); alert("Erro ao importar."); }
-    setSalvando(false);
-  };
 
-  const selecionarServidor = (servidorId) => {
-    const srv = servidores.find(s => s.id === servidorId);
-    if (srv) {
-      setForm(f => ({ ...f, servidorId, nome: srv.nome||"", email: srv.email||"", ehServidor: true }));
-    } else {
-      setForm(f => ({ ...f, servidorId:"", ehServidor: false }));
-    }
-  };
+
+
 
   const filtrados = instrutores.filter(i =>
     !busca || (i.nome||"").toLowerCase().includes(busca.toLowerCase())
@@ -126,10 +93,7 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
               <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>👨‍🏫 Cadastro de Instrutores</div>
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-              <div onClick={importarDoTCEduc} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                ↙ Importar do TCEduc
-              </div>
-              <div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>
+<div onClick={abrirNovo} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>
                 + Novo Instrutor
               </div>
             </div>
@@ -164,7 +128,6 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
                 </div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                   <span style={{ background:"#eff6ff", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:"#1B3F7A" }}>{inst.tipo||"Ambos"}</span>
-                  {inst.ehServidor && <span style={{ background:"#f0fdf4", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:"#059669" }}>Servidor IPC</span>}
                   {inst.importadoDoTCEduc && <span style={{ background:"#f5f3ff", borderRadius:6, padding:"2px 8px", fontSize:10, fontWeight:700, color:"#7c3aed" }}>TCEduc</span>}
                 </div>
                 {inst.email && <div style={{ fontSize:12, color:"#888", marginBottom:4 }}>✉️ {inst.email}</div>}
@@ -184,25 +147,7 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
               <div onClick={() => setModal(null)} style={{ width:36, height:36, background:"#f0f4ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#1B3F7A" }}>✕</div>
             </div>
 
-            {/* Servidor IPC */}
-            <div style={{ background:"#f0fdf4", borderRadius:12, padding:"14px 16px", marginBottom:20, border:"1px solid #c8e6c9" }}>
-              <div style={{ fontSize:13, fontWeight:700, color:"#059669", marginBottom:10 }}>👤 É servidor do IPC?</div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:form.ehServidor?10:0 }}
-                onClick={() => setForm(f => ({ ...f, ehServidor:!f.ehServidor, servidorId:"" }))}>
-                <div style={{ width:20, height:20, borderRadius:6, border:"2px solid "+(form.ehServidor?"#059669":"#ccc"), background:form.ehServidor?"#059669":"#fff", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:12, cursor:"pointer" }}>
-                  {form.ehServidor && "✓"}
-                </div>
-                <span style={{ fontSize:13, color:"#333" }}>Sim, é servidor do IPC</span>
-              </div>
-              {form.ehServidor && (
-                <select value={form.servidorId||""} onChange={e=>selecionarServidor(e.target.value)} style={inp}>
-                  <option value="">Selecione o servidor...</option>
-                  {servidores.sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).map(s => (
-                    <option key={s.id} value={s.id}>{s.nome}</option>
-                  ))}
-                </select>
-              )}
-            </div>
+
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
               <div style={{ gridColumn:"1/-1" }}>
@@ -232,26 +177,7 @@ export default function IPCCursosInstrutoresPage({ user, onBack }) {
                 <textarea value={form.miniCurriculo} onChange={e=>setForm(f=>({...f,miniCurriculo:e.target.value}))} style={{ ...inp, minHeight:80, resize:"vertical" }}/>
               </div>
 
-              {/* Dados bancários */}
-              <div style={{ gridColumn:"1/-1", marginTop:8 }}>
-                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:12 }}>🏦 Dados para Pagamento</div>
-              </div>
-              <div>
-                <label style={lbl}>Banco</label>
-                <input value={form.banco||""} onChange={e=>setForm(f=>({...f,banco:e.target.value}))} style={inp}/>
-              </div>
-              <div>
-                <label style={lbl}>Agência</label>
-                <input value={form.agencia||""} onChange={e=>setForm(f=>({...f,agencia:e.target.value}))} style={inp}/>
-              </div>
-              <div>
-                <label style={lbl}>Conta</label>
-                <input value={form.conta||""} onChange={e=>setForm(f=>({...f,conta:e.target.value}))} style={inp}/>
-              </div>
-              <div>
-                <label style={lbl}>PIX</label>
-                <input value={form.pix||""} onChange={e=>setForm(f=>({...f,pix:e.target.value}))} style={inp}/>
-              </div>
+
             </div>
 
             <button onClick={salvar} disabled={salvando} style={{ width:"100%", marginTop:24, background:salvando?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
