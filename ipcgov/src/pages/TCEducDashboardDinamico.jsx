@@ -72,6 +72,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
 
   const viagensFiltradas = viagens.filter(v => {
     if (filtroViagem !== "todos" && v.id !== filtroViagem) return false;
+    if (filtroTipo !== "todos" && (v.modalidade || "Municipal") !== filtroTipo) return false;
     if (filtroMes !== "todos") {
       const mesInicio = parseInt((v.dataInicio||"").split("-")[1]);
       const mesFim = parseInt((v.dataFim||v.dataInicio||"").split("-")[1]);
