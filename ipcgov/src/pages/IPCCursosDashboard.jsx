@@ -104,12 +104,13 @@ export default function IPCCursosDashboard({ user, onBack, onSeed }) {
       .catch(() => setLoading(false));
   }, []);
 
-  const PUBLICOS_SERV = ["Servidores", "Membros", "Serv+Membros", "Serv+Colaborador"];
-  const PUBLICOS_JUR = ["Jurisdicionado", "Público"];
+  const PUBLICOS_SERV = ["Servidores", "Membros", "Serv+Membros", "Serv+Colaborador", "Público"];
+  const PUBLICOS_JUR = ["Jurisdicionado", "Público", "Sociedade"];
 
-  // Filter for Servidores
+  // Filter for Servidores — usa categoriaFormacao se disponível, senão publicoAlvo
   const projServ = projetos.filter(p => {
-    if (!PUBLICOS_SERV.includes(p.publicoAlvo)) return false;
+    const isServ = p.categoriaFormacao === "servidores" || (!p.categoriaFormacao && PUBLICOS_SERV.includes(p.publicoAlvo) && !["Jurisdicionado","Sociedade"].includes(p.publicoAlvo));
+    if (!isServ) return false;
     if (filtroAnoServ !== "todos" && !(p.data||"").startsWith(filtroAnoServ)) return false;
     if (filtroMesServ !== "todos" && parseInt((p.data||"").split("-")[1]) !== parseInt(filtroMesServ)) return false;
     if (filtroModalServ !== "todos" && p.modalidade !== filtroModalServ) return false;
@@ -119,9 +120,10 @@ export default function IPCCursosDashboard({ user, onBack, onSeed }) {
     return true;
   });
 
-  // Filter for Jurisdicionados
+  // Filter for Jurisdicionados — usa categoriaFormacao se disponível
   const projJur = projetos.filter(p => {
-    if (!PUBLICOS_JUR.includes(p.publicoAlvo)) return false;
+    const isJur = p.categoriaFormacao === "jurisdicionados" || (!p.categoriaFormacao && PUBLICOS_JUR.includes(p.publicoAlvo) && p.categoriaFormacao !== "servidores");
+    if (!isJur) return false;
     if (filtroAnoJur !== "todos" && !(p.data||"").startsWith(filtroAnoJur)) return false;
     if (filtroMesJur !== "todos" && parseInt((p.data||"").split("-")[1]) !== parseInt(filtroMesJur)) return false;
     if (filtroModalJur !== "todos" && p.modalidade !== filtroModalJur) return false;
