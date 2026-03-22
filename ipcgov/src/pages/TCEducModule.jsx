@@ -650,7 +650,10 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
           ) : (() => {
             const corStatus = { "Programado": "#7c3aed", "Em Execução": "#E8730A", "Realizado": "#059669", "Concluída": "#059669", "Cancelado": "#dc2626" };
             const sortDesc = (arr) => [...arr].sort((a, b) => (b.dataInicio || "").localeCompare(a.dataInicio || ""));
-            const programadas = sortDesc(viagens.filter(v => v.status === "Programado" || v.status === "Programada" || v.status === "Em Execução"));
+            const sortAsc  = (arr) => [...arr].sort((a, b) => (a.dataInicio || "").localeCompare(b.dataInicio || ""));
+            const emExecucao  = viagens.filter(v => v.status === "Em Execução");
+            const soProgramadas = sortAsc(viagens.filter(v => v.status === "Programado" || v.status === "Programada"));
+            const programadas = [...emExecucao, ...soProgramadas];
             const concluidas  = sortDesc(viagens.filter(v => v.status === "Realizado"  || v.status === "Concluída"  || v.status === "Cancelado"));
 
             const renderCard = (v) => {
