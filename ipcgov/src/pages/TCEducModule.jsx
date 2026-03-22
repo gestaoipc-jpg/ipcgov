@@ -647,35 +647,73 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             <div style={{ background: "#fff", borderRadius: 16, padding: "24px", textAlign: "center", color: "#aaa", fontSize: 13 }}>
               Nenhuma viagem cadastrada ainda
             </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-              {viagens.map(v => {
-                const corStatus = { Programada: "#7c3aed", "Em Execução": "#E8730A", Concluída: "#059669" };
-                const cor = corStatus[v.status] || "#888";
-                const eventsVinc = eventos.filter(e => (v.municipiosIds || []).includes(e.id));
-                const totalCap = eventsVinc.reduce((s, e) => s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
-                return (
-                  <div key={v.id} onClick={() => { setSelectedViagem(v); setViewViagem(true); }}
-                    style={{ background: "#fff", borderRadius: 16, padding: "18px 20px", cursor: "pointer", border: `2px solid ${cor}22`, boxShadow: "0 2px 12px rgba(27,63,122,0.07)", transition: "all .15s" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                      <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A", flex: 1, paddingRight: 8 }}>{v.titulo}</div>
-                      <div style={{ background: cor, borderRadius: 8, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{v.status}</div>
+          ) : (() => {
+            const corStatus = { "Programado": "#7c3aed", "Em Execução": "#E8730A", "Realizado": "#059669", "Concluída": "#059669", "Cancelado": "#dc2626" };
+            const sortDesc = (arr) => [...arr].sort((a, b) => (b.dataInicio || "").localeCompare(a.dataInicio || ""));
+            const programadas = sortDesc(viagens.filter(v => v.status === "Programado" || v.status === "Programada" || v.status === "Em Execução"));
+            const concluidas  = sortDesc(viagens.filter(v => v.status === "Realizado"  || v.status === "Concluída"  || v.status === "Cancelado"));
+
+            const renderCard = (v) => {
+              const cor = corStatus[v.status] || "#888";
+              const eventsVinc = eventos.filter(e => (v.municipiosIds || []).includes(e.id));
+              const totalCap = eventsVinc.reduce((s, e) => s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
+              return (
+                <div key={v.id} onClick={() => { setSelectedViagem(v); setViewViagem(true); }}
+                  style={{ background: "#fff", borderRadius: 16, padding: "18px 20px", cursor: "pointer",
+                    border: "2px solid " + cor + "33", boxShadow: "0 2px 12px rgba(27,63,122,0.07)", transition: "all .15s",
+                    minWidth: 260, flex: "1 1 260px", maxWidth: 340 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: "#1B3F7A", flex: 1, paddingRight: 8, lineHeight: 1.3 }}>{v.titulo}</div>
+                    <div style={{ background: cor, borderRadius: 8, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#fff", whiteSpace: "nowrap", flexShrink: 0 }}>{v.status}</div>
+                  </div>
+                  {(v.dataInicio || v.dataFim) && (
+                    <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
+                      📅 {v.dataInicio ? v.dataInicio.split("-").reverse().join("/") : "—"}{v.dataFim ? " → " + v.dataFim.split("-").reverse().join("/") : ""}
                     </div>
-                    {(v.dataInicio || v.dataFim) && (
-                      <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>
-                        📅 {v.dataInicio ? v.dataInicio.split("-").reverse().join("/") : "—"}{v.dataFim ? ` → ${v.dataFim.split("-").reverse().join("/")}` : ""}
-                      </div>
-                    )}
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 12, color: "#888" }}>📍 {eventsVinc.length} município{eventsVinc.length !== 1 ? "s" : ""}</div>
-                      <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>👥 {totalCap} capacitados</div>
-                      {(v.ocorrencias || []).length > 0 && <div style={{ fontSize: 12, color: "#E8730A", fontWeight: 700 }}>⚠️ {v.ocorrencias.length} ocorr.</div>}
+                  )}
+                  {v.modalidade && (
+                    <div style={{ fontSize: 11, color: v.modalidade === "Regional" ? "#7c3aed" : "#0891b2", fontWeight: 700, marginBottom: 6 }}>
+                      {v.modalidade === "Regional" ? "🗺️ Regional" : "🏘️ Municipal"}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12, color: "#888" }}>📍 {eventsVinc.length} município{eventsVinc.length !== 1 ? "s" : ""}</div>
+                    {totalCap > 0 && <div style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>👥 {totalCap} capacitados</div>}
+                    {(v.ocorrencias || []).length > 0 && <div style={{ fontSize: 12, color: "#E8730A", fontWeight: 700 }}>⚠️ {v.ocorrencias.length} ocorr.</div>}
+                  </div>
+                </div>
+              );
+            };
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {programadas.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#7c3aed" }} />
+                      Programadas / Em Execução
+                      <span style={{ background: "#f3e8ff", color: "#7c3aed", borderRadius: 6, padding: "1px 8px", fontSize: 11 }}>{programadas.length}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {programadas.map(v => renderCard(v))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
+                {concluidas.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#059669" }} />
+                      Concluídas
+                      <span style={{ background: "#dcfce7", color: "#059669", borderRadius: 6, padding: "1px 8px", fontSize: 11 }}>{concluidas.length}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {concluidas.map(v => renderCard(v))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
