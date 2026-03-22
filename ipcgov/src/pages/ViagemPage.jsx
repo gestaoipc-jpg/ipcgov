@@ -3,6 +3,37 @@ import emailjs from "@emailjs/browser";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
+const MUNICIPIOS_CEARA = [
+  "ABAIARA","ACARAÚ","ACARAPE","ACOPIARA","AIUABA","ALCÂNTARAS","ALTANEIRA","ALTO SANTO",
+  "AMONTADA","ANTONINA DO NORTE","APUIARÉS","AQUIRAZ","ARACATI","ARACOIABA","ARARENDÁ",
+  "ARARIPE","ARATUBA","ARNEIROZ","ASSARÉ","AURORA","BAIXIO","BANABUIÚ","BARBALHA",
+  "BARREIRA","BARRO","BARROQUINHA","BATURITÉ","BEBERIBE","BELA CRUZ","BOA VIAGEM",
+  "BREJO SANTO","CAMOCIM","CAMPOS SALES","CANINDÉ","CAPISTRANO","CARIDADE","CARIRÉ",
+  "CARIRIAÇU","CARIÚS","CARNAUBAL","CASCAVEL","CATARINA","CATUNDA","CAUCAIA","CEDRO",
+  "CHAVAL","CHORÓ","CHOROZINHO","COREAÚ","CRATEÚS","CRATO","CROATÁ","CRUZ",
+  "DEP. IRAPUÃ PINHEIRO","ERERÉ","EUSÉBIO","FARIAS BRITO","FORQUILHA","FORTALEZA",
+  "FORTIM","FRECHEIRINHA","GENERAL SAMPAIO","GRAÇA","GRANJA","GRANJEIRO","GROAÍRAS",
+  "GUAIÚBA","GUARACIABA DO NORTE","GUARAMIRANGA","HIDROLÂNDIA","HORIZONTE","IBARETAMA",
+  "IBIAPINA","IBICUITINGA","ICAPUÍ","ICÓ","IGUATU","INDEPENDÊNCIA","IPAPORANGA",
+  "IPAUMIRIM","IPU","IPUEIRAS","IRACEMA","IRAUÇUBA","ITAIÇABA","ITAITINGA","ITAPAJÉ",
+  "ITAPIPOCA","ITAPIÚNA","ITAREMA","ITATIRA","JAGUARETAMA","JAGUARIBARA","JAGUARIBE",
+  "JAGUARUANA","JARDIM","JATI","JIJOCA DE JERICOACOARA","JUAZEIRO DO NORTE","JUCÁS",
+  "LAVRAS DA MANGABEIRA","LIMOEIRO DO NORTE","MADALENA","MARACANAÚ","MARANGUAPE",
+  "MARCO","MARTINÓPOLE","MASSAPÊ","MAURITI","MILAGRES","MILHÃ","MIRAÍMA","MISSÃO VELHA",
+  "MOMBAÇA","MONSENHOR TABOSA","MORADA NOVA","MORAÚJO","MORRINHOS","MUCAMBO","MULUNGU",
+  "NOVA OLINDA","NOVA RUSSAS","NOVO ORIENTE","OCARA","ORÓS","PACAJUS","PACATUBA",
+  "PACOTI","PACUJÁ","PALHANO","PALMÁCIA","PARACURU","PARAIPABA","PARAMBU","PARAMOTI",
+  "PEDRA BRANCA","PENAFORTE","PENTECOSTE","PEREIRO","PINDORETAMA","PIQUET CARNEIRO",
+  "PIRES FERREIRA","PORANGA","POTENGI","POTIRETAMA","QUITERIANÓPOLIS","QUIXADÁ",
+  "QUIXELÔ","QUIXERAMOBIM","QUIXERÉ","REDENÇÃO","RERIUTABA","RUSSAS","SABOEIRO",
+  "SALITRE","SANTA QUITÉRIA","SANTANA DO ACARAÚ","SANTANA DO CARIRI","SÃO BENEDITO",
+  "SÃO GONÇALO DO AMARANTE","SÃO JOÃO DO JAGUARIBE","SÃO LUÍS DO CURU","SENADOR POMPEU",
+  "SENADOR SÁ","SOBRAL","SOLONÓPOLE","TABULEIRO DO NORTE","TAMBORIL","TARRAFAS","TAUÁ",
+  "TEJUÇUOCA","TIANGUÁ","TRAIRÍ","TURURU","UBAJARA","UMIRIM","URUBURETAMA","URUOCA",
+  "VARJOTA","VÁRZEA ALEGRE","VIÇOSA DO CEARÁ"
+].sort();
+
+
 const EMAILJS_SERVICE = "service_m6wjek9";
 const EMAILJS_TEMPLATE = "template_lglpt37";
 const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
@@ -79,7 +110,7 @@ const btnDel = {
 };
 
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
-  const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], equipe: [] });
+  const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], municipiosAtendidos: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
@@ -110,6 +141,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const [custoInstrutoria, setCustoInstrutoria] = useState("");
   const [custoDiarias, setCustoDiarias] = useState("");
   const [planoAcaoViagem, setPlanoAcaoViagem] = useState(null);
+  const [buscaMunAtendido, setBuscaMunAtendido] = useState("");
   const [novaAcaoV, setNovaAcaoV] = useState({ titulo:"", descricao:"", prioridade:"Média", prazo:"", responsavelTipo:"servidor", responsavelId:"", responsavelNome:"", responsavelEmail:"", responsavelOutroNome:"", responsavelOutroEmail:"" });
   const [salvandoAcaoV, setSalvandoAcaoV] = useState(false);
   const [equipamentos, setEquipamentos] = useState([]); // lista de equipamentos a levar
@@ -149,7 +181,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
 
   useEffect(() => {
     if (viagem) {
-      setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", modalidade: viagem.modalidade || "Municipal", municipiosIds: viagem.municipiosIds || [], equipe: viagem.equipe || [] });
+      setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", modalidade: viagem.modalidade || "Municipal", municipiosIds: viagem.municipiosIds || [], municipiosAtendidos: viagem.municipiosAtendidos || [], equipe: viagem.equipe || [] });
       setChecklist(viagem.checklist || {});
       setItensCustom(viagem.itensCustom || []);
       setOcorrencias(viagem.ocorrencias || []);
@@ -362,7 +394,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   const salvar = async () => {
     if (!form.titulo.trim()) { alert("Informe o título da viagem."); return; }
     setSalvando(true);
-    const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, modalidade: form.modalidade || "Municipal", municipiosIds: form.municipiosIds, equipe: form.equipe, status, ...todosOsDados() };
+    const dados = { titulo: form.titulo.trim(), dataInicio: form.dataInicio, dataFim: form.dataFim, modalidade: form.modalidade || "Municipal", municipiosIds: form.municipiosIds, municipiosAtendidos: form.modalidade === "Regional" ? form.municipiosAtendidos : [], equipe: form.equipe, status, ...todosOsDados() };
     try {
       let viagemId = viagem?.id;
       if (viagem?.id) {
@@ -582,6 +614,52 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 ))}
               </div>
             </div>
+            {/* MUNICÍPIOS ATENDIDOS — apenas para Regional */}
+            {form.modalidade === "Regional" && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={lbl}>🗺️ Municípios Atendidos pela Regional ({form.municipiosAtendidos.length} selecionados)</label>
+                <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>Selecione todos os municípios que esta regional cobre (além da sede)</div>
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar município..."
+                  value={buscaMunAtendido}
+                  onChange={e => setBuscaMunAtendido(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: 10, border: "1px solid #e8edf2", fontSize: 13, marginBottom: 8, fontFamily: "'Montserrat',sans-serif", outline: "none" }}
+                />
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <div onClick={() => setForm(f => ({ ...f, municipiosAtendidos: MUNICIPIOS_CEARA }))}
+                    style={{ fontSize: 11, color: "#1B3F7A", fontWeight: 700, cursor: "pointer", background: "#eff6ff", borderRadius: 6, padding: "3px 10px" }}>
+                    Selecionar todos
+                  </div>
+                  <div onClick={() => setForm(f => ({ ...f, municipiosAtendidos: [] }))}
+                    style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, cursor: "pointer", background: "#fee2e2", borderRadius: 6, padding: "3px 10px" }}>
+                    Limpar
+                  </div>
+                </div>
+                <div style={{ background: "#f8f9fb", borderRadius: 12, padding: 10, maxHeight: 220, overflowY: "auto", border: "1px solid #e8edf2" }}>
+                  {MUNICIPIOS_CEARA.filter(m => m.toLowerCase().includes(buscaMunAtendido.toLowerCase())).map(mun => (
+                    <div key={mun} onClick={() => setForm(f => ({
+                        ...f,
+                        municipiosAtendidos: f.municipiosAtendidos.includes(mun)
+                          ? f.municipiosAtendidos.filter(x => x !== mun)
+                          : [...f.municipiosAtendidos, mun]
+                      }))}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px", borderRadius: 8, cursor: "pointer",
+                        background: form.municipiosAtendidos.includes(mun) ? "#eff6ff" : "transparent", marginBottom: 2 }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                        background: form.municipiosAtendidos.includes(mun) ? "#1B3F7A" : "#fff",
+                        border: "2px solid " + (form.municipiosAtendidos.includes(mun) ? "#1B3F7A" : "#ddd"),
+                        display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10 }}>
+                        {form.municipiosAtendidos.includes(mun) ? "✓" : ""}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: form.municipiosAtendidos.includes(mun) ? 700 : 400,
+                        color: form.municipiosAtendidos.includes(mun) ? "#1B3F7A" : "#333" }}>{mun}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={salvar} disabled={salvando || !form.titulo.trim()} style={{ flex: 1, background: salvando || !form.titulo.trim() ? "#ccc" : "linear-gradient(135deg,#1B3F7A,#2a5ba8)", border: "none", borderRadius: 12, padding: 14, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>{salvando ? "Salvando..." : "💾 Salvar Viagem"}</button>
               {viagem && <button onClick={() => setModoEdicao(false)} style={{ background: "#f0f4ff", border: "none", borderRadius: 12, padding: "14px 20px", color: "#1B3F7A", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" }}>Cancelar</button>}
@@ -1147,6 +1225,22 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
             {blocoAtivo === "municipios" && (
               <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#059669", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 4, height: 18, background: "#059669", borderRadius: 2 }} />📍 Municípios / Eventos da Viagem</div>
+                {/* Municípios atendidos pela regional */}
+                {viagem.modalidade === "Regional" && (viagem.municipiosAtendidos || []).length > 0 && (
+                  <div style={{ background: "#f0f4ff", borderRadius: 14, padding: "14px 16px", marginBottom: 16, border: "1px solid #dbeafe" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      🗺️ Municípios Atendidos pela Regional
+                      <span style={{ background: "#1B3F7A", color: "#fff", borderRadius: 6, padding: "1px 8px", fontSize: 11, fontWeight: 700 }}>
+                        {(viagem.municipiosAtendidos || []).length}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(viagem.municipiosAtendidos || []).sort().map(m => (
+                        <span key={m} style={{ background: "#fff", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 600, color: "#1B3F7A", border: "1px solid #bfdbfe" }}>{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {eventosVinculados.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", padding: 24 }}>Nenhum evento vinculado</div> : eventosVinculados.map((ev) => {
                   const cap = (ev.acoesEducacionais||[]).reduce((s,a)=>s+(parseInt(a.participantes)||0),0);
                   const emq = equipeMunicipio[ev.id] || { motoristas: [], apoios: [] };
