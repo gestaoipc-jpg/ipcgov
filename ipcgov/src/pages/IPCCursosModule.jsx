@@ -273,6 +273,7 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
   };
 
   const filtrados = projetos.filter(p => {
+    if (p.seedAno) return false; // histórico seed — não aparece na listagem
     if (filtroStatus !== "todos" && p.status !== filtroStatus) return false;
     if (filtroTipo !== "todos" && p.modalidade !== filtroTipo) return false;
     if (busca) {
