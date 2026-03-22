@@ -19,6 +19,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   const [filtroMunicipio, setFiltroMunicipio] = useState("todos");
   const [filtroViagem, setFiltroViagem] = useState("todos");
   const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
 
   const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
@@ -61,6 +62,7 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   // Apply filters
   const eventosFiltrados = eventos.filter(e => {
     if (filtroTipo !== "todos" && e._modalidade !== filtroTipo) return false;
+    if (filtroStatus !== "todos" && e.status !== filtroStatus) return false;
     if (filtroViagem !== "todos" && e._viagemId !== filtroViagem) return false;
     if (filtroMunicipio !== "todos" && (e.municipio || e.regiao) !== filtroMunicipio) return false;
     if (filtroMes !== "todos") {
@@ -188,8 +190,15 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
               <option value="Regional" style={{ color:"#1B3F7A",background:"#fff" }}>Regional</option>
             </select>
           )}
-          {(filtroMes!=="todos"||filtroMunicipio!=="todos"||filtroViagem!=="todos"||filtroTipo!=="todos") && (
-            <div onClick={()=>{setFiltroMes("todos");setFiltroMunicipio("todos");setFiltroViagem("todos");setFiltroTipo("todos");}}
+          <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)}
+            style={{ background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"6px 12px",color:"#fff",fontSize:12,fontWeight:600,outline:"none",cursor:"pointer" }}>
+            <option value="todos" style={{ color:"#1B3F7A",background:"#fff" }}>Todos os status</option>
+            <option value="Em Execução" style={{ color:"#1B3F7A",background:"#fff" }}>Em Execução</option>
+            <option value="Programado" style={{ color:"#1B3F7A",background:"#fff" }}>Programado</option>
+            <option value="Realizado" style={{ color:"#1B3F7A",background:"#fff" }}>Realizado / Concluído</option>
+          </select>
+          {(filtroMes!=="todos"||filtroMunicipio!=="todos"||filtroViagem!=="todos"||filtroTipo!=="todos"||filtroStatus!=="todos") && (
+            <div onClick={()=>{setFiltroMes("todos");setFiltroMunicipio("todos");setFiltroViagem("todos");setFiltroTipo("todos");setFiltroStatus("todos");}}
               style={{ background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.4)",borderRadius:8,padding:"6px 12px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer" }}>
               ✕ Limpar
             </div>
