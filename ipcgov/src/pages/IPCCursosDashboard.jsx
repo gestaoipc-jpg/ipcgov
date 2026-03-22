@@ -131,7 +131,7 @@ export default function IPCCursosDashboard({ user, onBack, onSeed }) {
   });
 
   // ── SERVIDORES stats ──────────────────────────────────────────────────────────
-  const realizadasServ = projServ.filter(p => p.status === "Realizado" || p.status === "Aprovado");
+  const realizadasServ = projServ.filter(p => (p.status === "Realizado" || p.status === "Aprovado") && p.realizacao !== "Externa");
   const viabilizadasServ = projServ.filter(p => p.realizacao === "Externa");
 
   const cursosServ = new Set(realizadasServ.map(p => p.nomeCurso)).size;
