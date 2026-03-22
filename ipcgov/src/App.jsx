@@ -19,6 +19,7 @@ import ProcessosFuturosPage from "./pages/ProcessosFuturosPage";
 import IPCCursosModule from "./pages/IPCCursosModule";
 import IPCCursosFormPage from "./pages/IPCCursosFormPage";
 import IPCCursosDashboard from "./pages/IPCCursosDashboard";
+import IPCCursos2025SeedPage from "./pages/IPCCursos2025SeedPage";
 import IPCCursosInstrutoresPage from "./pages/IPCCursosInstrutoresPage";
 import IPCIndicadoresModule from "./pages/IPCIndicadoresModule";
 import IPCIndicadoresDashboard from "./pages/IPCIndicadoresDashboard";
@@ -201,7 +202,8 @@ export default function App() {
   if (currentModule === "processos_futuros") return <ProcessosFuturosPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "ipc_cursos") return <IPCCursosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onInstrutores={() => setCurrentModule("ipc_cursos_instrutores")} onFormProjeto={(p) => { setProjetoCursoSelected(p); setCurrentModule("ipc_cursos_form"); }} onDashboard={() => setCurrentModule("ipc_cursos_dashboard")} />;
   if (currentModule === "ipc_cursos_form") return <IPCCursosFormPage user={user} userInfo={userInfo} projeto={projetoCursoSelected} onBack={() => setCurrentModule("ipc_cursos")} onSaved={() => { setProjetoCursoSelected(null); setCurrentModule("ipc_cursos"); }} />;
-  if (currentModule === "ipc_cursos_dashboard") return <IPCCursosDashboard user={user} onBack={() => setCurrentModule("ipc_cursos")} />;
+  if (currentModule === "ipc_cursos_dashboard") return <IPCCursosDashboard user={user} onBack={() => setCurrentModule("ipc_cursos")} onSeed={() => setCurrentModule("ipc_cursos_seed_2025")} />;
+  if (currentModule === "ipc_cursos_seed_2025") return <IPCCursos2025SeedPage onBack={() => setCurrentModule("ipc_cursos_dashboard")} />;
   if (currentModule === "ipc_cursos_instrutores") return <IPCCursosInstrutoresPage user={user} onBack={() => setCurrentModule("ipc_cursos")} />;
   if (currentModule === "ipc_indicadores") return <IPCIndicadoresModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("ipc_indicadores_dashboard")} onSeed={() => setCurrentModule("ipc_indicadores_seed")} />;
   if (currentModule === "ipc_indicadores_dashboard") return <IPCIndicadoresDashboard user={user} onBack={() => setCurrentModule("ipc_indicadores")} onIndicador={() => setCurrentModule("ipc_indicadores")} />;
