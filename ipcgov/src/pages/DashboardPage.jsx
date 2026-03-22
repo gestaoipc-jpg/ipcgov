@@ -13,7 +13,7 @@ function normMun(str) {
 }
 
 // ─── Mapa do Ceará com D3 + API IBGE ──────────────────────────────────────────
-function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municipaisPendentes, evFiltrados, filtroStatus, filtroAno, viagens, setTooltip }) {
+function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municipaisPendentes, evFiltrados, filtroStatus, filtroAno, filtroTipo, viagens, setTooltip }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -57,16 +57,18 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
     const realizadosNorm = new Set(municipaisRealizados.map(e => normMun(e.municipio || e.regiao)));
     const pendentesNorm  = new Set(municipaisPendentes.map(e => normMun(e.municipio || e.regiao)));
 
-    // Build set of municipios covered by regional viagens — respeitando filtroStatus
+    // Build set de municípios atendidos por regionais — só quando filtro NÃO é Municipal
     const regionaisAtendidos = new Set();
-    (viagens || []).filter(v => {
-      if (v.modalidade !== "Regional") return false;
-      if (filtroStatus === "todos") return true;
-      if (filtroStatus === "Realizado") return v.status === "Realizado" || v.status === "Concluída";
-      return v.status === filtroStatus;
-    }).forEach(v => {
-      (v.municipiosAtendidos || []).forEach(m => regionaisAtendidos.add(normMun(m)));
-    });
+    if (filtroTipo !== "Municipal") {
+      (viagens || []).filter(v => {
+        if (v.modalidade !== "Regional") return false;
+        if (filtroStatus === "todos") return true;
+        if (filtroStatus === "Realizado") return v.status === "Realizado" || v.status === "Concluída";
+        return v.status === filtroStatus;
+      }).forEach(v => {
+        (v.municipiosAtendidos || []).forEach(m => regionaisAtendidos.add(normMun(m)));
+      });
+    }
 
     const getColor = (feat) => {
       const nm = normMun(feat.properties?.NM_MUN || feat.properties?.name || "");
@@ -365,6 +367,7 @@ export default function DashboardPage({ onBack }) {
               evFiltrados={evFiltrados}
               filtroStatus={filtroStatus}
               filtroAno={filtroAno}
+              filtroTipo={filtroTipo}
               viagens={viagens}
               setTooltip={setTooltip}
             />
