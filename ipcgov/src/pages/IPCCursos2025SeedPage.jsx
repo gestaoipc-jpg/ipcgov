@@ -25,13 +25,7 @@ export default function IPCCursos2025SeedPage({ onBack }) {
     setLog([]);
 
     try {
-      // Load full data from JSON embedded in page
-      const response = await fetch("/ipc_cursos_2025_data.json").catch(() => null);
-      let dados = SEED_DATA;
-      if (response?.ok) {
-        dados = await response.json();
-      }
-
+      const dados = SEED_DATA;
       setTotalReal(dados.length);
       let criados = 0, pulados = 0;
 
