@@ -187,7 +187,7 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
     const tramitado = projeto.status === "Tramitado" || projeto.status === "Aprovado";
     if (tramitado && !isAdminGlobal) { alert("Apenas administradores podem excluir projetos tramitados."); return; }
     if (!motivoExclusao.trim()) { alert("Informe o motivo da exclusão."); return; }
-    if (!window.confirm("Confirmar exclusão do projeto "" + projeto.nomeCurso + ""?")) return;
+    if (!window.confirm("Confirmar exclusão do projeto: " + projeto.nomeCurso + "?")) return;
     setSalvando(true);
     try {
       // LOG antes de excluir
