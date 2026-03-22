@@ -167,7 +167,7 @@ export default function DashboardPage({ onBack }) {
   useEffect(() => {
     setMapLoading(true);
     setMapError(false);
-    fetch("https://servicodados.ibge.gov.br/api/v3/malhas/estados/23?formato=application/vnd.geo%2Bjson&resolucao=5")
+    fetch("https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-23-mun.json")
       .then(r => r.json())
       .then(data => { setGeoData(data); setMapLoading(false); })
       .catch(() => { setMapError(true); setMapLoading(false); });
