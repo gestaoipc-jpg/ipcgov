@@ -66,7 +66,7 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
     const getColor = (feat) => {
       const nm = normMun(feat.properties?.NM_MUN || feat.properties?.name || "");
       if (filtroStatus === "Realizado")  return realizadosNorm.has(nm) ? "#059669" : regionaisAtendidos.has(nm) ? "#a7f3d0" : "#e8eef8";
-      if (filtroStatus === "Pendente")   return pendentesNorm.has(nm)  ? "#E8730A" : "#e8eef8";
+      if (filtroStatus === "Em Execução") return pendentesNorm.has(nm)  ? "#E8730A" : "#e8eef8";
       if (filtroStatus === "Programado") return pendentesNorm.has(nm)  ? "#7c3aed" : regionaisAtendidos.has(nm) ? "#ddd6fe" : "#e8eef8";
       if (realizadosNorm.has(nm)) return "#059669";
       if (pendentesNorm.has(nm))  return "#E8730A";
@@ -197,20 +197,24 @@ export default function DashboardPage({ onBack }) {
 
   const evFiltrados = eventos.filter(e => {
     if (filtroAno !== "todos" && !(e.data && e.data.startsWith(filtroAno))) return false;
-    if (filtroStatus !== "todos" && e.status !== filtroStatus) return false;
+    if (filtroStatus !== "todos") {
+      const st = e.status || "";
+      if (filtroStatus === "Realizado" && st !== "Realizado" && st !== "Concluído") return false;
+      if (filtroStatus !== "Realizado" && st !== filtroStatus) return false;
+    }
     if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
     return true;
   });
 
   const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && e.status === "Realizado");
   const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && e.status === "Realizado");
-  const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado"));
+  const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
   const totalCapacitados = evFiltrados.reduce((acc, e) =>
     acc + (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0), 0);
 
   const proximosEventos = evFiltrados
-    .filter(e => e.status === "Pendente" && e.data && new Date(e.data) >= new Date())
+    .filter(e => (e.status === "Programado" || e.status === "Em Execução") && e.data && new Date(e.data) >= new Date())
     .sort((a, b) => new Date(a.data) - new Date(b.data))
     .slice(0, 5);
 
@@ -229,7 +233,7 @@ export default function DashboardPage({ onBack }) {
   const legendaCores = () => {
     if (filtroStatus === "Realizado")   return [{ cor:"#059669", label:`Realizado (${municipaisRealizados.length})` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
     if (filtroStatus === "Programado")  return [{ cor:"#7c3aed", label:`Programado` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
-    if (filtroStatus === "Pendente")    return [{ cor:"#E8730A", label:`Pendente (${municipaisPendentes.length})` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
+    if (filtroStatus === "Em Execução") return [{ cor:"#E8730A", label:`Em Execução (${municipaisPendentes.length})` }, { cor:"#e8eef8", label:"Sem evento", borda:true }];
     return [
       { cor:"#059669", label:`Realizado (${municipaisRealizados.length})` },
       { cor:"#7c3aed", label:`Programado` },
@@ -299,7 +303,7 @@ export default function DashboardPage({ onBack }) {
               ))}
               <div style={{ width:1, background:"rgba(255,255,255,0.2)", margin:"0 4px" }}/>
               {/* Filtro Status */}
-              {[{v:"todos",l:"Todos status"},{v:"Realizado",l:"Realizado"},{v:"Pendente",l:"Pendente"},{v:"Programado",l:"Programado"}].map(s => (
+              {[{v:"todos",l:"Todos status"},{v:"Em Execução",l:"Em Execução"},{v:"Programado",l:"Programado"},{v:"Realizado",l:"Realizado / Concluído"}].map(s => (
                 <div key={s.v} onClick={() => setFiltroStatus(s.v)} style={{ background: filtroStatus===s.v ? "rgba(5,150,105,0.4)" : "rgba(255,255,255,0.1)", border:`1px solid ${filtroStatus===s.v ? "rgba(5,150,105,0.6)" : "rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{s.l}</div>
               ))}
             </div>
