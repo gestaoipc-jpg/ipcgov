@@ -13,15 +13,29 @@ function normMun(str) {
 }
 
 // ─── Mapa do Ceará com D3 + API IBGE ──────────────────────────────────────────
-const W = 700, H = 500; // viewBox fixo — D3 projeta nesse espaço
-
 function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municipaisPendentes, evFiltrados, filtroStatus, setTooltip }) {
+  const containerRef = useRef(null);
   const svgRef = useRef(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x:0, y:0 });
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState(null);
   const [d3Ready, setD3Ready] = useState(!!window.d3);
+
+  // Mede container real com ResizeObserver
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setDims({ w: Math.floor(width), h: Math.floor(height) });
+    });
+    ro.observe(el);
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0) setDims({ w: Math.floor(rect.width), h: Math.floor(rect.height) });
+    return () => ro.disconnect();
+  }, []);
 
   // Aguarda D3 carregar
   useEffect(() => {
@@ -33,11 +47,11 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
   }, []);
 
   useEffect(() => {
-    if (!geoData || !svgRef.current || !d3Ready) return;
+    if (!geoData || !svgRef.current || !d3Ready || dims.w === 0) return;
     const d3 = window.d3;
+    const W = dims.w, H = dims.h;
 
-    // fitSize com dimensões fixas conhecidas
-    const projection = d3.geoMercator().fitSize([W, H], geoData);
+    const projection = d3.geoMercator().fitExtent([[10, 10], [W - 10, H - 10]], geoData);
     const pathGen = d3.geoPath().projection(projection);
 
     const realizadosNorm = new Set(municipaisRealizados.map(e => normMun(e.municipio || e.regiao)));
@@ -55,6 +69,7 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
+    svg.attr("width", W).attr("height", H);
 
     svg.append("g")
       .selectAll("path")
@@ -63,7 +78,7 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
         .attr("d", pathGen)
         .attr("fill", d => getColor(d))
         .attr("stroke", "#fff")
-        .attr("stroke-width", 0.8)
+        .attr("stroke-width", 0.6)
         .style("cursor", "pointer")
         .on("mousemove", (event, d) => {
           const nm = d.properties?.NM_MUN || d.properties?.name || "";
@@ -73,10 +88,10 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
         })
         .on("mouseleave", () => setTooltip(null));
 
-  }, [geoData, d3Ready, municipaisRealizados, municipaisPendentes, filtroStatus, evFiltrados]);
+  }, [geoData, d3Ready, dims, municipaisRealizados, municipaisPendentes, filtroStatus, evFiltrados]);
 
   return (
-    <div style={{ position:"relative", background:"#f0f5ff", borderRadius:16, overflow:"hidden", height:480,
+    <div ref={containerRef} style={{ position:"relative", background:"#f0f5ff", borderRadius:16, overflow:"hidden", height:480,
         cursor:dragging?"grabbing":"grab", userSelect:"none" }}
       onMouseDown={e => { setDragging(true); setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); }}
       onMouseMove={e => { if (dragging && dragStart) setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); }}
@@ -85,11 +100,11 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
       onWheel={e => { e.preventDefault(); setZoom(z => Math.min(6, Math.max(0.5, z - e.deltaY * 0.001))); }}
     >
       <div style={{ transform:`translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin:"center center",
-          width:"100%", height:"100%", transition:dragging?"none":"transform 0.15s" }}>
-        <svg ref={svgRef} viewBox={"0 0 " + W + " " + H} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" />
+          position:"absolute", inset:0, transition:dragging?"none":"transform 0.15s" }}>
+        <svg ref={svgRef} style={{ display:"block" }} />
       </div>
 
-      {(mapLoading || !d3Ready) && (
+      {(mapLoading || !d3Ready || dims.w === 0) && (
         <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
             color:"#aaa", fontSize:14, flexDirection:"column", gap:10, background:"#f0f5ff" }}>
           <div style={{ fontSize:36 }}>🗺️</div>
@@ -104,12 +119,12 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
         </div>
       )}
 
-      <div style={{ position:"absolute", bottom:14, right:14, display:"flex", flexDirection:"column", gap:6 }}>
+      <div style={{ position:"absolute", bottom:14, right:14, display:"flex", flexDirection:"column", gap:6, zIndex:10 }}>
         <div onClick={() => setZoom(z => Math.min(6, z+0.3))} style={{ width:36,height:36,background:"#fff",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",fontSize:20,fontWeight:700,color:"#1B3F7A",userSelect:"none" }}>+</div>
         <div onClick={() => { setZoom(1); setPan({x:0,y:0}); }} style={{ width:36,height:36,background:"#fff",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",fontSize:13,fontWeight:700,color:"#1B3F7A",userSelect:"none" }}>⊙</div>
         <div onClick={() => setZoom(z => Math.max(0.5, z-0.3))} style={{ width:36,height:36,background:"#fff",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",fontSize:20,fontWeight:700,color:"#1B3F7A",userSelect:"none" }}>−</div>
       </div>
-      <div style={{ position:"absolute", bottom:14, left:14, background:"rgba(255,255,255,0.9)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{Math.round(zoom*100)}%</div>
+      <div style={{ position:"absolute", bottom:14, left:14, background:"rgba(255,255,255,0.9)", borderRadius:8, padding:"4px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A", zIndex:10 }}>{Math.round(zoom*100)}%</div>
     </div>
   );
 }
