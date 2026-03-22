@@ -75,7 +75,7 @@ function PieCard({ title, data, colors }) {
 const COLORS_BLUE = ["#1B3F7A", "#4A90D9", "#A8C8F0", "#7B9FC0", "#C5D8F0"];
 const COLORS_AMBER = ["#D97706", "#F59E0B", "#FCD34D", "#FDE68A", "#FEF3C7"];
 
-export default function IPCCursosDashboard({ user, onBack }) {
+export default function IPCCursosDashboard({ user, onBack, onSeed }) {
   const [aba, setAba] = useState("servidores");
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -170,8 +170,11 @@ export default function IPCCursosDashboard({ user, onBack }) {
   const publicoJurData = ["Público","Jurisdicionado","Sociedade"].map(m => ({ label: m, value: realizadasJur.filter(p => p.publicoAlvo === m).length })).filter(d => d.value > 0);
 
   // ── DADOS HISTÓRICOS 2025 (estáticos do modelo) ───────────────────────────────
-  const useHistorico2025Serv = filtroAnoServ === "2025" && acoesRealizServ === 0;
-  const useHistorico2025Jur = (filtroAnoJur === "2025" || filtroAnoJur === "todos") && acoesRealizJur === 0;
+  const filtrosServAtivos = filtroMesServ !== "todos" || filtroModalServ !== "todos" || filtroCompServ !== "todos" || filtroEixoServ !== "todos" || filtroPublicoServ !== "todos";
+  const filtrosJurAtivos  = filtroMesJur !== "todos"  || filtroModalJur !== "todos"  || filtroEixoJur !== "todos"  || filtroPublicoJur !== "todos";
+
+  const useHistorico2025Serv = filtroAnoServ === "2025" && acoesRealizServ === 0 && !filtrosServAtivos;
+  const useHistorico2025Jur  = (filtroAnoJur === "2025" || filtroAnoJur === "todos") && acoesRealizJur === 0 && !filtrosJurAtivos;
 
   const H_SERV = {
     cursos: 29, tecnica: 24, comportamental: 5, gerencial: 0,
@@ -216,6 +219,9 @@ export default function IPCCursosDashboard({ user, onBack }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div onClick={onBack} style={{ width: 36, height: 36, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 18 }}>←</div>
             <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>📚 IPC Cursos — Dashboard</div>
+            {onSeed && ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email) && (
+              <div onClick={onSeed} style={{ marginLeft:"auto", background:"rgba(255,255,255,0.15)", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer" }}>🗄️ Seed 2025</div>
+            )}
           </div>
 
           {/* ABA SELECTOR */}
