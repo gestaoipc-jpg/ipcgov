@@ -13,7 +13,7 @@ function normMun(str) {
 }
 
 // ─── Mapa do Ceará com D3 + API IBGE ──────────────────────────────────────────
-function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municipaisPendentes, evFiltrados, filtroStatus, setTooltip }) {
+function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municipaisPendentes, evFiltrados, filtroStatus, filtroAno, viagens, setTooltip }) {
   const containerRef = useRef(null);
   const svgRef = useRef(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -57,13 +57,20 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
     const realizadosNorm = new Set(municipaisRealizados.map(e => normMun(e.municipio || e.regiao)));
     const pendentesNorm  = new Set(municipaisPendentes.map(e => normMun(e.municipio || e.regiao)));
 
+    // Build set of municipios covered by regional viagens
+    const regionaisAtendidos = new Set();
+    (viagens || []).filter(v => v.modalidade === "Regional").forEach(v => {
+      (v.municipiosAtendidos || []).forEach(m => regionaisAtendidos.add(normMun(m)));
+    });
+
     const getColor = (feat) => {
       const nm = normMun(feat.properties?.NM_MUN || feat.properties?.name || "");
-      if (filtroStatus === "Realizado")  return realizadosNorm.has(nm) ? "#059669" : "#e8eef8";
+      if (filtroStatus === "Realizado")  return realizadosNorm.has(nm) ? "#059669" : regionaisAtendidos.has(nm) ? "#a7f3d0" : "#e8eef8";
       if (filtroStatus === "Pendente")   return pendentesNorm.has(nm)  ? "#E8730A" : "#e8eef8";
-      if (filtroStatus === "Programado") return pendentesNorm.has(nm)  ? "#7c3aed" : "#e8eef8";
+      if (filtroStatus === "Programado") return pendentesNorm.has(nm)  ? "#7c3aed" : regionaisAtendidos.has(nm) ? "#ddd6fe" : "#e8eef8";
       if (realizadosNorm.has(nm)) return "#059669";
       if (pendentesNorm.has(nm))  return "#E8730A";
+      if (regionaisAtendidos.has(nm)) return "#dbeafe";
       return "#e8eef8";
     };
 
@@ -173,11 +180,17 @@ export default function DashboardPage({ onBack }) {
       .catch(() => { setMapError(true); setMapLoading(false); });
   }, []);
 
+  const [viagens, setViagens] = useState([]);
+
   const loadEventos = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, "tceduc_eventos"));
-      setEventos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [evSnap, vSnap] = await Promise.all([
+        getDocs(collection(db, "tceduc_eventos")),
+        getDocs(collection(db, "tceduc_viagens")),
+      ]);
+      setEventos(evSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setViagens(vSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -342,6 +355,8 @@ export default function DashboardPage({ onBack }) {
               municipaisPendentes={municipaisPendentes}
               evFiltrados={evFiltrados}
               filtroStatus={filtroStatus}
+              filtroAno={filtroAno}
+              viagens={viagens}
               setTooltip={setTooltip}
             />
           </div>
