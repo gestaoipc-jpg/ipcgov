@@ -57,9 +57,14 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
     const realizadosNorm = new Set(municipaisRealizados.map(e => normMun(e.municipio || e.regiao)));
     const pendentesNorm  = new Set(municipaisPendentes.map(e => normMun(e.municipio || e.regiao)));
 
-    // Build set of municipios covered by regional viagens
+    // Build set of municipios covered by regional viagens — respeitando filtroStatus
     const regionaisAtendidos = new Set();
-    (viagens || []).filter(v => v.modalidade === "Regional").forEach(v => {
+    (viagens || []).filter(v => {
+      if (v.modalidade !== "Regional") return false;
+      if (filtroStatus === "todos") return true;
+      if (filtroStatus === "Realizado") return v.status === "Realizado" || v.status === "Concluída";
+      return v.status === filtroStatus;
+    }).forEach(v => {
       (v.municipiosAtendidos || []).forEach(m => regionaisAtendidos.add(normMun(m)));
     });
 
@@ -67,7 +72,7 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
       const nm = normMun(feat.properties?.NM_MUN || feat.properties?.name || "");
       if (filtroStatus === "Realizado")  return realizadosNorm.has(nm) ? "#059669" : regionaisAtendidos.has(nm) ? "#a7f3d0" : "#e8eef8";
       if (filtroStatus === "Em Execução") return pendentesNorm.has(nm)  ? "#E8730A" : "#e8eef8";
-      if (filtroStatus === "Programado") return pendentesNorm.has(nm)  ? "#7c3aed" : regionaisAtendidos.has(nm) ? "#ddd6fe" : "#e8eef8";
+      if (filtroStatus === "Programado") return pendentesNorm.has(nm)  ? "#7c3aed" : "#e8eef8";
       if (realizadosNorm.has(nm)) return "#059669";
       if (pendentesNorm.has(nm))  return "#E8730A";
       if (regionaisAtendidos.has(nm)) return "#dbeafe";
