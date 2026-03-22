@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import emailjs from "@emailjs/browser";
 
@@ -21,7 +21,7 @@ const STATUS_COR = {
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"11px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 
-export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores, onFormProjeto }) {
+export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores, onFormProjeto, onDashboard }) {
   const [projetos, setProjetos]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [busca, setBusca]         = useState("");
@@ -33,6 +33,8 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
   const [servidores, setServidores] = useState([]);
   const [salvando, setSalvando]   = useState(false);
   const [justCancelamento, setJustCancelamento] = useState("");
+  const [motivoReabertura, setMotivoReabertura] = useState("");
+  const [motivoExclusao, setMotivoExclusao] = useState("");
 
   const ADMINS = ["gestaoipc@tce.ce.gov.br", "fabricio@tce.ce.gov.br"];
   const isAdminGlobal = ADMINS.includes(user?.email);
@@ -60,6 +62,9 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
   const grupoCoordGestao = grupos.find(g =>
     g.nome?.toLowerCase().includes("coordena") && (g.nome?.toLowerCase().includes("infraestrutura") || g.nome?.toLowerCase().includes("gestao") || g.nome?.toLowerCase().includes("gestão"))
   );
+  const grupoGerenteGestao = grupos.find(g =>
+    g.nome?.toLowerCase().includes("gerên") || g.nome?.toLowerCase().includes("gerencia") && g.nome?.toLowerCase().includes("infraestrutura")
+  );
   const grupoCursosAdm = grupos.find(g =>
     g.nome?.toLowerCase().includes("curso") && g.nome?.toLowerCase().includes("admin")
   );
@@ -69,7 +74,7 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
   const isCursosAdm = !!(grupoCursosAdm && (userInfo?.grupos||[]).includes(grupoCursosAdm.id));
   const podeCriar = isAdminGlobal || isCoordEduc || isCursosAdm;
 
-  // Email do coordenador de gestão
+  // Emails por cargo (dinâmico — muda quando servidor mudar)
   const coordGestaoEmail = (() => {
     if (!grupoCoordGestao) return "";
     const membro = servidores.find(s => (s.grupos||[]).includes(grupoCoordGestao.id));
@@ -78,8 +83,38 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
   const coordEducEmail = (() => {
     if (!grupoCoordEduc) return "";
     const membro = servidores.find(s => (s.grupos||[]).includes(grupoCoordEduc.id) && s.email !== user?.email);
-    return membro?.email || user?.email || "";
+    return membro?.email || "";
   })();
+
+  // Helper: envia email para Coord.Gestão + cópia Coord.Educação
+  const enviarEmailGestao = async ({ assunto, corpo }) => {
+    if (!coordGestaoEmail) return;
+    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+      to_name: "Coordenação de Gestão, Infraestrutura e Logística",
+      to_email: coordGestaoEmail,
+      subject: assunto,
+      corpo_completo: corpo + (coordEducEmail ? "\n\n[Cópia enviada à Coordenação de Educação]" : ""),
+    }, EMAILJS_PUBLIC_KEY).catch(e => console.warn("Email não enviado:", e));
+    // cópia para Coord. Educação
+    if (coordEducEmail && coordEducEmail !== coordGestaoEmail) {
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+        to_name: "Coordenação de Educação",
+        to_email: coordEducEmail,
+        subject: "[CÓPIA] " + assunto,
+        corpo_completo: corpo,
+      }, EMAILJS_PUBLIC_KEY).catch(e => console.warn("Cópia não enviada:", e));
+    }
+  };
+
+  // Helper: registra LOG no projeto
+  const registrarLog = async (projetoId, acao, detalhes) => {
+    const entrada = { acao, detalhes: detalhes || "", por: user?.email || "sistema", em: new Date().toISOString() };
+    try {
+      const snap = await getDoc(doc(db, "ipc_cursos_projetos", projetoId));
+      const logAtual = snap.data()?.log || [];
+      await updateDoc(doc(db, "ipc_cursos_projetos", projetoId), { log: [...logAtual, entrada] });
+    } catch(e) { console.warn("Log:", e); }
+  };
 
   const tramitar = async (projeto) => {
     if (!window.confirm("Tramitar este projeto para o IPC Processos? Após a tramitação, o projeto ficará bloqueado para edição.")) return;
@@ -148,11 +183,93 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
     setSalvando(false);
   };
 
-  const excluir = async (id) => {
-    if (!window.confirm("Excluir este projeto?")) return;
-    await deleteDoc(doc(db, "ipc_cursos_projetos", id));
-    setProjetos(ps => ps.filter(p => p.id !== id));
-    setModal(null);
+  const excluir = async (projeto) => {
+    const tramitado = projeto.status === "Tramitado" || projeto.status === "Aprovado";
+    if (tramitado && !isAdminGlobal) { alert("Apenas administradores podem excluir projetos tramitados."); return; }
+    if (!motivoExclusao.trim()) { alert("Informe o motivo da exclusão."); return; }
+    if (!window.confirm("Confirmar exclusão do projeto "" + projeto.nomeCurso + ""?")) return;
+    setSalvando(true);
+    try {
+      // LOG antes de excluir
+      await registrarLog(projeto.id, "EXCLUSÃO", "Projeto excluído. Motivo: " + motivoExclusao.trim() + (tramitado ? " [PROJETO TRAMITADO]" : ""));
+
+      if (tramitado) {
+        // Arquiva processos futuros vinculados
+        const pfSnap = await getDocs(collection(db, "processos_futuros"));
+        await Promise.all(pfSnap.docs
+          .filter(d => d.data().projetoId === projeto.id)
+          .map(d => updateDoc(doc(db, "processos_futuros", d.id), { cancelado: true, arquivado: true, arquivadoPor: user?.email, arquivadoEm: new Date().toISOString(), motivoArquivamento: "Projeto de curso excluído. " + motivoExclusao.trim() }))
+        );
+        // Email para Coord. Gestão + cópia Coord. Educação
+        const corpo = "Olá,\n\nO Projeto de Curso abaixo foi EXCLUÍDO do sistema IPCgov por um administrador.\n\n📚 Curso: " + (projeto.nomeCurso||"") + "\n📋 Modalidade: " + (projeto.modalidade||"") + "\n📅 Tramitado em: " + (projeto.tramitadoEm ? new Date(projeto.tramitadoEm).toLocaleDateString("pt-BR") : "—") + "\n🗑️ Excluído por: " + (user?.email||"") + "\n📝 Motivo: " + motivoExclusao.trim() + "\n\n⚠️ O processo de pagamento vinculado deve ser ARQUIVADO, pois o projeto foi excluído.\n\n---\nEquipe IPCgov — https://ipcgov.vercel.app";
+        await enviarEmailGestao({ assunto: "🗑️ Projeto Excluído — " + (projeto.nomeCurso||""), corpo });
+        // Criar aviso na caixa do IPC Processos para aceite da Coord. Gestão
+        await addDoc(collection(db, "processos_futuros"), {
+          titulo: "⚠️ Arquivar processo — " + (projeto.nomeCurso||""),
+          objetivo: "O Projeto de Curso \"" + (projeto.nomeCurso||"") + "\" foi excluído por um administrador.\n\nMotivo: " + motivoExclusao.trim() + "\n\nO processo de pagamento vinculado deve ser arquivado.\n\nProjeto excluído por: " + (user?.email||""),
+          status: "Aguardando aceite",
+          tipo_processo: "Arquivamento — IPC Cursos",
+          responsavel: coordGestaoEmail || "",
+          projetoId: projeto.id,
+          distribuido: false,
+          requerAceite: true,
+          criadoEm: new Date().toISOString(),
+          criadoPor: user?.email || "sistema",
+        });
+      }
+      await deleteDoc(doc(db, "ipc_cursos_projetos", projeto.id));
+      setProjetos(ps => ps.filter(p => p.id !== projeto.id));
+      setMotivoExclusao("");
+      setModal(null);
+      alert("Projeto excluído com sucesso.");
+    } catch(e) { console.error(e); alert("Erro ao excluir: " + e.message); }
+    setSalvando(false);
+  };
+
+  const reabrirParaEdicao = async (projeto) => {
+    if (!isAdminGlobal) { alert("Apenas administradores podem reabrir projetos tramitados."); return; }
+    if (!motivoReabertura.trim()) { alert("Informe o motivo da reabertura."); return; }
+    setSalvando(true);
+    try {
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, "ipc_cursos_projetos", projeto.id), {
+        status: "Em elaboração",
+        reabertoPor: user?.email,
+        reabertoEm: now,
+        motivoReabertura: motivoReabertura.trim(),
+        tramitadoEm: null,
+        atualizadoEm: now,
+      });
+      // Arquiva processo futuro atual
+      const pfSnap = await getDocs(collection(db, "processos_futuros"));
+      await Promise.all(pfSnap.docs
+        .filter(d => d.data().projetoId === projeto.id && !d.data().cancelado)
+        .map(d => updateDoc(doc(db, "processos_futuros", d.id), { cancelado: true, arquivado: true, arquivadoPor: user?.email, arquivadoEm: now, motivoArquivamento: "Projeto reaberto para edição. Motivo: " + motivoReabertura.trim() }))
+      );
+      // LOG
+      await registrarLog(projeto.id, "REABERTURA PARA EDIÇÃO", "Motivo: " + motivoReabertura.trim());
+      // Email
+      const corpo = "Olá,\n\nO Projeto de Curso abaixo foi REABERTO para edição por um administrador.\n\n📚 Curso: " + (projeto.nomeCurso||"") + "\n📋 Modalidade: " + (projeto.modalidade||"") + "\n🔓 Reaberto por: " + (user?.email||"") + "\n📝 Motivo: " + motivoReabertura.trim() + "\n\n⚠️ O processo de pagamento atual deve ser ARQUIVADO. Um novo processo será gerado após a re-tramitação do projeto.\n\n---\nEquipe IPCgov — https://ipcgov.vercel.app";
+      await enviarEmailGestao({ assunto: "🔓 Projeto Reaberto para Edição — " + (projeto.nomeCurso||""), corpo });
+      // Aviso na caixa IPC Processos para aceite
+      await addDoc(collection(db, "processos_futuros"), {
+        titulo: "⚠️ Arquivar processo — Projeto reaberto: " + (projeto.nomeCurso||""),
+        objetivo: "O Projeto de Curso \"" + (projeto.nomeCurso||"") + "\" foi reaberto para edição por um administrador.\n\nMotivo: " + motivoReabertura.trim() + "\n\nO processo de pagamento atual deve ser arquivado. Um novo processo será gerado após a re-tramitação.\n\nReaberto por: " + (user?.email||""),
+        status: "Aguardando aceite",
+        tipo_processo: "Arquivamento — IPC Cursos",
+        responsavel: coordGestaoEmail || "",
+        projetoId: projeto.id,
+        distribuido: false,
+        requerAceite: true,
+        criadoEm: now,
+        criadoPor: user?.email || "sistema",
+      });
+      setProjetos(ps => ps.map(p => p.id === projeto.id ? { ...p, status: "Em elaboração", reabertoEm: now } : p));
+      setMotivoReabertura("");
+      setModal(null);
+      alert("Projeto reaberto para edição. Um novo processo será gerado após re-tramitação.");
+    } catch(e) { console.error(e); alert("Erro: " + e.message); }
+    setSalvando(false);
   };
 
   const filtrados = projetos.filter(p => {
@@ -183,6 +300,7 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
             </div>
             <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
               <div onClick={onInstrutores} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>👨‍🏫 Instrutores</div>
+              <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
               {podeCriar && <div onClick={() => onFormProjeto(null)} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Novo Projeto</div>}
             </div>
           </div>
@@ -251,15 +369,23 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
                         {(p.instrutores||[]).length > 0 && <span>👨‍🏫 {p.instrutores.map(i=>i.nome).join(", ")}</span>}
                       </div>
                     </div>
-                    <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+                    <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+                      {/* PDF — sempre visível */}
+                      <div onClick={e=>{e.stopPropagation(); setSelected(p); setModal("pdf");}} style={{ background:"#f0fdf4", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#059669", cursor:"pointer" }}>📄 PDF</div>
                       {!tramitado && podeCriar && (
                         <div onClick={e=>{e.stopPropagation(); onFormProjeto(p);}} style={{ background:"#f0f4ff", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#1B3F7A", cursor:"pointer" }}>✏️ Editar</div>
                       )}
                       {!tramitado && podeCriar && (
                         <div onClick={e=>{e.stopPropagation(); setSelected(p); setModal("tramitar");}} style={{ background:"#7c3aed", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer" }}>📤 Tramitar</div>
                       )}
+                      {tramitado && isAdminGlobal && (
+                        <div onClick={e=>{e.stopPropagation(); setSelected(p); setMotivoReabertura(""); setModal("reabrir");}} style={{ background:"#fff3e0", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#E8730A", cursor:"pointer" }}>🔓 Reabrir</div>
+                      )}
                       {tramitado && (isAdminGlobal || isCoordEduc) && (
                         <div onClick={e=>{e.stopPropagation(); setSelected(p); setModal("cancelar");}} style={{ background:"#fee2e2", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#dc2626", cursor:"pointer" }}>↩ Cancelar Tramitação</div>
+                      )}
+                      {(isAdminGlobal || isCursosAdm) && (
+                        <div onClick={e=>{e.stopPropagation(); setSelected(p); setMotivoExclusao(""); setModal("excluir");}} style={{ background:"#fff0f0", borderRadius:10, padding:"6px 12px", fontSize:12, fontWeight:700, color:"#dc2626", cursor:"pointer" }}>🗑️</div>
                       )}
                     </div>
                   </div>
@@ -378,6 +504,87 @@ export default function IPCCursosModule({ user, userInfo, onBack, onInstrutores,
           </div>
         </div>
       )}
+
+      {/* MODAL EXCLUIR */}
+      {modal === "excluir" && selected && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:480, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#dc2626", marginBottom:8 }}>🗑️ Excluir Projeto</div>
+            <div style={{ fontSize:13, color:"#555", marginBottom:12 }}>Projeto: <strong>{selected.nomeCurso}</strong></div>
+            {(selected.status === "Tramitado" || selected.status === "Aprovado") && (
+              <div style={{ background:"#fff0f0", border:"1px solid #fca5a5", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#dc2626", fontWeight:600, marginBottom:12 }}>
+                ⚠️ Este projeto está tramitado. Ao excluir, o processo de pagamento será arquivado e a Coordenação de Gestão será notificada.
+              </div>
+            )}
+            <div style={{ fontSize:13, color:"#888", marginBottom:8 }}>Informe o motivo da exclusão:</div>
+            <textarea value={motivoExclusao} onChange={e=>setMotivoExclusao(e.target.value)} placeholder="Motivo obrigatório..." rows={3}
+              style={{ ...inputStyle, minHeight:80, resize:"vertical", marginBottom:4 }}/>
+            <div style={{ display:"flex", gap:10, marginTop:16 }}>
+              <div onClick={() => { setModal(null); setMotivoExclusao(""); }} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={() => excluir(selected)} style={{ flex:1, background:salvando?"#ccc":"#dc2626", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Excluindo...":"🗑️ Confirmar"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL REABRIR PARA EDIÇÃO */}
+      {modal === "reabrir" && selected && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:500, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#E8730A", marginBottom:8 }}>🔓 Reabrir para Edição</div>
+            <div style={{ fontSize:13, color:"#555", marginBottom:12 }}>Projeto: <strong>{selected.nomeCurso}</strong></div>
+            <div style={{ background:"#fff3e0", border:"1px solid #fcd34d", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#92400e", fontWeight:600, marginBottom:12 }}>
+              ⚠️ O processo de pagamento atual será arquivado. Um novo processo será gerado após re-tramitação. A Coordenação de Gestão será notificada.
+            </div>
+            <div style={{ fontSize:13, color:"#888", marginBottom:8 }}>Informe o motivo da reabertura:</div>
+            <textarea value={motivoReabertura} onChange={e=>setMotivoReabertura(e.target.value)} placeholder="Motivo obrigatório..." rows={3}
+              style={{ ...inputStyle, minHeight:80, resize:"vertical", marginBottom:4 }}/>
+            <div style={{ display:"flex", gap:10, marginTop:16 }}>
+              <div onClick={() => { setModal(null); setMotivoReabertura(""); }} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={() => reabrirParaEdicao(selected)} style={{ flex:1, background:salvando?"#ccc":"#E8730A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Processando...":"🔓 Confirmar Reabertura"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PDF DA LISTA */}
+      {modal === "pdf" && selected && (() => {
+        const p = selected;
+        const gerarPDFLista = () => {
+          const eixosTodos = ["Gestão Pública","Licitações e Contratos","Controle Interno","Cidadania e Participação Social","Tecnologia e Inovação","Gestão de Pessoas","Planejamento Estratégico","Transparência e Acesso à Informação","Controle Social","Meio Ambiente e Sustentabilidade","Saúde Pública","Educação","Assistência Social","Finanças Públicas","Obras e Serviços","Segurança Pública","Legislação Municipal","Outros"];
+          const eixos = p.eixosTematicos||[];
+          const insts = p.instrutores||[];
+          const html = "<!DOCTYPE html><html><head><meta charset='UTF-8'/><title>Projeto de Curso</title><style>body{font-family:Arial,sans-serif;margin:40px;color:#222;font-size:13px} h1{font-size:16px;text-align:center;text-transform:uppercase;border-bottom:2px solid #1B3F7A;padding-bottom:8px;margin-bottom:20px} .section{margin-bottom:16px} .label{font-weight:700;font-size:11px;text-transform:uppercase;color:#1B3F7A;letter-spacing:1px;margin-bottom:4px} .value{border:1px solid #ddd;border-radius:4px;padding:8px;min-height:36px;background:#fafafa} .checkbox-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px} .cb{display:flex;align-items:center;gap:6px;padding:3px 0} @page{margin:20mm}</style></head><body>" +
+            "<h1>Projeto de Curso — " + (p.nomeCurso||"") + "</h1>" +
+            "<div class='section'><div class='label'>Modalidade</div><div class='value'>" + (p.modalidade||"") + "</div></div>" +
+            "<div class='section'><div class='label'>Carga Horária</div><div class='value'>" + (p.cargaHoraria||"") + "h</div></div>" +
+            "<div class='section'><div class='label'>Data / Horário / Local</div><div class='value'>" + [p.data?new Date(p.data+"T12:00:00").toLocaleDateString("pt-BR"):"",p.horario||"",p.local||""].filter(Boolean).join(" · ") + "</div></div>" +
+            "<div class='section'><div class='label'>Número de Participantes</div><div class='value'>" + (p.numParticipantes||"") + "</div></div>" +
+            "<div class='section'><div class='label'>Eixos Temáticos</div><div class='value checkbox-grid'>" + eixosTodos.map(e => "<div class='cb'><span>" + (eixos.includes(e)?"☑":"☐") + "</span><span>" + e + "</span></div>").join("") + "</div></div>" +
+            "<div class='section'><div class='label'>Competências</div><div class='value'>" + (p.competencias||[]).join(", ") + "</div></div>" +
+            "<div class='section'><div class='label'>Instrutores</div><div class='value'>" + insts.map(i => i.nome + (i.pagamento?" — R$ "+i.pagamento:"")).join("<br/>") + "</div></div>" +
+            (p.conteudoProgramatico?"<div class='section'><div class='label'>Conteúdo Programático</div><div class='value'>" + p.conteudoProgramatico + "</div></div>":"") +
+            (p.metasEntrega?"<div class='section'><div class='label'>Metas de Entrega</div><div class='value'>" + p.metasEntrega + "</div></div>":"") +
+            "<div class='section'><div class='label'>Status</div><div class='value'>" + (p.status||"") + (p.tramitadoEm?" · Tramitado em "+new Date(p.tramitadoEm).toLocaleDateString("pt-BR"):"") + "</div></div>" +
+            "</body></html>";
+          const win = window.open("","_blank");
+          if (win) { win.document.write(html); win.document.close(); setTimeout(() => { win.focus(); win.print(); }, 600); }
+          setModal(null);
+        };
+        return (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }} onClick={() => setModal(null)}>
+            <div style={{ background:"#fff", borderRadius:24, padding:32, maxWidth:380, width:"100%" }} onClick={e=>e.stopPropagation()}>
+              <div style={{ fontWeight:900, fontSize:18, color:"#059669", marginBottom:8 }}>📄 Gerar PDF</div>
+              <div style={{ fontSize:14, color:"#555", marginBottom:6 }}><strong>{p.nomeCurso}</strong></div>
+              <div style={{ fontSize:12, color:"#888", marginBottom:20 }}>{p.modalidade} · {p.cargaHoraria}h · {p.status}</div>
+              <div style={{ display:"flex", gap:10 }}>
+                <div onClick={() => setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+                <div onClick={gerarPDFLista} style={{ flex:2, background:"#059669", borderRadius:14, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:"pointer" }}>📄 Gerar PDF</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
