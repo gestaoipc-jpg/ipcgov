@@ -221,6 +221,21 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
         {/* ==================== RESUMIDO ==================== */}
         {tipo === "resumido" && (
           <>
+            {/* MUNICÍPIOS ATENDIDOS — apenas para Regional */}
+            {viagem.modalidade === "Regional" && (viagem.municipiosAtendidos || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#1B3F7A")}>🗺️ Municípios Atendidos pela Regional</div>
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
+                  {(viagem.municipiosAtendidos || []).length} município{(viagem.municipiosAtendidos || []).length !== 1 ? "s" : ""} abrangidos por esta regional
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {(viagem.municipiosAtendidos || []).sort().map((m, i) => (
+                    <span key={i} style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 600, color: "#1B3F7A" }}>{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
               <div style={card}><div style={sec()}>👥 Equipe da Viagem</div>{renderEquipe()}</div>
@@ -517,6 +532,21 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ height: 5, background: checkFeitos === todosItensChecklist.length ? "#059669" : "#1B3F7A", borderRadius: 3, width: `${todosItensChecklist.length > 0 ? Math.round((checkFeitos / todosItensChecklist.length) * 100) : 0}%` }} />
               </div>
             </div>
+
+            {/* MUNICÍPIOS ATENDIDOS — apenas para Regional */}
+            {viagem.modalidade === "Regional" && (viagem.municipiosAtendidos || []).length > 0 && (
+              <div style={card}>
+                <div style={sec("#1B3F7A")}>🗺️ Municípios Atendidos pela Regional</div>
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
+                  {(viagem.municipiosAtendidos || []).length} município{(viagem.municipiosAtendidos || []).length !== 1 ? "s" : ""} abrangidos por esta regional
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {(viagem.municipiosAtendidos || []).sort().map((m, i) => (
+                    <span key={i} style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "4px 12px", fontSize: 12, fontWeight: 600, color: "#1B3F7A" }}>{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* EQUIPE */}
             {(viagem.equipe || []).length > 0 && (
