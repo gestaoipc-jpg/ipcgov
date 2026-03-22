@@ -9,22 +9,38 @@ const EIXOS = [
   "Gestão Pública","Governança","Licitação, Contratos Administrativos e Convênios",
   "Ouvidoria","Outros","Planejamento, Processos e Projetos","Tecnologia da Informação",
 ];
-const COMPETENCIAS = ["Comportamentais","Gerenciais","Técnicas"];
+const COMPETENCIAS = ["Técnica","Comportamental","Gerencial"];
+const PUBLICO_ALVO_OPTS = ["Servidores","Membros","Serv+Membros","Serv+Colaborador","Jurisdicionado","Público"];
+const TIPO_OPTS = ["Curso","Palestra","Evento"];
+const PUBLICOS_COM_SERVIDOR = ["Servidores","Serv+Membros","Serv+Colaborador"];
 
 const lbl = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 const inp = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"11px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 
-export default function IPCCursosFormPage({ user, projeto, onBack, onSaved }) {
+export default function IPCCursosFormPage({ user, userInfo, grupos, projeto, onBack, onSaved }) {
   const [form, setForm] = useState({
     nomeCurso:"", modalidade:"Presencial", justificativaObjetivo:"",
     eixosTematicos:[], competencias:[], programa:"", publicoAlvo:"",
+    tipo:"Curso", realizacao:"Interna", programaFormacaoServidores:false,
     cargaHoraria:"", data:"", horario:"", local:"", numParticipantes:"",
     conteudoProgramatico:"", metasEntrega:"", prazoEntregas:"", materialDidatico:"",
     avaliacao:"", metodologia:"", bibliografia:"", elaboracaoProjeto:"",
     valorProposta:"", instrutores:[],
     status:"Em elaboração",
+    // Pós-realização
+    posRealizacao: {
+      totalInscritos:0, totalConcludentes:0,
+      totalServidores:0, totalJurisdicionados:0, totalSociedade:0, totalColaborador:0,
+      preenchidoPor:"", preenchidoEm:"",
+    },
   });
   const [instrutoresCadastrados, setInstrutoresCadastrados] = useState([]);
+  const grupoCursosAdm = (grupos||[]).find(g => g.nome?.toLowerCase().includes("curso") && g.nome?.toLowerCase().includes("admin"));
+  const isCursosAdm = !!(grupoCursosAdm && (userInfo?.grupos||[]).includes(grupoCursosAdm.id));
+  const isAdmin = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email);
+  const podePosCurso = isAdmin || isCursosAdm;
+  const isJurisdicionado = (form.publicoAlvo === "Jurisdicionado" || form.publicoAlvo === "Público");
+  const temServidor = ["Servidores","Serv+Membros","Serv+Colaborador"].includes(form.publicoAlvo);
   const [salvando, setSalvando] = useState(false);
   const [gerandoPDF, setGerandoPDF] = useState(false);
 
@@ -256,9 +272,42 @@ export default function IPCCursosFormPage({ user, projeto, onBack, onSaved }) {
               <label style={lbl}>Programa</label>
               <textarea value={form.programa} onChange={e=>setForm(f=>({...f,programa:e.target.value}))} style={{ ...inp, minHeight:80, resize:"vertical" }} disabled={isTramitado}/>
             </div>
-            <div>
-              <label style={lbl}>Público Alvo</label>
-              <textarea value={form.publicoAlvo} onChange={e=>setForm(f=>({...f,publicoAlvo:e.target.value}))} style={{ ...inp, minHeight:60, resize:"vertical" }} disabled={isTramitado}/>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div>
+                <label style={lbl}>Público Alvo *</label>
+                <select value={form.publicoAlvo} onChange={e=>setForm(f=>({...f,publicoAlvo:e.target.value,programaFormacaoServidores:PUBLICOS_COM_SERVIDOR.includes(e.target.value)?f.programaFormacaoServidores:false}))} style={inp} disabled={isTramitado}>
+                  <option value="">Selecione...</option>
+                  {PUBLICO_ALVO_OPTS.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lbl}>Tipo *</label>
+                <select value={form.tipo} onChange={e=>setForm(f=>({...f,tipo:e.target.value}))} style={inp} disabled={isTramitado}>
+                  {TIPO_OPTS.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div>
+                <label style={lbl}>Realização</label>
+                <select value={form.realizacao} onChange={e=>setForm(f=>({...f,realizacao:e.target.value}))} style={inp} disabled={isTramitado}>
+                  <option value="Interna">Interna</option>
+                  <option value="Externa">Externa</option>
+                </select>
+              </div>
+              {PUBLICOS_COM_SERVIDOR.includes(form.publicoAlvo) && (
+                <div style={{ display:"flex", alignItems:"center", gap:12, paddingTop:28 }}>
+                  <div onClick={()=>!isTramitado&&setForm(f=>({...f,programaFormacaoServidores:!f.programaFormacaoServidores}))}
+                    style={{ width:22, height:22, borderRadius:6, border:"2px solid "+(form.programaFormacaoServidores?"#1B3F7A":"#ddd"),
+                      background:form.programaFormacaoServidores?"#1B3F7A":"#fff", display:"flex", alignItems:"center", justifyContent:"center",
+                      color:"#fff", fontSize:13, cursor:isTramitado?"not-allowed":"pointer", flexShrink:0 }}>
+                    {form.programaFormacaoServidores && "✓"}
+                  </div>
+                  <label style={{ fontSize:13, color:"#333", fontWeight:600, cursor:isTramitado?"not-allowed":"pointer" }}>
+                    Programa de Formação de Servidores
+                  </label>
+                </div>
+              )}
             </div>
             <div>
               <label style={lbl}>Conteúdo Programático</label>
@@ -371,6 +420,100 @@ export default function IPCCursosFormPage({ user, projeto, onBack, onSaved }) {
           <button onClick={salvar} disabled={salvando} style={{ width:"100%", background:salvando?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
             {salvando ? "Salvando..." : "💾 Salvar Projeto"}
           </button>
+        )}
+
+        {/* PÓS-REALIZAÇÃO */}
+        {projeto?.id && (
+          <div style={{ background:"#fff", borderRadius:20, padding:28, boxShadow:"0 2px 16px rgba(27,63,122,0.08)", marginTop:8 }}>
+            <div style={{ fontWeight:800, fontSize:15, color:"#059669", marginBottom:4, display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:4, height:18, background:"#059669", borderRadius:2 }} />
+              ✅ Pós-Realização
+              {form.posRealizacao?.preenchidoEm && (
+                <span style={{ background:"#f0fdf4", borderRadius:8, padding:"2px 10px", fontSize:11, color:"#059669", fontWeight:600 }}>
+                  Atualizado em {new Date(form.posRealizacao.preenchidoEm).toLocaleDateString("pt-BR")}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize:12, color:"#888", marginBottom:16 }}>
+              {podePosCurso ? "Preencha após a realização do curso/evento." : "Somente o grupo Cursos Administrativo pode preencher."}
+            </div>
+
+            {!podePosCurso ? (
+              <div style={{ background:"#f8f9fb", borderRadius:12, padding:16, color:"#aaa", fontSize:13, textAlign:"center" }}>
+                🔒 Acesso restrito ao grupo Cursos Administrativo
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                {/* Campos comuns */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                  <div>
+                    <label style={lbl}>Total de Inscrições</label>
+                    <input type="number" min="0" value={form.posRealizacao?.totalInscritos||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalInscritos:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                  </div>
+                  <div>
+                    <label style={lbl}>Total de Concludentes (Certificados)</label>
+                    <input type="number" min="0" value={form.posRealizacao?.totalConcludentes||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalConcludentes:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                  </div>
+                </div>
+
+                {/* Percentuais calculados */}
+                {(form.posRealizacao?.totalInscritos > 0) && (
+                  <div style={{ display:"flex", gap:12, background:"#f0fdf4", borderRadius:12, padding:"12px 16px" }}>
+                    <div style={{ flex:1, textAlign:"center" }}>
+                      <div style={{ fontWeight:900, fontSize:22, color:"#059669" }}>
+                        {Math.round((form.posRealizacao.totalConcludentes / form.posRealizacao.totalInscritos) * 100)}%
+                      </div>
+                      <div style={{ fontSize:11, color:"#888" }}>Conclusão</div>
+                    </div>
+                    <div style={{ flex:1, textAlign:"center" }}>
+                      <div style={{ fontWeight:900, fontSize:22, color:"#dc2626" }}>
+                        {Math.round(((form.posRealizacao.totalInscritos - form.posRealizacao.totalConcludentes) / form.posRealizacao.totalInscritos) * 100)}%
+                      </div>
+                      <div style={{ fontSize:11, color:"#888" }}>Evasão</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Campos específicos Jurisdicionado */}
+                {isJurisdicionado && (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                    <div>
+                      <label style={lbl}>Total Servidores</label>
+                      <input type="number" min="0" value={form.posRealizacao?.totalServidores||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalServidores:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Total Jurisdicionados</label>
+                      <input type="number" min="0" value={form.posRealizacao?.totalJurisdicionados||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalJurisdicionados:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Total Sociedade</label>
+                      <input type="number" min="0" value={form.posRealizacao?.totalSociedade||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalSociedade:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Total Colaborador</label>
+                      <input type="number" min="0" value={form.posRealizacao?.totalColaborador||""} onChange={e=>setForm(f=>({...f,posRealizacao:{...f.posRealizacao,totalColaborador:parseInt(e.target.value)||0}}))} style={inp} placeholder="0"/>
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={async () => {
+                  setSalvando(true);
+                  try {
+                    const pos = { ...form.posRealizacao, preenchidoPor: user?.email, preenchidoEm: new Date().toISOString() };
+                    const { doc, updateDoc } = await import("firebase/firestore");
+                    const { db } = await import("../firebase/config");
+                    await updateDoc(doc(db,"ipc_cursos_projetos",projeto.id), { posRealizacao: pos, atualizadoEm: new Date().toISOString() });
+                    setForm(f => ({...f, posRealizacao: pos}));
+                    alert("Pós-realização salva com sucesso!");
+                  } catch(e) { alert("Erro: " + e.message); }
+                  setSalvando(false);
+                }} disabled={salvando}
+                  style={{ background:salvando?"#ccc":"#059669", border:"none", borderRadius:12, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, cursor:salvando?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                  {salvando ? "Salvando..." : "💾 Salvar Pós-Realização"}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
