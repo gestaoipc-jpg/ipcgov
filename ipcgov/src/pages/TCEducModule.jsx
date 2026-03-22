@@ -602,9 +602,7 @@ export default function TCEducModule({ user, onBack, onCadastros, onAlertas, onD
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div onClick={onDashboard} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📊 Dashboard</div>
-              {["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email) && onSeed && (
-                <div onClick={onSeed} style={{ background: "rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 16px", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", border:"1px solid rgba(255,255,255,0.2)" }}>🗄️ Seed 2026</div>
-              )}
+
               <div onClick={onOcorrencias} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>⚠️ Ocorrências</div>
               <div onClick={onPlanos} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📋 Plano de Ação</div>
               <div onClick={onCadastros} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "10px 20px", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>👥 Cadastros</div>
