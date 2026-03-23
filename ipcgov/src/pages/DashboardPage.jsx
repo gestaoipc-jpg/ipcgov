@@ -97,7 +97,7 @@ function CearaMap({ geoData, mapLoading, mapError, municipaisRealizados, municip
         .on("mousemove", (event, d) => {
           const nm = d.properties?.NM_MUN || d.properties?.name || "";
           const ev = evFiltrados.find(e => normMun(e.municipio || e.regiao) === normMun(nm));
-          const participants = ev ? (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.participantes)||0),0) : 0;
+          const participants = ev ? (ev.modoTotalManual ? (parseInt(ev.totalAprovadosManual)||0) : (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.participantes)||0),0)) : 0;
           setTooltip({ nome: nm, status: ev?.status || "Sem evento", data: ev?.data, participantes: participants, x: event.clientX, y: event.clientY });
         })
         .on("mouseleave", () => setTooltip(null));
@@ -213,12 +213,14 @@ export default function DashboardPage({ onBack }) {
     return true;
   });
 
-  const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && e.status === "Realizado");
-  const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && e.status === "Realizado");
+  const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Realizado" || e.status === "Concluído"));
+  const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && (e.status === "Realizado" || e.status === "Concluído" || e.status === "Concluída"));
   const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
-  const totalCapacitados = evFiltrados.reduce((acc, e) =>
-    acc + (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0), 0);
+  const getEvCapacitados = (e) => e.modoTotalManual
+    ? (parseInt(e.totalAprovadosManual) || 0)
+    : (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+  const totalCapacitados = evFiltrados.reduce((acc, e) => acc + getEvCapacitados(e), 0);
 
   const proximosEventos = evFiltrados
     .filter(e => (e.status === "Programado" || e.status === "Em Execução") && e.data && new Date(e.data) >= new Date())
@@ -227,10 +229,16 @@ export default function DashboardPage({ onBack }) {
 
   const acoesSummary = {};
   evFiltrados.forEach(e => {
-    (e.acoesEducacionais || []).forEach(a => {
-      if (!acoesSummary[a.nome]) acoesSummary[a.nome] = 0;
-      acoesSummary[a.nome] += parseInt(a.participantes) || 0;
-    });
+    if (e.modoTotalManual) {
+      const key = "Total";
+      if (!acoesSummary[key]) acoesSummary[key] = 0;
+      acoesSummary[key] += parseInt(e.totalAprovadosManual) || 0;
+    } else {
+      (e.acoesEducacionais || []).forEach(a => {
+        if (!acoesSummary[a.nome]) acoesSummary[a.nome] = 0;
+        acoesSummary[a.nome] += parseInt(a.participantes) || 0;
+      });
+    }
   });
   const acoesOrdenadas = Object.entries(acoesSummary).sort((a,b) => b[1]-a[1]).slice(0,6);
   const maxAcao = acoesOrdenadas[0]?.[1] || 1;
