@@ -84,7 +84,8 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
   });
 
   // Aggregate stats
-  const municipiosVisitados = new Set(eventosFiltrados.map(e => e.municipio || e.regiao).filter(Boolean)).size;
+  const municipiosVisitados = new Set(eventosFiltrados.filter(e => e._modalidade !== "Regional" && e.tipo !== "Regional").map(e => e.municipio).filter(Boolean)).size;
+  const regionaisSedes = new Set(eventosFiltrados.filter(e => e._modalidade === "Regional" || e.tipo === "Regional").map(e => e.regiao || e.id).filter(Boolean)).size;
 
   // Total inscritos e aprovados por ação
   let totalInscritos = 0, totalAprovados = 0;
@@ -224,8 +225,10 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
               <div style={{ width:180, flexShrink:0, background:"#fff", borderRadius:16, padding:16, boxShadow:"0 2px 12px rgba(0,0,0,0.07)", display:"flex", flexDirection:"column", gap:8 }}>
                 <div style={{ fontWeight:800, fontSize:13, color:"#1B3F7A", marginBottom:4, textAlign:"center" }}>Resultados<br/>Chave</div>
                 <div style={{ background:"#7c3aed", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
-                  <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>{fmtNum(municipiosVisitados)}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>Municípios</div>
+                  <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>{fmtNum(municipiosVisitados + regionaisSedes)}</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.85)", fontWeight:600 }}>
+                    {regionaisSedes > 0 ? municipiosVisitados + " munic. + " + regionaisSedes + " reg." : "Municípios"}
+                  </div>
                 </div>
                 <div style={{ background:"#0891b2", borderRadius:12, padding:"10px 8px", textAlign:"center" }}>
                   <div style={{ fontWeight:900, fontSize:26, color:"#fff" }}>{fmtNum(totalAprovados)}</div>
@@ -248,8 +251,10 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
                 {/* Linha 1 */}
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
                   <div style={cardStyle()}>
-                    <div style={bigNum("#222")}>{fmtNum(municipiosVisitados)}</div>
-                    <div style={lbl()}>Municípios visitados</div>
+                    <div style={bigNum("#222")}>{fmtNum(municipiosVisitados + regionaisSedes)}</div>
+                    <div style={lbl()}>
+                      Municípios visitados{regionaisSedes > 0 ? " (" + municipiosVisitados + " munic. · " + regionaisSedes + " regional)" : ""}
+                    </div>
                   </div>
                   <div style={cardStyle()}>
                     <div style={bigNum("#222")}>{fmtNum(totalAprovados)}</div>
@@ -326,8 +331,8 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
                 </thead>
                 <tbody>
                   {eventosFiltrados.sort((a,b) => (a.data||"").localeCompare(b.data||"")).map((ev,i) => {
-                    const totalEvInsc = (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.inscritos)||0), 0);
-                    const totalEvAprov = (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.participantes)||0), 0);
+                    const totalEvInsc = ev.modoTotalManual ? (parseInt(ev.totalInscritosManual)||0) : (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.inscritos)||0), 0);
+                    const totalEvAprov = ev.modoTotalManual ? (parseInt(ev.totalAprovadosManual)||0) : (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.participantes)||0), 0);
                     const ausEv = totalEvInsc > 0 ? Math.round((totalEvInsc-totalEvAprov)/totalEvInsc*100) : null;
                     return (
                       <tr key={ev.id} style={{ background:i%2===0?"#fff":"#f8f9fb", borderBottom:"1px solid #e8edf2" }}>
