@@ -221,9 +221,7 @@ export default function IPCCursosDashboard({ user, onBack, onSeed }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div onClick={onBack} style={{ width: 36, height: 36, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff", fontSize: 18 }}>←</div>
             <div style={{ color: "#fff", fontWeight: 900, fontSize: 20 }}>📚 IPC Cursos — Dashboard</div>
-            {onSeed && ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"].includes(user?.email) && (
-              <div onClick={onSeed} style={{ marginLeft:"auto", background:"rgba(255,255,255,0.15)", borderRadius:10, padding:"6px 14px", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer" }}>🗄️ Seed 2025</div>
-            )}
+
           </div>
 
           {/* ABA SELECTOR */}
