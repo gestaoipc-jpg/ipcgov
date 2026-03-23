@@ -213,8 +213,9 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: "#f8f9fb", borderTop: "1px solid #e8edf2" }}>
             {[
               { label: "Municípios", value: eventosVinculados.length, icon: "📍", cor: "#1B3F7A" },
-              { label: "Inscritos", value: totalInscritos || "—", icon: "📝", cor: "#0891b2" },
+              { label: "Inscritos", value: totalInscritos > 0 ? totalInscritos : "—", icon: "📝", cor: "#0891b2" },
               { label: "Capacitados", value: totalParticipantes, icon: "👥", cor: "#059669" },
+              { label: "Conclusão", value: totalInscritos > 0 ? Math.round(totalParticipantes/totalInscritos*100)+"%" : "—", icon: "✅", cor: "#059669" },
               { label: "Ocorr. Eventos", value: totalOcEventos, icon: "⚠️", cor: "#E8730A" },
               { label: "Ocorr. Viagem", value: totalOcViagem, icon: "🚌", cor: "#7c3aed" },
               { label: "Hospedagens", value: totalHospedagens, icon: "🏨", cor: "#0891b2" },
@@ -303,15 +304,15 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
-                    {["Município/Região", "Data", "Equipe", "Inscritos", "Capacitados", "Ocorrências"].map(h => (
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
+                    {["Município/Região", "Data", "Equipe", "Participação", "Ocorrências"].map(h => (
                       <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
                     const cap = getCapacitados(ev); const insc = getInscritos(ev);
                     return (
-                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
                         <div style={{ fontSize: 13, color: "#555" }}>{formatDate(ev.data)}</div>
                         <div>
@@ -331,18 +332,23 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                           ))}
                           {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
-                        <div style={{ fontSize: 12, color: "#0891b2" }}>{insc > 0 ? insc : "—"}</div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
+                        <div>
+                          {insc > 0 && <div style={{ fontSize: 11, color: "#0891b2" }}>📝 {insc} inscritos</div>}
+                          <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>👥 {cap || "—"} capacitados</div>
+                        </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
                       </div>
                     );
                   })}
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
                     <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL</div>
                     <div />
                     <div />
-                    <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalParticipantes}</div>
-                    <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalOcEventos}</div>
+                    <div>
+                      {totalInscritos > 0 && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{totalInscritos} inscritos</div>}
+                      <div style={{ fontWeight: 900, fontSize: 15, color: "#fff" }}>{totalParticipantes} capacitados</div>
+                    </div>
+                    <div style={{ fontWeight: 900, fontSize: 14, color: "#fff" }}>{totalOcEventos || "—"}</div>
                   </div>
                 </div>
               )}
@@ -834,15 +840,15 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
-                    {["Município/Região", "Data", "Equipe", "Inscritos", "Capacitados", "Ocorrências"].map(h => (
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
+                    {["Município/Região", "Data", "Equipe", "Participação", "Ocorrências"].map(h => (
                       <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
                     const cap = getCapacitados(ev); const insc = getInscritos(ev);
                     return (
-                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
+                      <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
                         <div style={{ fontSize: 13, color: "#555" }}>{formatDate(ev.data)}</div>
                         <div>
@@ -862,13 +868,15 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                           ))}
                           {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
-                        <div style={{ fontSize: 12, color: "#0891b2" }}>{insc > 0 ? insc : "—"}</div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
+                        <div>
+                          {insc > 0 && <div style={{ fontSize: 11, color: "#0891b2" }}>📝 {insc} inscritos</div>}
+                          <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>👥 {cap || "—"} capacitados</div>
+                        </div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
                       </div>
                     );
                   })}
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1.5fr 1fr", padding: "13px 18px", background: "#E8730A", borderTop: "2px solid #c45f00" }}>
                     <div style={{ fontWeight: 800, fontSize: 13, color: "#fff" }}>TOTAL</div>
                     <div /><div />
                     <div style={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>{totalParticipantes}</div>
