@@ -82,8 +82,14 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
   };
 
   const eventosVinculados = (eventos || []).filter(e => (viagem.municipiosIds || []).includes(e.id)).sort((a, b) => (a.data || "").localeCompare(b.data || ""));
-  const totalParticipantes = eventosVinculados.reduce((s, e) =>
-    s + (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0), 0);
+  const getCapacitados = (e) => e.modoTotalManual
+    ? (parseInt(e.totalAprovadosManual) || 0)
+    : (e.acoesEducacionais || []).reduce((ss, a) => ss + (parseInt(a.participantes) || 0), 0);
+  const getInscritos = (e) => e.modoTotalManual
+    ? (parseInt(e.totalInscritosManual) || 0)
+    : (e.posEvento?.totalInscritos || 0);
+  const totalParticipantes = eventosVinculados.reduce((s, e) => s + getCapacitados(e), 0);
+  const totalInscritos = eventosVinculados.reduce((s, e) => s + getInscritos(e), 0);
   const totalOcEventos = eventosVinculados.reduce((s, e) => s + (e.ocorrencias || []).length, 0);
   const totalOcViagem = (viagem.ocorrencias || []).length;
   const totalHospedagens = (viagem.hospedagens || []).length;
@@ -95,12 +101,18 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
   // Consolidar por ação educacional — normaliza chave para evitar duplicatas por grafia
   const porAcaoMap = {};
   eventosVinculados.forEach(e => {
-    (e.acoesEducacionais || []).forEach(a => {
-      const nomeOriginal = (a.acaoNome || a.nome || "—").trim();
-      const chave = nomeOriginal.toLowerCase().replace(/\s+/g, " ");
-      if (!porAcaoMap[chave]) porAcaoMap[chave] = { nomeExibido: nomeOriginal, total: 0 };
-      porAcaoMap[chave].total += parseInt(a.participantes) || 0;
-    });
+    if (e.modoTotalManual) {
+      const chave = "total";
+      if (!porAcaoMap[chave]) porAcaoMap[chave] = { nomeExibido: "Total capacitados", total: 0 };
+      porAcaoMap[chave].total += parseInt(e.totalAprovadosManual) || 0;
+    } else {
+      (e.acoesEducacionais || []).forEach(a => {
+        const nomeOriginal = (a.acaoNome || a.nome || "—").trim();
+        const chave = nomeOriginal.toLowerCase().replace(/\s+/g, " ");
+        if (!porAcaoMap[chave]) porAcaoMap[chave] = { nomeExibido: nomeOriginal, total: 0 };
+        porAcaoMap[chave].total += parseInt(a.participantes) || 0;
+      });
+    }
   });
   const acoesOrdenadas = Object.values(porAcaoMap).sort((a, b) => b.total - a.total);
 
@@ -201,6 +213,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: "#f8f9fb", borderTop: "1px solid #e8edf2" }}>
             {[
               { label: "Municípios", value: eventosVinculados.length, icon: "📍", cor: "#1B3F7A" },
+              { label: "Inscritos", value: totalInscritos || "—", icon: "📝", cor: "#0891b2" },
               { label: "Capacitados", value: totalParticipantes, icon: "👥", cor: "#059669" },
               { label: "Ocorr. Eventos", value: totalOcEventos, icon: "⚠️", cor: "#E8730A" },
               { label: "Ocorr. Viagem", value: totalOcViagem, icon: "🚌", cor: "#7c3aed" },
@@ -290,13 +303,13 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
-                    {["Município/Região", "Data", "Equipe", "Capacitados", "Ocorrências"].map(h => (
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
+                    {["Município/Região", "Data", "Equipe", "Inscritos", "Capacitados", "Ocorrências"].map(h => (
                       <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
-                    const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+                    const cap = getCapacitados(ev); const insc = getInscritos(ev);
                     return (
                       <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
@@ -318,6 +331,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                           ))}
                           {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
+                        <div style={{ fontSize: 12, color: "#0891b2" }}>{insc > 0 ? insc : "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
                       </div>
@@ -820,13 +834,13 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ textAlign: "center", color: "#aaa", padding: 20 }}>Nenhum município vinculado</div>
               ) : (
                 <div style={{ border: "1px solid #e8edf2", borderRadius: 14, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
-                    {["Município/Região", "Data", "Equipe", "Capacitados", "Ocorrências"].map(h => (
+                  <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr 1fr", background: "#1B3F7A", padding: "12px 18px" }}>
+                    {["Município/Região", "Data", "Equipe", "Inscritos", "Capacitados", "Ocorrências"].map(h => (
                       <div key={h} style={{ color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>{h}</div>
                     ))}
                   </div>
                   {eventosVinculados.map((ev, i) => {
-                    const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+                    const cap = getCapacitados(ev); const insc = getInscritos(ev);
                     return (
                       <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr 1fr", padding: "12px 18px", borderBottom: i < eventosVinculados.length - 1 ? "1px solid #f0f0f0" : "none", background: i % 2 === 0 ? "#fff" : "#f8f9fb" }}>
                         <div style={{ fontWeight: 600, fontSize: 13, color: "#333" }}>{ev.tipo === "Municipal" ? ev.municipio : ev.regiao}</div>
@@ -848,6 +862,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                           ))}
                           {!((viagem.equipeMunicipio || {})[ev.id]?.motoristas || []).length && !((viagem.equipeMunicipio || {})[ev.id]?.apoios || []).length && !(ev.acoesEducacionais || []).some(a => a.instrutorNome) && <span style={{ color: "#ccc", fontSize: 11 }}>—</span>}
                         </div>
+                        <div style={{ fontSize: 12, color: "#0891b2" }}>{insc > 0 ? insc : "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: "#059669" }}>{cap || "—"}</div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: (ev.ocorrencias || []).length > 0 ? "#E8730A" : "#aaa" }}>{(ev.ocorrencias || []).length || "—"}</div>
                       </div>
@@ -870,7 +885,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 2 }}>{eventosVinculados.length} municípios · {totalParticipantes} capacitados</div>
               </div>
               {eventosVinculados.map((ev, idx) => {
-                const cap = (ev.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+                const cap = getCapacitados(ev); const insc = getInscritos(ev);
                 return (
                   <div key={ev.id} style={{ padding: "24px 32px", borderBottom: idx < eventosVinculados.length - 1 ? "2px solid #e8edf2" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
@@ -893,6 +908,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                         )}
                       </div>
                       <div style={{ background: "#059669", borderRadius: 12, padding: "8px 16px", textAlign: "center" }}>
+                        {insc > 0 && <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 10, marginBottom: 2 }}>{insc} inscritos</div>}
                         <div style={{ color: "#fff", fontWeight: 900, fontSize: 24 }}>{cap}</div>
                         <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>capacitados</div>
                       </div>
@@ -995,6 +1011,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                 {[
                   { label: "Municípios atendidos", value: eventosVinculados.length, cor: "#93c5fd" },
+                  { label: "Total inscritos", value: totalInscritos || "—", cor: "#93c5fd" },
                   { label: "Total capacitados", value: totalParticipantes, cor: "#6ee7b7" },
                   { label: "Ocorr. registradas", value: totalOcEventos + totalOcViagem, cor: "#fcd34d" },
                   { label: "Logística checklist", value: `${checkFeitos}/${todosItensChecklist.length}`, cor: "#c4b5fd" },
