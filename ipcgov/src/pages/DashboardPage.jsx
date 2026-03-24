@@ -239,7 +239,7 @@ export default function DashboardPage({ onBack }) {
   const totalCapacitados = evFiltrados.reduce((acc, e) => acc + getEvCapacitados(e), 0);
 
   const proximosEventos = evFiltrados
-    .filter(e => (e.status === "Programado" || e.status === "Em Execução") && e.data && new Date(e.data) >= new Date())
+    .filter(e => (getStatusEfetivo(e) === "Programado" || getStatusEfetivo(e) === "Em Execução") && e.data && new Date(e.data) >= new Date())
     .sort((a, b) => new Date(a.data) - new Date(b.data))
     .slice(0, 5);
 
@@ -406,7 +406,7 @@ export default function DashboardPage({ onBack }) {
                 { label:"Municipais", value:`${municipaisRealizados.length}`, sub:`de 184`, cor:"#1B3F7A", pct: (municipaisRealizados.length/184)*100 },
                 { label:"Regionais", value:`${totalRegionaisRealizadas}`, sub:`de ${totalRegionaisCadastradas}`, cor:"#E8730A", pct: (totalRegionaisRealizadas/totalRegionaisCadastradas)*100 },
                 { label:"Capacitados", value:totalCapacitados, sub:"total", cor:"#059669", pct:null },
-                { label:"Agendados", value:municipaisPendentes.length, sub:"municipais", cor:"#7c3aed", pct:null },
+                { label:"Agendados", value:evFiltrados.filter(e => getStatusEfetivo(e) === "Programado" || getStatusEfetivo(e) === "Em Execução").length, sub: filtroTipo === "Regional" ? "regionais" : filtroTipo === "Municipal" ? "municipais" : "total", cor:"#7c3aed", pct:null },
               ].map((s,i) => (
                 <div key={i} style={{ background:"#fff", borderRadius:18, padding:"16px 18px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderTop:`3px solid ${s.cor}` }}>
                   <div style={{ fontSize:28, fontWeight:900, color:s.cor, lineHeight:1 }}>{s.value}</div>
