@@ -22,6 +22,8 @@ import IPCCursosDashboard from "./pages/IPCCursosDashboard";
 import OlimpiadasModule from "./pages/OlimpiadasModule";
 import OlimpiadasDashboard from "./pages/OlimpiadasDashboard";
 import OlimpiadasSeedPage from "./pages/OlimpiadasSeedPage";
+import IPCMidiaModule from "./pages/IPCMidiaModule";
+import IPCMidiaTelaPublica from "./pages/IPCMidiaTelaPublica";
 import IPCCursos2025SeedPage from "./pages/IPCCursos2025SeedPage";
 import IPCCursosInstrutoresPage from "./pages/IPCCursosInstrutoresPage";
 import IPCIndicadoresModule from "./pages/IPCIndicadoresModule";
@@ -206,7 +208,12 @@ export default function App() {
   if (currentModule === "ipc_cursos") return <IPCCursosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onInstrutores={() => setCurrentModule("ipc_cursos_instrutores")} onFormProjeto={(p) => { setProjetoCursoSelected(p); setCurrentModule("ipc_cursos_form"); }} onDashboard={() => setCurrentModule("ipc_cursos_dashboard")} />;
   if (currentModule === "ipc_cursos_form") return <IPCCursosFormPage user={user} userInfo={userInfo} projeto={projetoCursoSelected} onBack={() => setCurrentModule("ipc_cursos")} onSaved={() => { setProjetoCursoSelected(null); setCurrentModule("ipc_cursos"); }} />;
   if (currentModule === "ipc_cursos_dashboard") return <IPCCursosDashboard user={user} onBack={() => setCurrentModule("ipc_cursos")} onSeed={() => setCurrentModule("ipc_cursos_seed_2025")} />;
+  // Tela pública de exibição — sem auth
+  const telaMatch = window.location.pathname.match(/^\/tela\/([^/]+)$/);
+  if (telaMatch) return <IPCMidiaTelaPublica telaId={telaMatch[1]}/>;
+
   if (currentModule === "olimpiadas") return <OlimpiadasModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("olimpiadas_dashboard")} onSeed={() => setCurrentModule("olimpiadas_seed")} />;
+  if (currentModule === "ipc_midia") return <IPCMidiaModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)}/>;
   if (currentModule === "olimpiadas_seed") return <OlimpiadasSeedPage onBack={() => setCurrentModule("olimpiadas")} />;
   if (currentModule === "olimpiadas_dashboard") return <OlimpiadasDashboard user={user} onBack={() => setCurrentModule("olimpiadas")} />;
   if (currentModule === "ipc_cursos_seed_2025") return <IPCCursos2025SeedPage onBack={() => setCurrentModule("ipc_cursos_dashboard")} />;
