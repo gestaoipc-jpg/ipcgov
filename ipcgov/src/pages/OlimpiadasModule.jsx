@@ -138,7 +138,7 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
         return (
           <select ref={inputRef} value={editingValue} onChange={e=>setEditingValue(e.target.value)}
             onBlur={saveEdit}
-            style={ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }>
+            style={{ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }}>
             <option value=""></option>
             {MUNICIPIOS_CE.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
@@ -148,7 +148,7 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
         return (
           <select ref={inputRef} value={editingValue} onChange={e=>setEditingValue(e.target.value)}
             onBlur={saveEdit}
-            style={ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }>
+            style={{ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }}>
             <option value=""></option>
             {CREDES_LIST.map(cr => <option key={cr} value={cr}>{cr}</option>)}
           </select>
@@ -158,47 +158,47 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
         <input ref={inputRef} type={type} value={editingValue}
           onChange={e=>setEditingValue(e.target.value)}
           onBlur={saveEdit} onKeyDown={e=>{ if(e.key==="Enter") saveEdit(); if(e.key==="Escape") cancelEdit(); }}
-          style={ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }/>
+          style={{ ...inp, padding:"4px 8px", fontSize:12, width: width||"100%", background:"#fffbeb" }}/>
       );
     }
     return (
       <div onClick={()=>startEdit(escola.id, field, val)}
-        style={ cursor:isOlimpAdm?"pointer":"default", minHeight:22, fontSize:12,
+        style={{ cursor:isOlimpAdm?"pointer":"default", minHeight:22, fontSize:12,
           color: val ? "#1B3F7A" : "#ccc",
           borderBottom: isOlimpAdm ? "1px dashed #e8edf2" : "none",
-          padding:"2px 4px", borderRadius:4 }>
+          padding:"2px 4px", borderRadius:4 }}>
         {val || (isOlimpAdm ? "—" : "—")}
       </div>
     );
   };
 
   return (
-    <div style={ minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" }>
+    <div style={{ minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0}`}</style>
 
       {/* HEADER */}
-      <div style={ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 28px" }>
-        <div style={ maxWidth:1300, margin:"0 auto" }>
-          <div style={ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }>
-            <div onClick={onBack} style={ width:40,height:40,background:"rgba(255,255,255,0.15)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:20 }>←</div>
+      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px 28px" }}>
+        <div style={{ maxWidth:1300, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+            <div onClick={onBack} style={{ width:40,height:40,background:"rgba(255,255,255,0.15)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:20 }}>←</div>
             <div>
-              <div style={ color:"rgba(255,255,255,0.6)", fontSize:10, letterSpacing:3, textTransform:"uppercase" }>IPC</div>
-              <div style={ color:"#fff", fontWeight:900, fontSize:22 }>🏆 Olímpiadas</div>
+              <div style={{ color:"rgba(255,255,255,0.6)", fontSize:10, letterSpacing:3, textTransform:"uppercase" }}>IPC</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>🏆 Olímpiadas</div>
             </div>
-            <div style={ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }>
-              <div onClick={onDashboard} style={ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }>📊 Dashboard</div>
+            <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              <div onClick={onDashboard} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>📊 Dashboard</div>
               {isOlimpAdm && (
-                <div onClick={()=>setModal("form")} style={ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }>+ Nova Escola</div>
+                <div onClick={()=>setModal("form")} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(232,115,10,0.4)" }}>+ Nova Escola</div>
               )}
               {isAdmin && escolas.length === 0 && (
-                <div onClick={executarSeed} style={ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }>🗄️ Seed</div>
+                <div onClick={executarSeed} style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🗄️ Seed</div>
               )}
             </div>
           </div>
-          {seedStatus && <div style={ marginTop:10, color:"#fff", fontSize:12 }>{seedStatus}</div>}
+          {seedStatus && <div style={{ marginTop:10, color:"#fff", fontSize:12 }}>{seedStatus}</div>}
 
           {/* KPIs rápidos */}
-          <div style={ display:"flex", gap:16, marginTop:20, flexWrap:"wrap" }>
+          <div style={{ display:"flex", gap:16, marginTop:20, flexWrap:"wrap" }}>
             {[
               { label:"Escolas", value:fmtNum(escolasFiltradas.length) },
               { label:"Alunos Inscritos", value:fmtNum(totalAlunos) },
@@ -206,9 +206,9 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
               { label:"Municípios", value:fmtNum(totalMunicipios) },
               { label:"CREDEs", value:totalCredes > 0 ? totalCredes+"/24" : "—" },
             ].map((k,i) => (
-              <div key={i} style={ background:"rgba(255,255,255,0.12)", borderRadius:14, padding:"12px 20px", textAlign:"center", minWidth:110 }>
-                <div style={ fontWeight:900, fontSize:22, color:"#fff" }>{k.value}</div>
-                <div style={ fontSize:11, color:"rgba(255,255,255,0.7)", marginTop:2 }>{k.label}</div>
+              <div key={i} style={{ background:"rgba(255,255,255,0.12)", borderRadius:14, padding:"12px 20px", textAlign:"center", minWidth:110 }}>
+                <div style={{ fontWeight:900, fontSize:22, color:"#fff" }}>{k.value}</div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.7)", marginTop:2 }}>{k.label}</div>
               </div>
             ))}
           </div>
@@ -216,100 +216,100 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
       </div>
 
       {/* FILTROS + MODO */}
-      <div style={ maxWidth:1300, margin:"0 auto", padding:"20px 32px 0" }>
-        <div style={ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", marginBottom:16 }>
+      <div style={{ maxWidth:1300, margin:"0 auto", padding:"20px 32px 0" }}>
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", marginBottom:16 }}>
           {/* Edição */}
-          <div style={ display:"flex", gap:4 }>
+          <div style={{ display:"flex", gap:4 }}>
             {[2024,2025,2026].map(ed => (
               <div key={ed} onClick={()=>setFiltroEdicao(ed)}
-                style={ background:filtroEdicao===ed?"#1B3F7A":"#fff", color:filtroEdicao===ed?"#fff":"#555",
+                style={{ background:filtroEdicao===ed?"#1B3F7A":"#fff", color:filtroEdicao===ed?"#fff":"#555",
                   borderRadius:10, padding:"7px 16px", fontSize:13, fontWeight:700, cursor:"pointer",
-                  boxShadow:"0 2px 8px rgba(27,63,122,0.08)" }>{ed}</div>
+                  boxShadow:"0 2px 8px rgba(27,63,122,0.08)" }}>{ed}</div>
             ))}
           </div>
 
           <select value={filtroCrede} onChange={e=>setFiltroCrede(e.target.value)}>
-            style={ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, cursor:"pointer", boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none" }>
+            style={{ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, cursor:"pointer", boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none" }}>
             <option value="todas">Todas as CREDEs</option>
             {CREDES_LIST.map(cr => <option key={cr} value={cr}>{cr}</option>)}
           </select>
 
           <select value={filtroMunicipio} onChange={e=>setFiltroMunicipio(e.target.value)}>
-            style={ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, cursor:"pointer", boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none" }>
+            style={{ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, cursor:"pointer", boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none" }}>
             <option value="todos">Todos os municípios</option>
             {MUNICIPIOS_CE.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
 
           <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔍 Buscar escola..."
-            style={ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none", minWidth:220 }/>
+            style={{ background:"#fff", border:"none", borderRadius:10, padding:"7px 14px", fontSize:13, color:"#555", fontWeight:600, boxShadow:"0 2px 8px rgba(27,63,122,0.08)", outline:"none", minWidth:220 }}/>
 
-          <div style={ marginLeft:"auto", display:"flex", gap:6 }>
+          <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
             {[{ v:"planilha", l:"📋 Planilha" },{ v:"formulario", l:"📝 Formulário" }].map(m => (
               <div key={m.v} onClick={()=>setModoView(m.v)}
-                style={ background:modoView===m.v?"#1B3F7A":"#fff", color:modoView===m.v?"#fff":"#555",
+                style={{ background:modoView===m.v?"#1B3F7A":"#fff", color:modoView===m.v?"#fff":"#555",
                   borderRadius:10, padding:"7px 16px", fontSize:12, fontWeight:700, cursor:"pointer",
-                  boxShadow:"0 2px 8px rgba(27,63,122,0.08)" }>{m.l}</div>
+                  boxShadow:"0 2px 8px rgba(27,63,122,0.08)" }}>{m.l}</div>
             ))}
           </div>
         </div>
       </div>
 
       {/* CONTEÚDO */}
-      <div style={ maxWidth:1300, margin:"0 auto", padding:"0 32px 80px" }>
+      <div style={{ maxWidth:1300, margin:"0 auto", padding:"0 32px 80px" }}>
 
         {loading ? (
-          <div style={ textAlign:"center", padding:60, color:"#aaa" }>Carregando...</div>
+          <div style={{ textAlign:"center", padding:60, color:"#aaa" }}>Carregando...</div>
         ) : modoView === "planilha" ? (
 
           {/* MODO PLANILHA */}
-          <div style={ background:"#fff", borderRadius:18, boxShadow:"0 2px 16px rgba(27,63,122,0.08)", overflow:"hidden" }>
-            {isOlimpAdm && <div style={ background:"#fffbeb", borderTop:"none", padding:"8px 20px", fontSize:11, color:"#92400e", fontWeight:600 }>✏️ Clique em qualquer célula para editar diretamente</div>}
-            <div style={ overflowX:"auto" }>
-              <table style={ width:"100%", borderCollapse:"collapse", fontSize:12 }>
+          <div style={{ background:"#fff", borderRadius:18, boxShadow:"0 2px 16px rgba(27,63,122,0.08)", overflow:"hidden" }}>
+            {isOlimpAdm && <div style={{ background:"#fffbeb", borderTop:"none", padding:"8px 20px", fontSize:11, color:"#92400e", fontWeight:600 }}>✏️ Clique em qualquer célula para editar diretamente</div>}
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                 <thead>
-                  <tr style={ background:"#1B3F7A" }>
+                  <tr style={{ background:"#1B3F7A" }}>
                     {["Nome da Escola","CREDE","Município","Alunos","Professores","Edição",isOlimpAdm?"":""].filter(Boolean).map((h,i) => (
-                      <th key={i} style={ padding:"12px 14px", textAlign:"left", color:"#fff", fontWeight:800, fontSize:11, textTransform:"uppercase", letterSpacing:0.5, whiteSpace:"nowrap" }>{h}</th>
+                      <th key={i} style={{ padding:"12px 14px", textAlign:"left", color:"#fff", fontWeight:800, fontSize:11, textTransform:"uppercase", letterSpacing:0.5, whiteSpace:"nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {escolasFiltradas.length === 0 ? (
-                    <tr><td colSpan={6} style={ textAlign:"center", padding:40, color:"#aaa" }>Nenhuma escola encontrada</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign:"center", padding:40, color:"#aaa" }}>Nenhuma escola encontrada</td></tr>
                   ) : escolasFiltradas.map((e,i) => (
-                    <tr key={e.id} style={ borderBottom:"1px solid #f0f0f0", background:i%2===0?"#fff":"#f8f9fb" }>
-                      <td style={ padding:"8px 14px", minWidth:280 }>
+                    <tr key={e.id} style={{ borderBottom:"1px solid #f0f0f0", background:i%2===0?"#fff":"#f8f9fb" }}>
+                      <td style={{ padding:"8px 14px", minWidth:280 }}>
                         <EditCell escola={e} field="nomeEscola"/>
                       </td>
-                      <td style={ padding:"8px 14px", minWidth:120 }>
+                      <td style={{ padding:"8px 14px", minWidth:120 }}>
                         <EditCell escola={e} field="crede"/>
                       </td>
-                      <td style={ padding:"8px 14px", minWidth:160 }>
+                      <td style={{ padding:"8px 14px", minWidth:160 }}>
                         <EditCell escola={e} field="municipio"/>
                       </td>
-                      <td style={ padding:"8px 14px", textAlign:"right", minWidth:80 }>
+                      <td style={{ padding:"8px 14px", textAlign:"right", minWidth:80 }}>
                         <EditCell escola={e} field="alunosInscritos" type="number"/>
                       </td>
-                      <td style={ padding:"8px 14px", textAlign:"right", minWidth:80 }>
+                      <td style={{ padding:"8px 14px", textAlign:"right", minWidth:80 }}>
                         <EditCell escola={e} field="professoresResponsaveis" type="number"/>
                       </td>
-                      <td style={ padding:"8px 14px", textAlign:"center" }>
-                        <span style={ background:"#f0f4ff", borderRadius:8, padding:"2px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }>{e.edicao}</span>
+                      <td style={{ padding:"8px 14px", textAlign:"center" }}>
+                        <span style={{ background:"#f0f4ff", borderRadius:8, padding:"2px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{e.edicao}</span>
                       </td>
                       {isOlimpAdm && (
-                        <td style={ padding:"8px 14px", textAlign:"center" }>
-                          <div onClick={()=>excluirEscola(e.id)} style={ cursor:"pointer", color:"#dc2626", fontSize:14 }>🗑️</div>
+                        <td style={{ padding:"8px 14px", textAlign:"center" }}>
+                          <div onClick={()=>excluirEscola(e.id)} style={{ cursor:"pointer", color:"#dc2626", fontSize:14 }}>🗑️</div>
                         </td>
                       )}
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr style={ background:"#1B3F7A" }>
-                    <td style={ padding:"10px 14px", fontWeight:900, color:"#fff", fontSize:12 }>TOTAL — {escolasFiltradas.length} escolas</td>
+                  <tr style={{ background:"#1B3F7A" }}>
+                    <td style={{ padding:"10px 14px", fontWeight:900, color:"#fff", fontSize:12 }}>TOTAL — {escolasFiltradas.length} escolas</td>
                     <td/><td/>
-                    <td style={ padding:"10px 14px", textAlign:"right", fontWeight:900, color:"#fff", fontSize:13 }>{fmtNum(totalAlunos)}</td>
-                    <td style={ padding:"10px 14px", textAlign:"right", fontWeight:900, color:"#fff", fontSize:13 }>{fmtNum(totalProfs)}</td>
+                    <td style={{ padding:"10px 14px", textAlign:"right", fontWeight:900, color:"#fff", fontSize:13 }}>{fmtNum(totalAlunos)}</td>
+                    <td style={{ padding:"10px 14px", textAlign:"right", fontWeight:900, color:"#fff", fontSize:13 }}>{fmtNum(totalProfs)}</td>
                     <td/><td/>
                   </tr>
                 </tfoot>
@@ -320,31 +320,31 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
         ) : (
 
           {/* MODO FORMULÁRIO */}
-          <div style={ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:14 }>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:14 }}>
             {escolasFiltradas.length === 0 ? (
-              <div style={ gridColumn:"1/-1", textAlign:"center", padding:60, color:"#aaa" }>Nenhuma escola encontrada</div>
+              <div style={{ gridColumn:"1/-1", textAlign:"center", padding:60, color:"#aaa" }}>Nenhuma escola encontrada</div>
             ) : escolasFiltradas.map(e => (
-              <div key={e.id} style={ background:"#fff", borderRadius:18, padding:"18px 20px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)" }>
-                <div style={ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }>
-                  <div style={ fontWeight:800, fontSize:14, color:"#1B3F7A", flex:1 }>{e.nomeEscola}</div>
-                  <span style={ background:"#f0f4ff", borderRadius:8, padding:"2px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A", flexShrink:0 }>{e.edicao}</span>
+              <div key={e.id} style={{ background:"#fff", borderRadius:18, padding:"18px 20px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                  <div style={{ fontWeight:800, fontSize:14, color:"#1B3F7A", flex:1 }}>{e.nomeEscola}</div>
+                  <span style={{ background:"#f0f4ff", borderRadius:8, padding:"2px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A", flexShrink:0 }}>{e.edicao}</span>
                 </div>
-                <div style={ display:"flex", gap:16, fontSize:12, color:"#888", marginBottom:8, flexWrap:"wrap" }>
+                <div style={{ display:"flex", gap:16, fontSize:12, color:"#888", marginBottom:8, flexWrap:"wrap" }}>
                   {e.crede && <span>📍 {e.crede}</span>}
                   {e.municipio && <span>🏙️ {e.municipio}</span>}
                 </div>
-                <div style={ display:"flex", gap:16 }>
-                  <div style={ textAlign:"center", background:"#f0f9ff", borderRadius:10, padding:"8px 16px", flex:1 }>
-                    <div style={ fontWeight:900, fontSize:20, color:"#0891b2" }>{e.alunosInscritos||0}</div>
-                    <div style={ fontSize:10, color:"#888" }>Alunos</div>
+                <div style={{ display:"flex", gap:16 }}>
+                  <div style={{ textAlign:"center", background:"#f0f9ff", borderRadius:10, padding:"8px 16px", flex:1 }}>
+                    <div style={{ fontWeight:900, fontSize:20, color:"#0891b2" }}>{e.alunosInscritos||0}</div>
+                    <div style={{ fontSize:10, color:"#888" }}>Alunos</div>
                   </div>
-                  <div style={ textAlign:"center", background:"#f0fdf4", borderRadius:10, padding:"8px 16px", flex:1 }>
-                    <div style={ fontWeight:900, fontSize:20, color:"#059669" }>{e.professoresResponsaveis||0}</div>
-                    <div style={ fontSize:10, color:"#888" }>Professores</div>
+                  <div style={{ textAlign:"center", background:"#f0fdf4", borderRadius:10, padding:"8px 16px", flex:1 }}>
+                    <div style={{ fontWeight:900, fontSize:20, color:"#059669" }}>{e.professoresResponsaveis||0}</div>
+                    <div style={{ fontSize:10, color:"#888" }}>Professores</div>
                   </div>
                 </div>
                 {isOlimpAdm && (
-                  <div onClick={()=>excluirEscola(e.id)} style={ marginTop:10, textAlign:"right", fontSize:11, color:"#dc2626", cursor:"pointer" }>🗑️ Remover</div>
+                  <div onClick={()=>excluirEscola(e.id)} style={{ marginTop:10, textAlign:"right", fontSize:11, color:"#dc2626", cursor:"pointer" }}>🗑️ Remover</div>
                 )}
               </div>
             ))}
@@ -354,50 +354,50 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
 
       {/* MODAL FORM */}
       {modal === "form" && (
-        <div style={ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 } onClick={()=>setModal(null)}>
-          <div style={ background:"#fff", borderRadius:24, width:"100%", maxWidth:520, padding:32 } onClick={e=>e.stopPropagation()}>
-            <div style={ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }>➕ Nova Escola</div>
-            <div style={ display:"flex", flexDirection:"column", gap:14 }>
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:520, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>➕ Nova Escola</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               <div>
-                <label style={lbl}>Edição *</label>
-                <select value={form.edicao} onChange={e=>setForm(f=>{...f,edicao:parseInt(e.target.value)})} style={inp}>
+                <label style={{lbl}}>Edição *</label>
+                <select value={form.edicao} onChange={e=>setForm(f=>{...f,edicao:parseInt(e.target.value)})} style={{inp}}>
                   {EDICOES.map(ed => <option key={ed} value={ed}>{ed}</option>)}
                 </select>
               </div>
               <div>
-                <label style={lbl}>Nome da Escola *</label>
-                <input value={form.nomeEscola} onChange={e=>setForm(f=>{...f,nomeEscola:e.target.value})} placeholder="Ex: EEMTI Nome da Escola" style={inp}/>
+                <label style={{lbl}}>Nome da Escola *</label>
+                <input value={form.nomeEscola} onChange={e=>setForm(f=>{...f,nomeEscola:e.target.value})} placeholder="Ex: EEMTI Nome da Escola" style={{inp}}/>
               </div>
-              <div style={ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <div>
-                  <label style={lbl}>CREDE</label>
-                  <select value={form.crede} onChange={e=>setForm(f=>{...f,crede:e.target.value})} style={inp}>
+                  <label style={{lbl}}>CREDE</label>
+                  <select value={form.crede} onChange={e=>setForm(f=>{...f,crede:e.target.value})} style={{inp}}>
                     <option value=""></option>
                     {CREDES_LIST.map(cr => <option key={cr} value={cr}>{cr}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Município</label>
-                  <select value={form.municipio} onChange={e=>setForm(f=>{...f,municipio:e.target.value})} style={inp}>
+                  <label style={{lbl}}>Município</label>
+                  <select value={form.municipio} onChange={e=>setForm(f=>{...f,municipio:e.target.value})} style={{inp}}>
                     <option value=""></option>
                     {MUNICIPIOS_CE.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
-              <div style={ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <div>
-                  <label style={lbl}>Alunos Inscritos</label>
-                  <input type="number" min="0" value={form.alunosInscritos} onChange={e=>setForm(f=>{...f,alunosInscritos:parseInt(e.target.value)||0})} style={inp}/>
+                  <label style={{lbl}}>Alunos Inscritos</label>
+                  <input type="number" min="0" value={form.alunosInscritos} onChange={e=>setForm(f=>{...f,alunosInscritos:parseInt(e.target.value)||0})} style={{inp}}/>
                 </div>
                 <div>
-                  <label style={lbl}>Professores</label>
-                  <input type="number" min="0" value={form.professoresResponsaveis} onChange={e=>setForm(f=>{...f,professoresResponsaveis:parseInt(e.target.value)||0})} style={inp}/>
+                  <label style={{lbl}}>Professores</label>
+                  <input type="number" min="0" value={form.professoresResponsaveis} onChange={e=>setForm(f=>{...f,professoresResponsaveis:parseInt(e.target.value)||0})} style={{inp}}/>
                 </div>
               </div>
             </div>
-            <div style={ display:"flex", gap:10, marginTop:20 }>
-              <div onClick={()=>setModal(null)} style={ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }>Cancelar</div>
-              <div onClick={salvarEscola} style={ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }>{salvando?"Salvando...":"✅ Salvar Escola"}</div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <div onClick={()=>setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={salvarEscola} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Salvando...":"✅ Salvar Escola"}</div>
             </div>
           </div>
         </div>
