@@ -678,7 +678,7 @@ function AbaConteudos({ conteudos, setConteudos, isMidiaAdm, user }) {
 // ═══════════════════════════════════════════════
 function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores }) {
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ nome:"", tipo:"evento", dataInicio:"", dataFim:"", descricao:"", artUrl:"" });
+  const [form, setForm] = useState({ nome:"", tipo:"evento_manual", dataInicio:"", dataFim:"", descricao:"", fotoUrl:"", local:"", horario:"", categoria:"" });
   const [salvando, setSalvando] = useState(false);
 
   const hoje = new Date();
@@ -737,19 +737,29 @@ function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores 
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {agendaManual.length===0 && <div style={{ color:"#aaa", textAlign:"center", padding:30, background:"#fff", borderRadius:14 }}>Nenhum evento manual</div>}
           {agendaManual.map(ev => (
-            <div key={ev.id} style={{ background:"#fff", borderRadius:14, padding:"12px 14px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", opacity:ev.oculto?0.5:1 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{ev.nome}</div>
-                {ev.oculto && <span style={{ background:"#fee2e2", borderRadius:6, padding:"1px 8px", fontSize:10, color:"#dc2626", fontWeight:700 }}>Oculto</span>}
-              </div>
-              {ev.dataInicio && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{fmtData(ev.dataInicio)}{ev.dataFim && ev.dataFim!==ev.dataInicio ? " → "+fmtData(ev.dataFim) : ""}</div>}
-              {ev.descricao && <div style={{ fontSize:11, color:"#555", marginTop:4 }}>{ev.descricao}</div>}
-              {isMidiaAdm && (
-                <div style={{ display:"flex", gap:6, marginTop:8 }}>
-                  <div onClick={() => toggleOculto(ev)} style={{ background:ev.oculto?"#f0fdf4":"#fff3e0", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:ev.oculto?"#059669":"#E8730A", cursor:"pointer" }}>{ev.oculto?"👁️ Mostrar":"🚫 Ocultar"}</div>
-                  <div onClick={() => excluir(ev.id)} style={{ background:"#fee2e2", borderRadius:8, padding:"3px 10px", fontSize:11, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🗑️</div>
+            <div key={ev.id} style={{ background:"#fff", borderRadius:14, overflow:"hidden", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", opacity:ev.oculto?0.5:1 }}>
+              {ev.fotoUrl && (
+                <div style={{ height:72, overflow:"hidden" }}>
+                  <img src={ev.fotoUrl} alt={ev.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.parentElement.style.display="none";}}/>
                 </div>
               )}
+              <div style={{ padding:"10px 14px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:8 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", flex:1 }}>{ev.nome}</div>
+                  {ev.oculto && <span style={{ background:"#fee2e2", borderRadius:6, padding:"1px 8px", fontSize:10, color:"#dc2626", fontWeight:700, flexShrink:0 }}>Oculto</span>}
+                </div>
+                {ev.categoria && <span style={{ background:"#f0f4ff", color:"#1B3F7A", fontSize:10, padding:"1px 8px", borderRadius:6, fontWeight:700 }}>{ev.categoria}</span>}
+                {ev.dataInicio && <div style={{ fontSize:11, color:"#888", marginTop:3 }}>{fmtData(ev.dataInicio)}{ev.dataFim && ev.dataFim!==ev.dataInicio ? " → "+fmtData(ev.dataFim) : ""}</div>}
+                {ev.local && <div style={{ fontSize:11, color:"#0891b2", marginTop:2 }}>📍 {ev.local}</div>}
+                {ev.horario && <div style={{ fontSize:11, color:"#888", marginTop:1 }}>🕐 {ev.horario}</div>}
+                {ev.descricao && <div style={{ fontSize:11, color:"#555", marginTop:4 }}>{ev.descricao}</div>}
+                {isMidiaAdm && (
+                  <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                    <div onClick={() => toggleOculto(ev)} style={{ background:ev.oculto?"#f0fdf4":"#fff3e0", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:ev.oculto?"#059669":"#E8730A", cursor:"pointer" }}>{ev.oculto?"👁️ Mostrar":"🚫 Ocultar"}</div>
+                    <div onClick={() => excluir(ev.id)} style={{ background:"#fee2e2", borderRadius:8, padding:"3px 10px", fontSize:11, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🗑️</div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -805,7 +815,7 @@ function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores 
             <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>📋 Novo Evento na Agenda</div>
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               <div>
-                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome *</label>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome do evento *</label>
                 <input value={form.nome||""} onChange={e => setForm(Object.assign({},form,{nome:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -818,9 +828,35 @@ function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores 
                   <input type="date" value={form.dataFim||""} onChange={e => setForm(Object.assign({},form,{dataFim:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
                 </div>
               </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Local de realização</label>
+                  <input value={form.local||""} onChange={e => setForm(Object.assign({},form,{local:e.target.value}))} placeholder="Ex: Auditório — TCE-CE" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                </div>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Horário</label>
+                  <input value={form.horario||""} onChange={e => setForm(Object.assign({},form,{horario:e.target.value}))} placeholder="Ex: 8h às 17h" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                </div>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Categoria <span style={{ fontWeight:400, textTransform:"none" }}>(aparece como tag)</span></label>
+                <input value={form.categoria||""} onChange={e => setForm(Object.assign({},form,{categoria:e.target.value}))} placeholder="Ex: Evento institucional, Capacitação..." style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Foto do evento <span style={{ fontWeight:400, textTransform:"none" }}>(link Google Drive ou URL pública)</span></label>
+                <input value={form.fotoUrl||""} onChange={e => setForm(Object.assign({},form,{fotoUrl:e.target.value}))} placeholder="https://drive.google.com/... ou URL da imagem" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
+                {form.fotoUrl && (
+                  <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:80, background:"#f0f4ff" }}>
+                    <img src={form.fotoUrl} alt="preview"
+                      style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                      onError={e => { e.target.style.display="none"; }}/>
+                  </div>
+                )}
+              </div>
               <div>
                 <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Descrição</label>
-                <textarea value={form.descricao||""} onChange={e => setForm(Object.assign({},form,{descricao:e.target.value}))} rows={3} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", resize:"none" }}/>
+                <textarea value={form.descricao||""} onChange={e => setForm(Object.assign({},form,{descricao:e.target.value}))} rows={2} placeholder="Texto de apoio exibido no slide..." style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", resize:"none" }}/>
               </div>
             </div>
             <div style={{ display:"flex", gap:10, marginTop:20 }}>
