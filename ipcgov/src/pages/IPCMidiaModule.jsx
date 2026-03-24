@@ -710,11 +710,17 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
     if (!form.nome.trim()) { alert("Informe o nome."); return; }
     setSalvando(true);
     try {
-      const dados = { ...form, tipo:"evento_manual", criadoEm: new Date().toISOString() };
+      const raw = Object.assign({}, form, { tipo:"evento_manual", criadoEm: new Date().toISOString() });
+      const dados = {};
+      Object.keys(raw).forEach(k => { if (raw[k] !== undefined) dados[k] = raw[k]; });
       const ref = await addDoc(collection(db,"midia_conteudos"), dados);
-      setConteudos(prev => [...prev, { id:ref.id, ...dados }]);
+      setConteudos(prev => [...prev, Object.assign({ id: ref.id }, dados)]);
       setModal(null);
-    } catch(e) { console.error(e); }
+      setForm({ nome:"", tipo:"evento_manual", dataInicio:"", dataFim:"", descricao:"", fotoUrl:"", local:"", horario:"", categoria:"" });
+    } catch(err) {
+      console.error("Erro ao salvar evento:", err);
+      alert("Erro ao salvar: " + err.message);
+    }
     setSalvando(false);
   };
 
