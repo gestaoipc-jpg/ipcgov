@@ -357,26 +357,26 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
             <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>➕ Nova Escola</div>
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               <div>
-                <label style={{lbl}}>Edição *</label>
-                <select value={form.edicao} onChange={e=>setForm(f=>{...f,edicao:parseInt(e.target.value)})} style={{inp}}>
+                <label style={lbl}>Edição *</label>
+                <select value={form.edicao} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,edicao:parseInt(e.target.value)}))} style={inp}>
                   {EDICOES.map(ed => <option key={ed} value={ed}>{ed}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{lbl}}>Nome da Escola *</label>
-                <input value={form.nomeEscola} onChange={e=>setForm(f=>{...f,nomeEscola:e.target.value})} placeholder="Ex: EEMTI Nome da Escola" style={{inp}}/>
+                <label style={lbl}>Nome da Escola *</label>
+                <input value={form.nomeEscola} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,nomeEscola:e.target.value}))} placeholder="Ex: EEMTI Nome da Escola" style={inp}/>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <div>
-                  <label style={{lbl}}>CREDE</label>
-                  <select value={form.crede} onChange={e=>setForm(f=>{...f,crede:e.target.value})} style={{inp}}>
+                  <label style={lbl}>CREDE</label>
+                  <select value={form.crede} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,crede:e.target.value}))} style={inp}>
                     <option value=""></option>
                     {CREDES_LIST.map(cr => <option key={cr} value={cr}>{cr}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{lbl}}>Município</label>
-                  <select value={form.municipio} onChange={e=>setForm(f=>{...f,municipio:e.target.value})} style={{inp}}>
+                  <label style={lbl}>Município</label>
+                  <select value={form.municipio} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,municipio:e.target.value}))} style={inp}>
                     <option value=""></option>
                     {MUNICIPIOS_CE.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
@@ -384,12 +384,12 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                 <div>
-                  <label style={{lbl}}>Alunos Inscritos</label>
-                  <input type="number" min="0" value={form.alunosInscritos} onChange={e=>setForm(f=>{...f,alunosInscritos:parseInt(e.target.value)||0})} style={{inp}}/>
+                  <label style={lbl}>Alunos Inscritos</label>
+                  <input type="number" min="0" value={form.alunosInscritos} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,alunosInscritos:parseInt(e.target.value)||0}))} style={inp}/>
                 </div>
                 <div>
-                  <label style={{lbl}}>Professores</label>
-                  <input type="number" min="0" value={form.professoresResponsaveis} onChange={e=>setForm(f=>{...f,professoresResponsaveis:parseInt(e.target.value)||0})} style={{inp}}/>
+                  <label style={lbl}>Professores</label>
+                  <input type="number" min="0" value={form.professoresResponsaveis} onChange={e=>setForm(prev => Object.assign({}, prev, {...f,professoresResponsaveis:parseInt(e.target.value)||0}))} style={inp}/>
                 </div>
               </div>
             </div>
