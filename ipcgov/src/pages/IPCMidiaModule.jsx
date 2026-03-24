@@ -504,31 +504,31 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
                 <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:320, overflowY:"auto" }}>
                   {editItens.length === 0 && <div style={{ color:"#aaa", textAlign:"center", padding:20, fontSize:12 }}>Adicione itens ao lado →</div>}
                   {editItens.map((item, i) => (
-                    <div key={i} draggable
-                      onDragStart={() => onDragStart(i)}
-                      onDragOver={e => onDragOver(e, i)}
-                      onDragEnd={onDragEnd}
-                      style={{ background:"#f8f9fb", borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, cursor:"grab", border:"1px solid #e8edf2" }}>
-                      <span style={{ color:"#aaa", fontSize:16 }}>⠿</span>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:"#1B3F7A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label||item.tipo}</div>
-                        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
-                          <input type="number" min="3" max="300" value={item.tempo||10}
-                            onChange={e => {
-                              const next = [...editItens];
-                              next[i] = Object.assign({},next[i],{tempo:parseInt(e.target.value)||10});
-                              setEditItens(next);
-                            }}
-                            onClick={e => e.stopPropagation()}
-                            onKeyDown={e => e.stopPropagation()}
-                            style={{ width:50, background:"#fff", border:"1px solid #e8edf2", borderRadius:6, padding:"2px 6px", fontSize:11, outline:"none" }}/>
-                          <span style={{ fontSize:10, color:"#888" }}>seg</span>
+                    <div key={i} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      <div draggable
+                        onDragStart={() => onDragStart(i)}
+                        onDragOver={e => onDragOver(e, i)}
+                        onDragEnd={onDragEnd}
+                        style={{ background:"#f8f9fb", borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, cursor:"grab", border:"1px solid #e8edf2" }}>
+                        <span style={{ color:"#aaa", fontSize:16 }}>⠿</span>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:12, fontWeight:700, color:"#1B3F7A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label||item.tipo}</div>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
+                            <input type="number" min="3" max="300" value={item.tempo||10}
+                              onChange={e => {
+                                const next = [...editItens];
+                                next[i] = Object.assign({},next[i],{tempo:parseInt(e.target.value)||10});
+                                setEditItens(next);
+                              }}
+                              onClick={e => e.stopPropagation()}
+                              onKeyDown={e => e.stopPropagation()}
+                              style={{ width:50, background:"#fff", border:"1px solid #e8edf2", borderRadius:6, padding:"2px 6px", fontSize:11, outline:"none" }}/>
+                            <span style={{ fontSize:10, color:"#888" }}>seg</span>
+                          </div>
                         </div>
+                        <div onClick={() => removeItem(i)} style={{ color:"#dc2626", cursor:"pointer", fontSize:14 }}>✕</div>
                       </div>
-                      <div onClick={() => removeItem(i)} style={{ color:"#dc2626", cursor:"pointer", fontSize:14 }}>✕</div>
-                    </div>
-                    {item.tipo === "eventos_tc" && (
-                      <div style={{ marginTop:6, paddingLeft:24 }}>
+                      {item.tipo === "eventos_tc" && (
                         <input
                           value={item.capaUrl||""}
                           onChange={e => {
@@ -539,9 +539,9 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
                           onClick={e => e.stopPropagation()}
                           onKeyDown={e => e.stopPropagation()}
                           placeholder="🖼️ URL da capa (exibida 4s antes da agenda)"
-                          style={{ width:"100%", background:"#fff", border:"1px solid #e8edf2", borderRadius:8, padding:"5px 10px", fontSize:11, outline:"none", color:"#1B3F7A" }}/>
-                      </div>
-                    )}
+                          style={{ width:"100%", background:"#fff", border:"1px solid #e0e7ef", borderRadius:8, padding:"5px 10px", fontSize:11, outline:"none", color:"#1B3F7A" }}/>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
