@@ -345,7 +345,6 @@ export default function DashboardPage({ onBack }) {
               { label:"Municipais realizados", value:`${municipaisRealizados.length}/184`, accent:false },
               { label:`Regionais${filtroStatus==="Realizado"?" realizados":filtroStatus==="Programado"?" programados":filtroStatus==="Em Execução"?" em execução":" cadastrados"}`, value:`${filtroTipo==="Regional" ? evFiltrados.length : totalRegionaisRealizadas}/${totalRegionaisCadastradas}`, accent:false },
               { label:"Pessoas capacitadas", value:totalCapacitados || "0", accent:true },
-              { label:"Próximos eventos", value:proximosEventos.length, accent:false },
             ].map((s,i) => (
               <div key={i} style={{ background:s.accent?"rgba(232,115,10,0.25)":"rgba(255,255,255,0.12)", border:s.accent?"1px solid rgba(232,115,10,0.4)":"none", borderRadius:14, padding:"10px 20px" }}>
                 <div style={{ color:s.accent?"#E8730A":"#fff", fontWeight:900, fontSize:22 }}>{s.value}</div>
@@ -406,7 +405,7 @@ export default function DashboardPage({ onBack }) {
                 { label:"Municipais", value:`${municipaisRealizados.length}`, sub:`de 184`, cor:"#1B3F7A", pct: (municipaisRealizados.length/184)*100 },
                 { label:"Regionais", value:`${totalRegionaisRealizadas}`, sub:`de ${totalRegionaisCadastradas}`, cor:"#E8730A", pct: (totalRegionaisRealizadas/totalRegionaisCadastradas)*100 },
                 { label:"Capacitados", value:totalCapacitados, sub:"total", cor:"#059669", pct:null },
-                { label:"Agendados", value:evFiltrados.filter(e => getStatusEfetivo(e) === "Programado" || getStatusEfetivo(e) === "Em Execução").length, sub: filtroTipo === "Regional" ? "regionais" : filtroTipo === "Municipal" ? "municipais" : "total", cor:"#7c3aed", pct:null },
+                { label:"Agendados", value:eventos.filter(e => (getStatusEfetivo(e) === "Programado" || getStatusEfetivo(e) === "Em Execução") && (filtroTipo === "todos" || e.tipo === filtroTipo)).length, sub: filtroTipo === "Regional" ? "regionais" : filtroTipo === "Municipal" ? "municipais" : "total", cor:"#7c3aed", pct:null },
               ].map((s,i) => (
                 <div key={i} style={{ background:"#fff", borderRadius:18, padding:"16px 18px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderTop:`3px solid ${s.cor}` }}>
                   <div style={{ fontSize:28, fontWeight:900, color:s.cor, lineHeight:1 }}>{s.value}</div>
@@ -421,33 +420,7 @@ export default function DashboardPage({ onBack }) {
               ))}
             </div>
 
-            {/* PRÓXIMOS EVENTOS */}
-            <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 12px rgba(27,63,122,0.07)" }}>
-              <div style={{ fontWeight:800, fontSize:14, color:"#1B3F7A", marginBottom:14 }}>Próximos Eventos</div>
-              {proximosEventos.length === 0 ? (
-                <div style={{ textAlign:"center", color:"#aaa", padding:"20px 0", fontSize:13 }}>Nenhum evento agendado</div>
-              ) : proximosEventos.map((ev, i) => {
-                const nome = ev.tipo==="Municipal" ? ev.municipio : ev.regiao;
-                const days = daysUntil(ev.data);
-                return (
-                  <div key={ev.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 0", borderBottom: i < proximosEventos.length-1 ? "1px solid #f0f0f0":"none" }}>
-                    <div style={{ width:44, height:44, borderRadius:12, background:days<=7?"#dc262618":"#1B3F7A18", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      <div style={{ fontWeight:900, fontSize:15, color:days<=7?"#dc2626":"#1B3F7A", lineHeight:1 }}>{ev.data?.split("-")[2]}</div>
-                      <div style={{ fontSize:9, color:days<=7?"#dc2626":"#1B3F7A", fontWeight:600, opacity:0.7, textTransform:"uppercase" }}>
-                        {["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"][parseInt(ev.data?.split("-")[1])-1]}
-                      </div>
-                    </div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{nome}</div>
-                      <div style={{ color:"#aaa", fontSize:11, marginTop:2 }}>{ev.tipo}</div>
-                    </div>
-                    <div style={{ fontSize:11, fontWeight:700, color:days<=7?"#dc2626":days<=15?"#E8730A":"#1B3F7A", background:days<=7?"#fee2e2":days<=15?"#fff3e0":"#f0f4ff", borderRadius:8, padding:"3px 8px" }}>
-                      {days}d
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+
 
             {/* CAPACITADOS POR AÇÃO */}
             <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 12px rgba(27,63,122,0.07)" }}>
