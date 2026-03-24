@@ -337,20 +337,32 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
     { id:"eventos_semana", tipo:"eventos_tc", label:"📅 Eventos TCEduc da semana", count: eventosSemana.length },
   ];
 
+  const isEditMode = modal === "edit";
+
   const salvarPlaylist = async () => {
     if (!form.nome.trim()) { alert("Informe o nome da playlist."); return; }
     setSalvando(true);
+    const itensParaSalvar = editItens.map((it, idx) => Object.assign({}, it, { ordem: idx }));
     try {
-      const dados = { ...form, itens: editItens, atualizadoEm: new Date().toISOString() };
-      if (modal === "edit" && form.id) {
+      const dados = {
+        nome: form.nome,
+        tipo: form.tipo || "geral",
+        itens: itensParaSalvar,
+        atualizadoEm: new Date().toISOString()
+      };
+      if (isEditMode && form.id) {
         await updateDoc(doc(db, "midia_playlists", form.id), dados);
-        setPlaylists(prev => prev.map(p => p.id === form.id ? { ...p, ...dados } : p));
+        setPlaylists(prev => prev.map(p => p.id === form.id ? Object.assign({}, p, dados) : p));
       } else {
-        const ref = await addDoc(collection(db, "midia_playlists"), { ...dados, criadoEm: new Date().toISOString(), criadoPor: user?.email });
-        setPlaylists(prev => [...prev, { id: ref.id, ...dados }]);
+        const dadosNovos = Object.assign({}, dados, { criadoEm: new Date().toISOString(), criadoPor: user && user.email });
+        const ref = await addDoc(collection(db, "midia_playlists"), dadosNovos);
+        setPlaylists(prev => [...prev, Object.assign({ id: ref.id }, dadosNovos)]);
       }
       setModal(null);
-    } catch(e) { console.error(e); }
+    } catch(err) {
+      console.error("Erro ao salvar playlist:", err);
+      alert("Erro ao salvar: " + err.message);
+    }
     setSalvando(false);
   };
 
@@ -502,6 +514,7 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
                               setEditItens(next);
                             }}
                             onClick={e => e.stopPropagation()}
+                            onKeyDown={e => e.stopPropagation()}
                             style={{ width:50, background:"#fff", border:"1px solid #e8edf2", borderRadius:6, padding:"2px 6px", fontSize:11, outline:"none" }}/>
                           <span style={{ fontSize:10, color:"#888" }}>seg</span>
                         </div>
