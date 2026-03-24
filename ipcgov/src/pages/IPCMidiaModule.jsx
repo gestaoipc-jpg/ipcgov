@@ -342,7 +342,13 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
   const salvarPlaylist = async () => {
     if (!form.nome.trim()) { alert("Informe o nome da playlist."); return; }
     setSalvando(true);
-    const itensParaSalvar = editItens.map((it, idx) => Object.assign({}, it, { ordem: idx }));
+    // Remove undefined — Firestore rejects undefined values
+    const limparObj = (obj) => {
+      const clean = {};
+      Object.keys(obj).forEach(k => { if (obj[k] !== undefined) clean[k] = obj[k]; });
+      return clean;
+    };
+    const itensParaSalvar = editItens.map((it, idx) => limparObj(Object.assign({}, it, { ordem: idx })));
     try {
       const dados = {
         nome: form.nome,
