@@ -144,8 +144,8 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
             <>
               {aba === "telas" && <AbaTelas telas={telas} setTelas={setTelas} playlists={playlists} isMidiaAdm={isMidiaAdm} user={user} />}
               {aba === "playlists" && <AbaPlaylists playlists={playlists} setPlaylists={setPlaylists} conteudos={conteudos} servidores={servidores} eventosTC={eventosTC} isMidiaAdm={isMidiaAdm} user={user} />}
-              {aba === "conteudos" && <AbaConteudos conteudos={conteudos} setConteudos={setConteudos} isMidiaAdm={isMidiaAdm} user={user} />}
-              {aba === "agenda" && <AbaAgenda conteudos={conteudos} setConteudos={setConteudos} isMidiaAdm={isMidiaAdm} eventosTC={eventosTC} servidores={servidores} />}
+              {aba === "conteudos" && <AbaConteudos conteudos={conteudos} setConteudos={setConteudos} playlists={playlists} setPlaylists={setPlaylists} isMidiaAdm={isMidiaAdm} user={user} />}
+              {aba === "agenda" && <AbaAgenda conteudos={conteudos} setConteudos={setConteudos} playlists={playlists} setPlaylists={setPlaylists} isMidiaAdm={isMidiaAdm} eventosTC={eventosTC} servidores={servidores} />}
             </>
           )}
         </div>
@@ -546,7 +546,7 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
 // ═══════════════════════════════════════════════
 // ABA CONTEÚDOS
 // ═══════════════════════════════════════════════
-function AbaConteudos({ conteudos, setConteudos, isMidiaAdm, user }) {
+function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAdm, user }) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ nome:"", tipo:"imagem", url:"", tempoPadrao:10, descricao:"" });
   const [salvando, setSalvando] = useState(false);
@@ -574,9 +574,16 @@ function AbaConteudos({ conteudos, setConteudos, isMidiaAdm, user }) {
   };
 
   const excluir = async (id) => {
-    if (!window.confirm("Excluir este conteúdo?")) return;
+    if (!window.confirm("Excluir este conteúdo? Ele também será removido de todas as playlists.")) return;
     await deleteDoc(doc(db,"midia_conteudos",id));
     setConteudos(prev => prev.filter(c => c.id !== id));
+    // Remover o conteúdo de todas as playlists que o contêm
+    const playlistsAfetadas = (playlists || []).filter(p => (p.itens || []).some(it => it.id === id));
+    for (let pl of playlistsAfetadas) {
+      const novosItens = (pl.itens || []).filter(it => it.id !== id);
+      await updateDoc(doc(db, "midia_playlists", pl.id), { itens: novosItens });
+      setPlaylists(prev => prev.map(p => p.id === pl.id ? Object.assign({}, p, { itens: novosItens }) : p));
+    }
   };
 
   const filtrados = filtroTipo==="todos" ? conteudos : conteudos.filter(c => c.tipo===filtroTipo);
@@ -676,7 +683,7 @@ function AbaConteudos({ conteudos, setConteudos, isMidiaAdm, user }) {
 // ═══════════════════════════════════════════════
 // ABA AGENDA
 // ═══════════════════════════════════════════════
-function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores }) {
+function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAdm, eventosTC, servidores }) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ nome:"", tipo:"evento_manual", dataInicio:"", dataFim:"", descricao:"", fotoUrl:"", local:"", horario:"", categoria:"" });
   const [salvando, setSalvando] = useState(false);
@@ -712,9 +719,16 @@ function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores 
   };
 
   const excluir = async (id) => {
-    if (!window.confirm("Excluir?")) return;
+    if (!window.confirm("Excluir este evento? Ele também será removido de todas as playlists.")) return;
     await deleteDoc(doc(db,"midia_conteudos",id));
     setConteudos(prev => prev.filter(c => c.id!==id));
+    // Remover o conteúdo de todas as playlists que o contêm
+    const playlistsAfetadas = (playlists || []).filter(p => (p.itens || []).some(it => it.id === id));
+    for (let pl of playlistsAfetadas) {
+      const novosItens = (pl.itens || []).filter(it => it.id !== id);
+      await updateDoc(doc(db, "midia_playlists", pl.id), { itens: novosItens });
+      setPlaylists(prev => prev.map(p => p.id === pl.id ? Object.assign({}, p, { itens: novosItens }) : p));
+    }
   };
 
   const toggleOculto = async (item) => {
