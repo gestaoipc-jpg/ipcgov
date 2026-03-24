@@ -202,15 +202,25 @@ export default function DashboardPage({ onBack }) {
     setLoading(false);
   };
 
+  // Status efetivo: se tem capacitados preenchidos, considera Realizado independente do status salvo
+  const getStatusEfetivo = (e) => {
+    const temCapacitados = e.modoTotalManual
+      ? (parseInt(e.totalAprovadosManual) || 0) > 0
+      : (e.acoesEducacionais || []).some(a => (parseInt(a.participantes) || 0) > 0);
+    if (temCapacitados) return "Realizado";
+    return e.status || "Programado";
+  };
+
   const evFiltrados = eventos.filter(e => {
     if (filtroAno !== "todos" && !(e.data && e.data.startsWith(filtroAno))) return false;
     if (filtroStatus !== "todos") {
-      const st = e.status || "";
-      if (filtroStatus === "Realizado" && st !== "Realizado" && st !== "Concluído" && st !== "Concluída") return false;
+      const st = getStatusEfetivo(e);
+      if (filtroStatus === "Realizado" && st !== "Realizado") return false;
       if (filtroStatus !== "Realizado") {
-        const match = st === filtroStatus ||
-          (filtroStatus === "Programado" && (st === "Programado" || st === "Programada")) ||
-          (filtroStatus === "Em Execução" && st === "Em Execução");
+        const stOrig = e.status || "";
+        const match = stOrig === filtroStatus ||
+          (filtroStatus === "Programado" && (stOrig === "Programado" || stOrig === "Programada" || stOrig === "Pendente")) ||
+          (filtroStatus === "Em Execução" && stOrig === "Em Execução");
         if (!match) return false;
       }
     }
@@ -218,13 +228,13 @@ export default function DashboardPage({ onBack }) {
     return true;
   });
 
-  const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Realizado" || e.status === "Concluído"));
+  const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && getStatusEfetivo(e) === "Realizado");
 
   // Regionais: baseado nas viagens com modalidade Regional
   const viagensRegionais = viagens.filter(v => v.modalidade === "Regional");
   const viagensRegionaisRealizadas = viagensRegionais.filter(v => v.status === "Realizado" || v.status === "Concluída" || v.status === "Realizada");
   const viagensRegionaisProgramadas = viagensRegionais.filter(v => v.status === "Programado" || v.status === "Programada" || v.status === "Em Execução");
-  const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && (e.status === "Realizado" || e.status === "Concluído" || e.status === "Concluída"));
+  const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && getStatusEfetivo(e) === "Realizado");
   const totalRegionaisCadastradas = viagensRegionais.length || regionaisRealizados.length;
   const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
