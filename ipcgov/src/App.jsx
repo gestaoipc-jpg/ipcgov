@@ -174,17 +174,17 @@ export default function App() {
     setSalvandoAut(false);
   };
 
+  // Rotas públicas — sem login, sem aguardar auth
+  if (window.location.pathname === "/ocorrencia" || window.location.pathname.startsWith("/ocorrencia?")) return <OcorrenciaPublicaPage />;
+  const telaMatch = window.location.pathname.match(/^\/tela\/([^/]+)$/);
+  if (telaMatch) return <IPCMidiaTelaPublica telaId={telaMatch[1]}/>;
+
   if (loading) return (
     <div style={{ minHeight:"100vh", background:"#1B3F7A", display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
       <div style={{ fontFamily:"'Montserrat',sans-serif", fontSize:42, fontWeight:900, color:"#fff", letterSpacing:-2 }}>IPC<span style={{ color:"#E8730A" }}>gov</span></div>
       <div style={{ color:"rgba(255,255,255,0.4)", fontSize:13, letterSpacing:3 }}>CARREGANDO...</div>
     </div>
   );
-
-  // Rota pública — formulário de ocorrência via QR Code (sem login)
-  if (window.location.pathname === "/ocorrencia" || window.location.pathname.startsWith("/ocorrencia?")) {
-    return <OcorrenciaPublicaPage />;
-  }
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
@@ -208,10 +208,6 @@ export default function App() {
   if (currentModule === "ipc_cursos") return <IPCCursosModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onInstrutores={() => setCurrentModule("ipc_cursos_instrutores")} onFormProjeto={(p) => { setProjetoCursoSelected(p); setCurrentModule("ipc_cursos_form"); }} onDashboard={() => setCurrentModule("ipc_cursos_dashboard")} />;
   if (currentModule === "ipc_cursos_form") return <IPCCursosFormPage user={user} userInfo={userInfo} projeto={projetoCursoSelected} onBack={() => setCurrentModule("ipc_cursos")} onSaved={() => { setProjetoCursoSelected(null); setCurrentModule("ipc_cursos"); }} />;
   if (currentModule === "ipc_cursos_dashboard") return <IPCCursosDashboard user={user} onBack={() => setCurrentModule("ipc_cursos")} onSeed={() => setCurrentModule("ipc_cursos_seed_2025")} />;
-  // Tela pública de exibição — sem auth
-  const telaMatch = window.location.pathname.match(/^\/tela\/([^/]+)$/);
-  if (telaMatch) return <IPCMidiaTelaPublica telaId={telaMatch[1]}/>;
-
   if (currentModule === "olimpiadas") return <OlimpiadasModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("olimpiadas_dashboard")} onSeed={() => setCurrentModule("olimpiadas_seed")} />;
   if (currentModule === "ipc_midia") return <IPCMidiaModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)}/>;
   if (currentModule === "olimpiadas_seed") return <OlimpiadasSeedPage onBack={() => setCurrentModule("olimpiadas")} />;
