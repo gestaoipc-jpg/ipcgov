@@ -261,7 +261,6 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
           <div style={{ textAlign:"center", padding:60, color:"#aaa" }}>Carregando...</div>
         ) : modoView === "planilha" ? (
 
-          {/* MODO PLANILHA */}
           <div style={{ background:"#fff", borderRadius:18, boxShadow:"0 2px 16px rgba(27,63,122,0.08)", overflow:"hidden" }}>
             {isOlimpAdm && <div style={{ background:"#fffbeb", borderTop:"none", padding:"8px 20px", fontSize:11, color:"#92400e", fontWeight:600 }}>✏️ Clique em qualquer célula para editar diretamente</div>}
             <div style={{ overflowX:"auto" }}>
@@ -319,7 +318,6 @@ export default function OlimpiadasModule({ user, userInfo, onBack, onDashboard }
 
         ) : (
 
-          {/* MODO FORMULÁRIO */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))", gap:14 }}>
             {escolasFiltradas.length === 0 ? (
               <div style={{ gridColumn:"1/-1", textAlign:"center", padding:60, color:"#aaa" }}>Nenhuma escola encontrada</div>
