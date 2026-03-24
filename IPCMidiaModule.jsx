@@ -1,0 +1,816 @@
+import { useState, useEffect, useRef } from "react";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
+
+const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
+
+function fmtData(d) {
+  if (!d) return "—";
+  const [y,m,dia] = d.split("-");
+  return `${dia}/${m}/${y}`;
+}
+
+function corAvatar(nome) {
+  const cores = ["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"];
+  let h = 0;
+  for (let c of (nome||"")) h += c.charCodeAt(0);
+  return cores[h % cores.length];
+}
+function initials(nome) {
+  if (!nome) return "?";
+  return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase();
+}
+
+// Drag and drop hook
+function useDragList(items, setItems) {
+  const dragIdx = useRef(null);
+  const onDragStart = (i) => { dragIdx.current = i; };
+  const onDragOver = (e, i) => {
+    e.preventDefault();
+    if (dragIdx.current === null || dragIdx.current === i) return;
+    const next = [...items];
+    const [moved] = next.splice(dragIdx.current, 1);
+    next.splice(i, 0, moved);
+    dragIdx.current = i;
+    setItems(next);
+  };
+  const onDragEnd = () => { dragIdx.current = null; };
+  return { onDragStart, onDragOver, onDragEnd };
+}
+
+export default function IPCMidiaModule({ user, userInfo, onBack }) {
+  const [aba, setAba] = useState("telas");
+  const [conteudos, setConteudos] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [telas, setTelas] = useState([]);
+  const [servidores, setServidores] = useState([]);
+  const [eventosTC, setEventosTC] = useState([]);
+  const [grupos, setGrupos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+
+  const isAdmin = ADMINS.includes(user?.email);
+  const grupoMidiaAdm = grupos.find(g => (g.nome||"").toLowerCase().includes("mídia") && (g.nome||"").toLowerCase().includes("admin"));
+  const grupoMidia = grupos.find(g => (g.nome||"").toLowerCase().includes("mídia") && !(g.nome||"").toLowerCase().includes("admin"));
+  const isMidiaAdm = isAdmin || !!(grupoMidiaAdm && (userInfo?.grupos||[]).includes(grupoMidiaAdm.id));
+  const isMidia = isMidiaAdm || !!(grupoMidia && (userInfo?.grupos||[]).includes(grupoMidia.id));
+
+  useEffect(() => { loadAll(); }, []);
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [cSnap, pSnap, tSnap, sSnap, eSnap, gSnap] = await Promise.all([
+        getDocs(collection(db, "midia_conteudos")),
+        getDocs(collection(db, "midia_playlists")),
+        getDocs(collection(db, "midia_telas")),
+        getDocs(collection(db, "ipc_servidores")),
+        getDocs(collection(db, "tceduc_eventos")),
+        getDocs(collection(db, "ipc_grupos_trabalho")),
+      ]);
+      setConteudos(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setPlaylists(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setTelas(tSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setServidores(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEventosTC(eSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setGrupos(gSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
+  // Aniversariantes hoje e próximos 7 dias
+  const hoje = new Date();
+  const anivHoje = servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m,d] = s.dataAniversario.split("-");
+    return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
+  });
+
+  const inp = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
+  const lbl = { display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 };
+
+  const ABAS = [
+    { id:"telas", l:"📺 Telas" },
+    { id:"playlists", l:"🎬 Playlists" },
+    { id:"conteudos", l:"🖼️ Conteúdos" },
+    { id:"agenda", l:"📅 Agenda" },
+  ];
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#0f172a", fontFamily:"'Montserrat',sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}`}</style>
+
+      {/* HEADER */}
+      <div style={{ background:"linear-gradient(135deg,#0f172a,#1e293b)", borderBottom:"1px solid rgba(255,255,255,0.08)", padding:"16px 28px" }}>
+        <div style={{ maxWidth:1400, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:16 }}>
+            <div onClick={onBack} style={{ width:38,height:38,background:"rgba(255,255,255,0.08)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:18 }}>←</div>
+            <div>
+              <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, letterSpacing:3, textTransform:"uppercase" }}>IPC</div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>📺 Mídia Indoor</div>
+            </div>
+            {isMidiaAdm && (
+              <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+                {anivHoje.length > 0 && (
+                  <div style={{ background:"rgba(232,115,10,0.25)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:10, padding:"6px 14px", color:"#E8730A", fontSize:12, fontWeight:700 }}>
+                    🎂 {anivHoje.length} aniversariante{anivHoje.length>1?"s":""} hoje
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ABAS */}
+          <div style={{ display:"flex", gap:2 }}>
+            {ABAS.map(a => (
+              <div key={a.id} onClick={() => setAba(a.id)}
+                style={{ padding:"10px 20px", fontWeight:700, fontSize:13, cursor:"pointer", borderRadius:"10px 10px 0 0",
+                  background: aba===a.id ? "#f0f2f5" : "rgba(255,255,255,0.06)",
+                  color: aba===a.id ? "#1B3F7A" : "rgba(255,255,255,0.7)" }}>
+                {a.l}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background:"#f0f2f5", minHeight:"calc(100vh - 120px)" }}>
+        <div style={{ maxWidth:1400, margin:"0 auto", padding:"24px 28px 60px" }}>
+          {loading ? (
+            <div style={{ textAlign:"center", padding:60, color:"#888" }}>Carregando...</div>
+          ) : (
+            <>
+              {aba === "telas" && <AbaTelas telas={telas} setTelas={setTelas} playlists={playlists} isMidiaAdm={isMidiaAdm} user={user} />}
+              {aba === "playlists" && <AbaPlaylists playlists={playlists} setPlaylists={setPlaylists} conteudos={conteudos} servidores={servidores} eventosTC={eventosTC} isMidiaAdm={isMidiaAdm} user={user} />}
+              {aba === "conteudos" && <AbaConteudos conteudos={conteudos} setConteudos={setConteudos} isMidiaAdm={isMidiaAdm} user={user} />}
+              {aba === "agenda" && <AbaAgenda conteudos={conteudos} setConteudos={setConteudos} isMidiaAdm={isMidiaAdm} eventosTC={eventosTC} servidores={servidores} />}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ABA TELAS
+// ═══════════════════════════════════════════════
+function AbaTelas({ telas, setTelas, playlists, isMidiaAdm, user }) {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ nome:"", tipo:"recepção", orientacao:"horizontal", playlistId:"" });
+  const [salvando, setSalvando] = useState(false);
+
+  const TIPOS = ["recepção","corredor","auditório","elevador","sala de reunião","externo"];
+
+  const salvar = async () => {
+    if (!form.nome.trim()) { alert("Informe o nome da tela."); return; }
+    setSalvando(true);
+    try {
+      if (modal === "edit" && form.id) {
+        await updateDoc(doc(db, "midia_telas", form.id), { ...form, atualizadoEm: new Date().toISOString() });
+        setTelas(prev => prev.map(t => t.id === form.id ? { ...t, ...form } : t));
+      } else {
+        const dados = { ...form, criadoEm: new Date().toISOString(), criadoPor: user?.email, ultimoPing: null };
+        const ref = await addDoc(collection(db, "midia_telas"), dados);
+        setTelas(prev => [...prev, { id: ref.id, ...dados }]);
+      }
+      setModal(null);
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm("Excluir esta tela?")) return;
+    await deleteDoc(doc(db, "midia_telas", id));
+    setTelas(prev => prev.filter(t => t.id !== id));
+  };
+
+  const isOnline = (t) => {
+    if (!t.ultimoPing) return false;
+    return (Date.now() - new Date(t.ultimoPing).getTime()) < 90000;
+  };
+
+  const getPlaylistNome = (id) => playlists.find(p => p.id === id)?.nome || "—";
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <div style={{ fontWeight:800, fontSize:18, color:"#1B3F7A" }}>📺 Telas de Exibição</div>
+        {isMidiaAdm && (
+          <div onClick={() => { setForm({ nome:"", tipo:"recepção", orientacao:"horizontal", playlistId:"" }); setModal("new"); }}
+            style={{ background:"#1B3F7A", borderRadius:12, padding:"10px 20px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+            + Nova Tela
+          </div>
+        )}
+      </div>
+
+      {telas.length === 0 ? (
+        <div style={{ textAlign:"center", padding:60, color:"#aaa", background:"#fff", borderRadius:18 }}>
+          Nenhuma tela cadastrada
+        </div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))", gap:16 }}>
+          {telas.map(t => {
+            const online = isOnline(t);
+            const playlist = playlists.find(p => p.id === t.playlistId);
+            return (
+              <div key={t.id} style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 12px rgba(0,0,0,0.06)", borderTop:`3px solid ${online?"#059669":"#dc2626"}` }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A" }}>{t.nome}</div>
+                    <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{t.tipo} · {t.orientacao}</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: online?"#059669":"#dc2626" }}/>
+                    <span style={{ fontSize:11, fontWeight:700, color: online?"#059669":"#dc2626" }}>{online?"Online":"Offline"}</span>
+                  </div>
+                </div>
+
+                <div style={{ background:"#f0f4ff", borderRadius:10, padding:"10px 14px", marginBottom:12 }}>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:2 }}>Playlist vinculada</div>
+                  <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{playlist ? playlist.nome : "Nenhuma"}</div>
+                  {playlist && <div style={{ fontSize:11, color:"#888" }}>{(playlist.itens||[]).length} itens</div>}
+                </div>
+
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  <a href={`/tela/${t.id}`} target="_blank" rel="noreferrer"
+                    style={{ background:"#0891b2", borderRadius:8, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, textDecoration:"none", cursor:"pointer" }}>
+                    🔗 Abrir tela
+                  </a>
+                  {isMidiaAdm && (
+                    <>
+                      <div onClick={() => { setForm({ ...t }); setModal("edit"); }}
+                        style={{ background:"#f0f4ff", borderRadius:8, padding:"6px 14px", color:"#1B3F7A", fontSize:12, fontWeight:700, cursor:"pointer" }}>✏️ Editar</div>
+                      <div onClick={() => excluir(t.id)}
+                        style={{ background:"#fee2e2", borderRadius:8, padding:"6px 14px", color:"#dc2626", fontSize:12, fontWeight:700, cursor:"pointer" }}>🗑️</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {(modal === "new" || modal === "edit") && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:480, padding:32 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>{modal==="edit"?"✏️ Editar Tela":"➕ Nova Tela"}</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome da Tela *</label>
+                <input value={form.nome||""} onChange={e => setForm(Object.assign({},form,{nome:e.target.value}))} placeholder="Ex: Recepção 1º andar" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Tipo</label>
+                  <select value={form.tipo||"recepção"} onChange={e => setForm(Object.assign({},form,{tipo:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}>
+                    {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Orientação</label>
+                  <select value={form.orientacao||"horizontal"} onChange={e => setForm(Object.assign({},form,{orientacao:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}>
+                    <option value="horizontal">Horizontal (16:9)</option>
+                    <option value="vertical">Vertical (9:16)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Playlist vinculada</label>
+                <select value={form.playlistId||""} onChange={e => setForm(Object.assign({},form,{playlistId:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}>
+                  <option value="">Nenhuma</option>
+                  {playlists.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <div onClick={() => setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={salvar} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Salvando...":"✅ Salvar"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ABA PLAYLISTS
+// ═══════════════════════════════════════════════
+function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosTC, isMidiaAdm, user }) {
+  const [selected, setSelected] = useState(null);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ nome:"", tipo:"geral", itens:[] });
+  const [salvando, setSalvando] = useState(false);
+  const [editItens, setEditItens] = useState([]);
+
+  const TIPOS_PL = ["geral","institucional","eventos","aniversários","recepção","corredor"];
+
+  const hoje = new Date();
+  const anivHoje = servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m,d] = s.dataAniversario.split("-");
+    return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
+  });
+  const anivProximos = servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m,d] = s.dataAniversario.split("-");
+    const prox = new Date(`${hoje.getFullYear()}-${m}-${d}`);
+    if (prox < hoje) prox.setFullYear(hoje.getFullYear()+1);
+    const dias = Math.ceil((prox - hoje) / 86400000);
+    return dias > 0 && dias <= 7;
+  });
+
+  const eventosSemana = eventosTC.filter(e => {
+    if (!e.data) return false;
+    const d = new Date(e.data+"T00:00:00");
+    const diff = Math.ceil((d - hoje) / 86400000);
+    return diff >= 0 && diff <= 7;
+  });
+
+  const FONTES_ESPECIAIS = [
+    { id:"aniv_hoje", tipo:"aniversario", label:"🎂 Aniversariantes de hoje", count: anivHoje.length },
+    { id:"aniv_semana", tipo:"aniversario", label:"🎂 Aniversariantes da semana", count: anivProximos.length },
+    { id:"eventos_semana", tipo:"eventos_tc", label:"📅 Eventos TCEduc da semana", count: eventosSemana.length },
+  ];
+
+  const salvarPlaylist = async () => {
+    if (!form.nome.trim()) { alert("Informe o nome da playlist."); return; }
+    setSalvando(true);
+    try {
+      const dados = { ...form, itens: editItens, atualizadoEm: new Date().toISOString() };
+      if (modal === "edit" && form.id) {
+        await updateDoc(doc(db, "midia_playlists", form.id), dados);
+        setPlaylists(prev => prev.map(p => p.id === form.id ? { ...p, ...dados } : p));
+      } else {
+        const ref = await addDoc(collection(db, "midia_playlists"), { ...dados, criadoEm: new Date().toISOString(), criadoPor: user?.email });
+        setPlaylists(prev => [...prev, { id: ref.id, ...dados }]);
+      }
+      setModal(null);
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm("Excluir esta playlist?")) return;
+    await deleteDoc(doc(db, "midia_playlists", id));
+    setPlaylists(prev => prev.filter(p => p.id !== id));
+    if (selected?.id === id) setSelected(null);
+  };
+
+  const addItem = (item) => {
+    const novo = { ...item, tempo: item.tempo||10, oculto: false, ordem: editItens.length };
+    setEditItens(prev => [...prev, novo]);
+  };
+
+  const removeItem = (idx) => setEditItens(prev => prev.filter((_,i) => i !== idx));
+
+  const { onDragStart, onDragOver, onDragEnd } = useDragList(editItens, setEditItens);
+
+  const abrirNova = () => {
+    setForm({ nome:"", tipo:"geral" });
+    setEditItens([]);
+    setModal("new");
+  };
+
+  const abrirEdit = (p) => {
+    setForm({ ...p });
+    setEditItens([...(p.itens||[])]);
+    setModal("edit");
+  };
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns: selected ? "280px 1fr" : "1fr", gap:16 }}>
+      {/* LISTA */}
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+          <div style={{ fontWeight:800, fontSize:18, color:"#1B3F7A" }}>🎬 Playlists</div>
+          {isMidiaAdm && (
+            <div onClick={abrirNova} style={{ background:"#1B3F7A", borderRadius:10, padding:"8px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>+ Nova</div>
+          )}
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {playlists.length === 0 && <div style={{ textAlign:"center", padding:40, color:"#aaa", background:"#fff", borderRadius:14 }}>Nenhuma playlist</div>}
+          {playlists.map(p => (
+            <div key={p.id} onClick={() => setSelected(selected?.id===p.id ? null : p)}
+              style={{ background:"#fff", borderRadius:14, padding:"14px 16px", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.05)",
+                border: selected?.id===p.id ? "2px solid #1B3F7A" : "2px solid transparent" }}>
+              <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A" }}>{p.nome}</div>
+              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{p.tipo} · {(p.itens||[]).length} itens</div>
+              {isMidiaAdm && (
+                <div style={{ display:"flex", gap:6, marginTop:10 }}>
+                  <div onClick={e => { e.stopPropagation(); abrirEdit(p); }} style={{ background:"#f0f4ff", borderRadius:8, padding:"4px 12px", color:"#1B3F7A", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️ Editar</div>
+                  <div onClick={e => { e.stopPropagation(); excluir(p.id); }} style={{ background:"#fee2e2", borderRadius:8, padding:"4px 12px", color:"#dc2626", fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑️</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* DETALHE */}
+      {selected && (
+        <div style={{ background:"#fff", borderRadius:18, padding:20, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontWeight:800, fontSize:16, color:"#1B3F7A", marginBottom:16 }}>{selected.nome} — itens da playlist</div>
+          {(selected.itens||[]).length === 0 ? (
+            <div style={{ color:"#aaa", textAlign:"center", padding:30 }}>Nenhum item</div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {(selected.itens||[]).map((item, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, background:"#f8f9fb", borderRadius:12, padding:"10px 14px" }}>
+                  <div style={{ fontWeight:900, fontSize:16, color:"#888", minWidth:24 }}>{i+1}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{item.label || item.nome || item.tipo}</div>
+                    <div style={{ fontSize:11, color:"#888" }}>{item.tipo} · {item.tempo||10}s</div>
+                  </div>
+                  {item.oculto && <span style={{ background:"#fee2e2", borderRadius:6, padding:"2px 8px", fontSize:10, color:"#dc2626", fontWeight:700 }}>Oculto</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL CRIAR/EDITAR */}
+      {(modal === "new" || modal === "edit") && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:680, padding:28, maxHeight:"90vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>{modal==="edit"?"✏️ Editar Playlist":"➕ Nova Playlist"}</div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome *</label>
+                <input value={form.nome||""} onChange={e => setForm(Object.assign({},form,{nome:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Tipo</label>
+                <select value={form.tipo||"geral"} onChange={e => setForm(Object.assign({},form,{tipo:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}>
+                  {TIPOS_PL.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* ITENS — KANBAN/DRAG */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              {/* Adicionar itens */}
+              <div>
+                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>➕ Adicionar conteúdos</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:320, overflowY:"auto" }}>
+                  <div style={{ fontSize:11, color:"#888", fontWeight:700, marginBottom:4, letterSpacing:1 }}>CONTEÚDOS CADASTRADOS</div>
+                  {conteudos.map((c,i) => (
+                    <div key={c.id} onClick={() => addItem({ id:c.id, tipo:c.tipo, label:c.nome, thumb:c.url, tempo:c.tempoPadrao||10 })}
+                      style={{ background:"#f0f4ff", borderRadius:10, padding:"8px 12px", cursor:"pointer", fontSize:12, fontWeight:600, color:"#1B3F7A", display:"flex", alignItems:"center", gap:8 }}>
+                      <span>{c.tipo==="video"?"🎥":c.tipo==="imagem"?"🖼️":"📋"}</span>
+                      <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{c.nome}</span>
+                      <span style={{ color:"#0891b2" }}>+</span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize:11, color:"#888", fontWeight:700, marginTop:8, marginBottom:4, letterSpacing:1 }}>FONTES AUTOMÁTICAS</div>
+                  {FONTES_ESPECIAIS.map(f => (
+                    <div key={f.id} onClick={() => addItem({ id:f.id, tipo:f.tipo, label:f.label, tempo:15 })}
+                      style={{ background:"#f0fdf4", borderRadius:10, padding:"8px 12px", cursor:"pointer", fontSize:12, fontWeight:600, color:"#059669", display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ flex:1 }}>{f.label}</span>
+                      <span style={{ background:"#dcfce7", borderRadius:6, padding:"1px 6px", fontSize:10 }}>{f.count}</span>
+                      <span>+</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lista ordenável */}
+              <div>
+                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>📋 Ordem de exibição <span style={{ fontSize:11, color:"#888", fontWeight:400 }}>(arraste para reordenar)</span></div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:320, overflowY:"auto" }}>
+                  {editItens.length === 0 && <div style={{ color:"#aaa", textAlign:"center", padding:20, fontSize:12 }}>Adicione itens ao lado →</div>}
+                  {editItens.map((item, i) => (
+                    <div key={i} draggable
+                      onDragStart={() => onDragStart(i)}
+                      onDragOver={e => onDragOver(e, i)}
+                      onDragEnd={onDragEnd}
+                      style={{ background:"#f8f9fb", borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:8, cursor:"grab", border:"1px solid #e8edf2" }}>
+                      <span style={{ color:"#aaa", fontSize:16 }}>⠿</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:"#1B3F7A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.label||item.tipo}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
+                          <input type="number" min="3" max="300" value={item.tempo||10}
+                            onChange={e => {
+                              const next = [...editItens];
+                              next[i] = Object.assign({},next[i],{tempo:parseInt(e.target.value)||10});
+                              setEditItens(next);
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            style={{ width:50, background:"#fff", border:"1px solid #e8edf2", borderRadius:6, padding:"2px 6px", fontSize:11, outline:"none" }}/>
+                          <span style={{ fontSize:10, color:"#888" }}>seg</span>
+                        </div>
+                      </div>
+                      <div onClick={() => removeItem(i)} style={{ color:"#dc2626", cursor:"pointer", fontSize:14 }}>✕</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <div onClick={() => setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={salvarPlaylist} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Salvando...":"✅ Salvar Playlist"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ABA CONTEÚDOS
+// ═══════════════════════════════════════════════
+function AbaConteudos({ conteudos, setConteudos, isMidiaAdm, user }) {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ nome:"", tipo:"imagem", url:"", tempoPadrao:10, descricao:"" });
+  const [salvando, setSalvando] = useState(false);
+  const [filtroTipo, setFiltroTipo] = useState("todos");
+
+  const TIPOS = ["imagem","video","data_comemorativa"];
+  const TIPO_LABEL = { imagem:"🖼️ Imagem", video:"🎥 Vídeo", data_comemorativa:"🗓️ Data comemorativa" };
+
+  const salvar = async () => {
+    if (!form.nome.trim()) { alert("Informe o nome."); return; }
+    if ((form.tipo==="imagem"||form.tipo==="video") && !form.url.trim()) { alert("Informe a URL."); return; }
+    setSalvando(true);
+    try {
+      if (modal==="edit" && form.id) {
+        await updateDoc(doc(db,"midia_conteudos",form.id), { ...form, atualizadoEm: new Date().toISOString() });
+        setConteudos(prev => prev.map(c => c.id===form.id ? { ...c, ...form } : c));
+      } else {
+        const dados = { ...form, criadoEm: new Date().toISOString(), criadoPor: user?.email };
+        const ref = await addDoc(collection(db,"midia_conteudos"), dados);
+        setConteudos(prev => [...prev, { id: ref.id, ...dados }]);
+      }
+      setModal(null);
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm("Excluir este conteúdo?")) return;
+    await deleteDoc(doc(db,"midia_conteudos",id));
+    setConteudos(prev => prev.filter(c => c.id !== id));
+  };
+
+  const filtrados = filtroTipo==="todos" ? conteudos : conteudos.filter(c => c.tipo===filtroTipo);
+
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:10 }}>
+        <div style={{ fontWeight:800, fontSize:18, color:"#1B3F7A" }}>🖼️ Conteúdos</div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <div style={{ display:"flex", gap:4 }}>
+            {["todos","imagem","video","data_comemorativa"].map(t => (
+              <div key={t} onClick={() => setFiltroTipo(t)}
+                style={{ background:filtroTipo===t?"#1B3F7A":"#fff", color:filtroTipo===t?"#fff":"#555", borderRadius:8, padding:"6px 12px", fontSize:11, fontWeight:700, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
+                {t==="todos"?"Todos":TIPO_LABEL[t]}
+              </div>
+            ))}
+          </div>
+          {isMidiaAdm && (
+            <div onClick={() => { setForm({ nome:"", tipo:"imagem", url:"", tempoPadrao:10, descricao:"" }); setModal("new"); }}
+              style={{ background:"#1B3F7A", borderRadius:10, padding:"8px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>+ Novo</div>
+          )}
+        </div>
+      </div>
+
+      {filtrados.length === 0 ? (
+        <div style={{ textAlign:"center", padding:60, color:"#aaa", background:"#fff", borderRadius:18 }}>Nenhum conteúdo cadastrado</div>
+      ) : (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:14 }}>
+          {filtrados.map(c => (
+            <div key={c.id} style={{ background:"#fff", borderRadius:16, overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.06)" }}>
+              {/* Preview */}
+              <div style={{ height:130, background:"#1e293b", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>
+                {c.tipo==="imagem" ? (
+                  c.url ? <img src={c.url} alt={c.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => { e.target.style.display="none"; }} /> : "🖼️"
+                ) : c.tipo==="video" ? "🎥" : "🗓️"}
+              </div>
+              <div style={{ padding:"12px 14px" }}>
+                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:4 }}>{c.nome}</div>
+                <div style={{ fontSize:11, color:"#888", marginBottom:8 }}>{TIPO_LABEL[c.tipo]} · {c.tempoPadrao||10}s</div>
+                {c.url && <div style={{ fontSize:10, color:"#0891b2", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginBottom:8 }}>{c.url}</div>}
+                {isMidiaAdm && (
+                  <div style={{ display:"flex", gap:6 }}>
+                    <div onClick={() => { setForm({...c}); setModal("edit"); }} style={{ background:"#f0f4ff", borderRadius:8, padding:"4px 10px", color:"#1B3F7A", fontSize:11, fontWeight:700, cursor:"pointer" }}>✏️</div>
+                    <div onClick={() => excluir(c.id)} style={{ background:"#fee2e2", borderRadius:8, padding:"4px 10px", color:"#dc2626", fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑️</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(modal==="new"||modal==="edit") && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:480, padding:32 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>{modal==="edit"?"✏️ Editar Conteúdo":"➕ Novo Conteúdo"}</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome *</label>
+                <input value={form.nome||""} onChange={e => setForm(Object.assign({},form,{nome:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Tipo</label>
+                <select value={form.tipo||"imagem"} onChange={e => setForm(Object.assign({},form,{tipo:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}>
+                  {TIPOS.map(t => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+                </select>
+              </div>
+              {(form.tipo==="imagem"||form.tipo==="video") && (
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>URL (Google Drive / YouTube) *</label>
+                  <input value={form.url||""} onChange={e => setForm(Object.assign({},form,{url:e.target.value}))} placeholder="https://..." style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                  <div style={{ fontSize:10, color:"#888", marginTop:4 }}>Para Google Drive: use o link de visualização público. Para YouTube: cole a URL do vídeo.</div>
+                </div>
+              )}
+              {form.tipo==="data_comemorativa" && (
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Data (MM-DD)</label>
+                  <input value={form.dataFixa||""} onChange={e => setForm(Object.assign({},form,{dataFixa:e.target.value}))} placeholder="Ex: 09-07 (Independência)" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                </div>
+              )}
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Tempo padrão (segundos)</label>
+                <input type="number" min="3" max="300" value={form.tempoPadrao||10} onChange={e => setForm(Object.assign({},form,{tempoPadrao:parseInt(e.target.value)||10}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <div onClick={() => setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={salvar} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Salvando...":"✅ Salvar"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// ABA AGENDA
+// ═══════════════════════════════════════════════
+function AbaAgenda({ conteudos, setConteudos, isMidiaAdm, eventosTC, servidores }) {
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({ nome:"", tipo:"evento", dataInicio:"", dataFim:"", descricao:"", artUrl:"" });
+  const [salvando, setSalvando] = useState(false);
+
+  const hoje = new Date();
+  const hojeStr = hoje.toISOString().split("T")[0];
+
+  const agendaManual = conteudos.filter(c => c.tipo==="evento_manual" || c.tipo==="data_comemorativa");
+
+  const anivHoje = servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m,d] = s.dataAniversario.split("-");
+    return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
+  });
+
+  const eventosSemana = eventosTC.filter(e => {
+    if (!e.data) return false;
+    const d = new Date(e.data+"T00:00:00");
+    const diff = Math.ceil((d - hoje) / 86400000);
+    return diff >= 0 && diff <= 14;
+  }).slice(0,10);
+
+  const salvarEvento = async () => {
+    if (!form.nome.trim()) { alert("Informe o nome."); return; }
+    setSalvando(true);
+    try {
+      const dados = { ...form, tipo:"evento_manual", criadoEm: new Date().toISOString() };
+      const ref = await addDoc(collection(db,"midia_conteudos"), dados);
+      setConteudos(prev => [...prev, { id:ref.id, ...dados }]);
+      setModal(null);
+    } catch(e) { console.error(e); }
+    setSalvando(false);
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm("Excluir?")) return;
+    await deleteDoc(doc(db,"midia_conteudos",id));
+    setConteudos(prev => prev.filter(c => c.id!==id));
+  };
+
+  const toggleOculto = async (item) => {
+    const next = !item.oculto;
+    await updateDoc(doc(db,"midia_conteudos",item.id), { oculto: next });
+    setConteudos(prev => prev.map(c => c.id===item.id ? { ...c, oculto: next } : c));
+  };
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+      {/* AGENDA MANUAL */}
+      <div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>📋 Agenda Manual</div>
+          {isMidiaAdm && (
+            <div onClick={() => { setForm({ nome:"", tipo:"evento_manual", dataInicio:"", dataFim:"", descricao:"" }); setModal("evento"); }}
+              style={{ background:"#1B3F7A", borderRadius:10, padding:"6px 14px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>+ Evento</div>
+          )}
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {agendaManual.length===0 && <div style={{ color:"#aaa", textAlign:"center", padding:30, background:"#fff", borderRadius:14 }}>Nenhum evento manual</div>}
+          {agendaManual.map(ev => (
+            <div key={ev.id} style={{ background:"#fff", borderRadius:14, padding:"12px 14px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", opacity:ev.oculto?0.5:1 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{ev.nome}</div>
+                {ev.oculto && <span style={{ background:"#fee2e2", borderRadius:6, padding:"1px 8px", fontSize:10, color:"#dc2626", fontWeight:700 }}>Oculto</span>}
+              </div>
+              {ev.dataInicio && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{fmtData(ev.dataInicio)}{ev.dataFim && ev.dataFim!==ev.dataInicio ? " → "+fmtData(ev.dataFim) : ""}</div>}
+              {ev.descricao && <div style={{ fontSize:11, color:"#555", marginTop:4 }}>{ev.descricao}</div>}
+              {isMidiaAdm && (
+                <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                  <div onClick={() => toggleOculto(ev)} style={{ background:ev.oculto?"#f0fdf4":"#fff3e0", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:ev.oculto?"#059669":"#E8730A", cursor:"pointer" }}>{ev.oculto?"👁️ Mostrar":"🚫 Ocultar"}</div>
+                  <div onClick={() => excluir(ev.id)} style={{ background:"#fee2e2", borderRadius:8, padding:"3px 10px", fontSize:11, color:"#dc2626", fontWeight:700, cursor:"pointer" }}>🗑️</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* IMPORTAÇÕES */}
+      <div>
+        <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A", marginBottom:14 }}>🔄 Importações automáticas</div>
+
+        {/* Aniversariantes */}
+        <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:12, boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontWeight:700, fontSize:13, color:"#7c3aed", marginBottom:10 }}>🎂 Aniversariantes de hoje ({anivHoje.length})</div>
+          {anivHoje.length===0 ? (
+            <div style={{ color:"#aaa", fontSize:12 }}>Nenhum aniversariante hoje</div>
+          ) : anivHoje.map(s => (
+            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:13 }}>{initials(s.nome)}</div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>{s.nome}</div>
+                <div style={{ fontSize:11, color:"#888" }}>{s.cargo||s.setor||""}</div>
+              </div>
+              {s.artAniversario && <div style={{ marginLeft:"auto", fontSize:10, color:"#059669", fontWeight:700 }}>🎨 Arte</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Eventos TCEduc */}
+        <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>📅 Eventos TCEduc (próximos 14 dias)</div>
+          {eventosSemana.length===0 ? (
+            <div style={{ color:"#aaa", fontSize:12 }}>Nenhum evento nos próximos 14 dias</div>
+          ) : eventosSemana.map(e => (
+            <div key={e.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, paddingBottom:8, borderBottom:"1px solid #f0f0f0" }}>
+              <div style={{ background:"#f0f4ff", borderRadius:8, padding:"4px 10px", textAlign:"center", minWidth:46 }}>
+                <div style={{ fontWeight:900, fontSize:14, color:"#1B3F7A", lineHeight:1 }}>{e.data?.split("-")[2]}</div>
+                <div style={{ fontSize:9, color:"#888", textTransform:"uppercase" }}>
+                  {["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"][parseInt(e.data?.split("-")[1])-1]}
+                </div>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:12, color:"#1B3F7A" }}>{e.municipio||e.regiao||"Evento"}</div>
+                <div style={{ fontSize:11, color:"#888" }}>{e.tipo}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* MODAL EVENTO */}
+      {modal==="evento" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:460, padding:32 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>📋 Novo Evento na Agenda</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Nome *</label>
+                <input value={form.nome||""} onChange={e => setForm(Object.assign({},form,{nome:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Data início</label>
+                  <input type="date" value={form.dataInicio||""} onChange={e => setForm(Object.assign({},form,{dataInicio:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                </div>
+                <div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Data fim</label>
+                  <input type="date" value={form.dataFim||""} onChange={e => setForm(Object.assign({},form,{dataFim:e.target.value}))} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                </div>
+              </div>
+              <div>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Descrição</label>
+                <textarea value={form.descricao||""} onChange={e => setForm(Object.assign({},form,{descricao:e.target.value}))} rows={3} style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", resize:"none" }}/>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, marginTop:20 }}>
+              <div onClick={() => setModal(null)} style={{ flex:1, background:"#f0f4ff", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={salvarEvento} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:14, padding:14, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>{salvando?"Salvando...":"✅ Salvar"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
