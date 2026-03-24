@@ -207,8 +207,6 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
           <select value={filtroStatus} onChange={e=>setFiltroStatus(e.target.value)}
             style={{ background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:8,padding:"6px 12px",color:"#fff",fontSize:12,fontWeight:600,outline:"none",cursor:"pointer" }}>
             <option value="todos" style={{ color:"#1B3F7A",background:"#fff" }}>Todos os status</option>
-            <option value="Em Execução" style={{ color:"#1B3F7A",background:"#fff" }}>Em Execução</option>
-            <option value="Programado" style={{ color:"#1B3F7A",background:"#fff" }}>Programado</option>
             <option value="Realizado" style={{ color:"#1B3F7A",background:"#fff" }}>Realizado / Concluído</option>
           </select>
           {(filtroMes!=="todos"||filtroMunicipio!=="todos"||filtroViagem!=="todos"||filtroTipo!=="todos"||filtroStatus!=="todos") && (
