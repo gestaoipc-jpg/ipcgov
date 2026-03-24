@@ -206,8 +206,13 @@ export default function DashboardPage({ onBack }) {
     if (filtroAno !== "todos" && !(e.data && e.data.startsWith(filtroAno))) return false;
     if (filtroStatus !== "todos") {
       const st = e.status || "";
-      if (filtroStatus === "Realizado" && st !== "Realizado" && st !== "Concluído") return false;
-      if (filtroStatus !== "Realizado" && st !== filtroStatus) return false;
+      if (filtroStatus === "Realizado" && st !== "Realizado" && st !== "Concluído" && st !== "Concluída") return false;
+      if (filtroStatus !== "Realizado") {
+        const match = st === filtroStatus ||
+          (filtroStatus === "Programado" && (st === "Programado" || st === "Programada")) ||
+          (filtroStatus === "Em Execução" && st === "Em Execução");
+        if (!match) return false;
+      }
     }
     if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
     return true;
@@ -223,9 +228,13 @@ export default function DashboardPage({ onBack }) {
   const totalRegionaisCadastradas = viagensRegionais.length || regionaisRealizados.length;
   const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
-  const getEvCapacitados = (e) => e.modoTotalManual
-    ? (parseInt(e.totalAprovadosManual) || 0)
-    : (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+  const getEvCapacitados = (e) => {
+    if (e.modoTotalManual) return parseInt(e.totalAprovadosManual) || 0;
+    // fallback: se tem totalAprovadosManual preenchido mesmo sem flag, usa ele
+    const porAcao = (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+    if (porAcao === 0 && e.totalAprovadosManual) return parseInt(e.totalAprovadosManual) || 0;
+    return porAcao;
+  };
   const totalCapacitados = evFiltrados.reduce((acc, e) => acc + getEvCapacitados(e), 0);
 
   const proximosEventos = evFiltrados
