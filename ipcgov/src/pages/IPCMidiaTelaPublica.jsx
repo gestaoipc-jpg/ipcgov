@@ -351,26 +351,33 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
   // Autoplay
   const itens = playlist?.itens?.filter(item => !item.oculto) || [];
+  const capaShownRef = useRef(false); // controla se já exibiu a capa para o idx atual
 
   useEffect(() => {
     if (itens.length === 0) return;
     const item = itens[currentIdx] || itens[0];
     clearTimeout(timerRef.current);
-    // Se é eventos_tc com capa e ainda não está mostrando a capa
-    if (item?.tipo === "eventos_tc" && item?.capaUrl && !showingCapa) {
+    capaShownRef.current = false;
+    setShowingCapa(false);
+
+    if (item?.tipo === "eventos_tc" && item?.capaUrl) {
+      // Mostra capa por 4s, depois mostra agenda pelo tempo configurado
       setShowingCapa(true);
       timerRef.current = setTimeout(() => {
         setShowingCapa(false);
+        const tempo = (item?.tempo || 10) * 1000;
+        timerRef.current = setTimeout(() => {
+          setCurrentIdx(prev => (prev + 1) % itens.length);
+        }, tempo);
       }, 4000);
     } else {
-      setShowingCapa(false);
       const tempo = (item?.tempo || 10) * 1000;
       timerRef.current = setTimeout(() => {
         setCurrentIdx(prev => (prev + 1) % itens.length);
       }, tempo);
     }
     return () => clearTimeout(timerRef.current);
-  }, [currentIdx, showingCapa, itens.length]);
+  }, [currentIdx, itens.length]);
 
   if (loading) {
     return (
