@@ -214,7 +214,13 @@ export default function DashboardPage({ onBack }) {
   });
 
   const municipaisRealizados = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Realizado" || e.status === "Concluído"));
+
+  // Regionais: baseado nas viagens com modalidade Regional
+  const viagensRegionais = viagens.filter(v => v.modalidade === "Regional");
+  const viagensRegionaisRealizadas = viagensRegionais.filter(v => v.status === "Realizado" || v.status === "Concluída" || v.status === "Realizada");
+  const viagensRegionaisProgramadas = viagensRegionais.filter(v => v.status === "Programado" || v.status === "Programada" || v.status === "Em Execução");
   const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && (e.status === "Realizado" || e.status === "Concluído" || e.status === "Concluída"));
+  const totalRegionaisCadastradas = viagensRegionais.length || regionaisRealizados.length;
   const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
   const getEvCapacitados = (e) => e.modoTotalManual
@@ -327,7 +333,7 @@ export default function DashboardPage({ onBack }) {
           <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
             {[
               { label:"Municipais realizados", value:`${municipaisRealizados.length}/184`, accent:false },
-              { label:"Regionais realizados", value:`${regionaisRealizados.length}/7`, accent:false },
+              { label:"Regionais realizados", value:`${viagensRegionaisRealizadas.length}/${totalRegionaisCadastradas || 7}`, accent:false },
               { label:"Pessoas capacitadas", value:totalCapacitados || "0", accent:true },
               { label:"Próximos eventos", value:proximosEventos.length, accent:false },
             ].map((s,i) => (
@@ -388,7 +394,7 @@ export default function DashboardPage({ onBack }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {[
                 { label:"Municipais", value:`${municipaisRealizados.length}`, sub:`de 184`, cor:"#1B3F7A", pct: (municipaisRealizados.length/184)*100 },
-                { label:"Regionais", value:`${regionaisRealizados.length}`, sub:`de 7`, cor:"#E8730A", pct: (regionaisRealizados.length/7)*100 },
+                { label:"Regionais", value:`${viagensRegionaisRealizadas.length}`, sub:`de ${totalRegionaisCadastradas || 7}`, cor:"#E8730A", pct: (viagensRegionaisRealizadas.length/(totalRegionaisCadastradas||7))*100 },
                 { label:"Capacitados", value:totalCapacitados, sub:"total", cor:"#059669", pct:null },
                 { label:"Agendados", value:municipaisPendentes.length, sub:"municipais", cor:"#7c3aed", pct:null },
               ].map((s,i) => (
@@ -459,7 +465,7 @@ export default function DashboardPage({ onBack }) {
               <div style={{ fontWeight:800, fontSize:14, color:"#fff", marginBottom:14 }}>Progresso 2026</div>
               {[
                 { label:"Municípios capacitados", atual:municipaisRealizados.length, total:184 },
-                { label:"Regionais realizados", atual:regionaisRealizados.length, total:7 },
+                { label:"Regionais realizados", atual:viagensRegionaisRealizadas.length, total:totalRegionaisCadastradas||7 },
               ].map((p,i) => (
                 <div key={i} style={{ marginBottom: i===0?14:0 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
