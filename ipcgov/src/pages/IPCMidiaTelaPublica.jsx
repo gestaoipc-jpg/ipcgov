@@ -209,36 +209,39 @@ function SlideAgendaManual({ evento, fallbackIdx }) {
       <div style={{ gridRow:"1 / 3", position:"relative", overflow:"hidden", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
         {usarFallback ? (
           <FallbackArt nome={evento.nome} idx={fallbackIdx||0}/>
-        ) : (
-          <img src={evento.fotoUrl} alt={evento.nome}
-            onError={() => setFotoError(true)}
-            style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
-        )}
+        ) : (() => {
+          const ytUrl = normYoutubeUrl(evento.fotoUrl);
+          const driveUrl = normDriveUrl(evento.fotoUrl);
+          const finalUrl = ytUrl || driveUrl || evento.fotoUrl;
+          const isEmbed = ytUrl || driveUrl;
+          if (isEmbed) return <iframe src={finalUrl} style={{ width:"100%", height:"100%", border:"none" }} allow="autoplay; fullscreen" allowFullScreen title="foto"/>;
+          return <img src={finalUrl} alt={evento.nome} onError={() => setFotoError(true)} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>;
+        })()}
         {/* Overlay gradiente no rodapé da foto */}
         <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"35%", background:"linear-gradient(transparent,rgba(4,44,83,0.85))" }}/>
         {/* Tag TCE no canto */}
         <div style={{ position:"absolute", top:24, left:24, background:"rgba(4,44,83,0.8)", borderRadius:8, padding:"5px 14px", backdropFilter:"blur(4px)" }}>
-          <span style={{ color:"#85B7EB", fontSize:11, letterSpacing:2, textTransform:"uppercase", fontWeight:700 }}>TCE-CE · IPC</span>
+          <span style={{ color:"#85B7EB", fontSize:14, letterSpacing:2, textTransform:"uppercase", fontWeight:700 }}>TCE-CE · IPC</span>
         </div>
       </div>
 
       {/* Top-right: título + data */}
       <div style={{ padding:"36px 40px", display:"flex", flexDirection:"column", justifyContent:"center", gap:16, borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
         {evento.categoria && (
-          <span style={{ background:"#185FA5", color:"#E6F1FB", fontSize:11, padding:"4px 14px", borderRadius:20, width:"fit-content", letterSpacing:0.5, fontWeight:700 }}>
+          <span style={{ background:"#185FA5", color:"#E6F1FB", fontSize:14, padding:"6px 18px", borderRadius:20, width:"fit-content", letterSpacing:0.5, fontWeight:700 }}>
             {evento.categoria}
           </span>
         )}
-        <div style={{ color:"#E6F1FB", fontWeight:700, fontSize:26, lineHeight:1.25 }}>{evento.nome}</div>
+        <div style={{ color:"#E6F1FB", fontWeight:700, fontSize:38, lineHeight:1.2 }}>{evento.nome}</div>
         {dataLabel && (
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             {diaInicio && mesIdx !== null && (
               <div style={{ background:"#185FA5", borderRadius:10, padding:"8px 14px", textAlign:"center", flexShrink:0 }}>
-                <div style={{ color:"#E6F1FB", fontWeight:900, fontSize:28, lineHeight:1 }}>{diaInicio}</div>
-                <div style={{ color:"#85B7EB", fontSize:10, textTransform:"uppercase", letterSpacing:1 }}>{MESES_CURTO[mesIdx]}</div>
+                <div style={{ color:"#E6F1FB", fontWeight:900, fontSize:42, lineHeight:1 }}>{diaInicio}</div>
+                <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1 }}>{MESES_CURTO[mesIdx]}</div>
               </div>
             )}
-            <div style={{ color:"#85B7EB", fontSize:15, lineHeight:1.4 }}>{dataLabel}</div>
+            <div style={{ color:"#85B7EB", fontSize:20, lineHeight:1.4 }}>{dataLabel}</div>
           </div>
         )}
       </div>
@@ -252,8 +255,8 @@ function SlideAgendaManual({ evento, fallbackIdx }) {
               <circle cx="8" cy="6" r="1.5" stroke="#85B7EB" strokeWidth="1.3"/>
             </svg>
             <div>
-              <div style={{ color:"#85B7EB", fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Local</div>
-              <div style={{ color:"#E6F1FB", fontSize:16, fontWeight:700 }}>{evento.local}</div>
+              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Local</div>
+              <div style={{ color:"#E6F1FB", fontSize:24, fontWeight:700 }}>{evento.local}</div>
             </div>
           </div>
         )}
@@ -265,13 +268,13 @@ function SlideAgendaManual({ evento, fallbackIdx }) {
               <line x1="8" y1="8" x2="10.5" y2="9.5" stroke="#85B7EB" strokeWidth="1.3" strokeLinecap="round"/>
             </svg>
             <div>
-              <div style={{ color:"#85B7EB", fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Horário</div>
-              <div style={{ color:"#E6F1FB", fontSize:16, fontWeight:700 }}>{evento.horario}</div>
+              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Horário</div>
+              <div style={{ color:"#E6F1FB", fontSize:22, fontWeight:700 }}>{evento.horario}</div>
             </div>
           </div>
         )}
         {evento.descricao && (
-          <div style={{ color:"#B5D4F4", fontSize:13, lineHeight:1.7, marginTop:4 }}>{evento.descricao}</div>
+          <div style={{ color:"#B5D4F4", fontSize:18, lineHeight:1.7, marginTop:4 }}>{evento.descricao}</div>
         )}
       </div>
     </div>
@@ -353,6 +356,27 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const itens = playlist?.itens?.filter(item => !item.oculto) || [];
   const capaShownRef = useRef(false); // controla se já exibiu a capa para o idx atual
 
+  // Verifica se item tem conteúdo real para exibir
+  const itemTemConteudo = (item) => {
+    if (!item) return false;
+    if (item.tipo === "aniversario") {
+      const hoje = new Date();
+      return servidores.some(s => {
+        if (!s.dataAniversario) return false;
+        const [,m,d] = s.dataAniversario.split("-");
+        return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
+      });
+    }
+    if (item.tipo === "data_comemorativa") {
+      const c = conteudos.find(c => c.id === item.id);
+      const hoje = new Date();
+      if (!c?.dataFixa) return false;
+      const [mm,dd] = c.dataFixa.split("-");
+      return parseInt(mm)-1 === hoje.getMonth() && parseInt(dd) === hoje.getDate();
+    }
+    return true; // outros tipos sempre exibem
+  };
+
   useEffect(() => {
     if (itens.length === 0) return;
     const item = itens[currentIdx] || itens[0];
@@ -360,8 +384,15 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     capaShownRef.current = false;
     setShowingCapa(false);
 
+    // Pula imediatamente se não tem conteúdo
+    if (!itemTemConteudo(item)) {
+      timerRef.current = setTimeout(() => {
+        setCurrentIdx(prev => (prev + 1) % itens.length);
+      }, 100);
+      return () => clearTimeout(timerRef.current);
+    }
+
     if (item?.tipo === "eventos_tc" && item?.capaUrl) {
-      // Mostra capa por 4s, depois mostra agenda pelo tempo configurado
       setShowingCapa(true);
       timerRef.current = setTimeout(() => {
         setShowingCapa(false);
