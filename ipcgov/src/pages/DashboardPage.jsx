@@ -342,7 +342,7 @@ export default function DashboardPage({ onBack }) {
           <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
             {[
               { label:"Municipais realizados", value:`${municipaisRealizados.length}/184`, accent:false },
-              { label:"Regionais realizados", value:`${viagensRegionaisRealizadas.length}/${totalRegionaisCadastradas || 7}`, accent:false },
+              { label:`Regionais${filtroStatus==="Realizado"?" realizados":filtroStatus==="Programado"?" programados":filtroStatus==="Em Execução"?" em execução":" cadastrados"}`, value:`${filtroTipo==="Regional" ? evFiltrados.length : viagensRegionaisRealizadas.length}/${totalRegionaisCadastradas || viagensRegionais.length || "?"}`, accent:false },
               { label:"Pessoas capacitadas", value:totalCapacitados || "0", accent:true },
               { label:"Próximos eventos", value:proximosEventos.length, accent:false },
             ].map((s,i) => (
