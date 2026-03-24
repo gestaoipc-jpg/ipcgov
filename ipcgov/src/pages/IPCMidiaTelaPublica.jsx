@@ -84,7 +84,7 @@ function SlideEventos({ eventosTC }) {
     if (!e.data) return false;
     const d = new Date(e.data+"T00:00:00");
     const diff = Math.ceil((d - hoje) / 86400000);
-    return diff >= 0 && diff <= 14;
+    return diff >= 0 && diff <= 20;
   }).slice(0,6);
 
   const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
@@ -303,6 +303,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const [servidores, setServidores] = useState([]);
   const [eventosTC, setEventosTC] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [showingCapa, setShowingCapa] = useState(false);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const timerRef = useRef(null);
@@ -354,13 +355,22 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   useEffect(() => {
     if (itens.length === 0) return;
     const item = itens[currentIdx] || itens[0];
-    const tempo = (item?.tempo || 10) * 1000;
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setCurrentIdx(prev => (prev + 1) % itens.length);
-    }, tempo);
+    // Se é eventos_tc com capa e ainda não está mostrando a capa
+    if (item?.tipo === "eventos_tc" && item?.capaUrl && !showingCapa) {
+      setShowingCapa(true);
+      timerRef.current = setTimeout(() => {
+        setShowingCapa(false);
+      }, 4000);
+    } else {
+      setShowingCapa(false);
+      const tempo = (item?.tempo || 10) * 1000;
+      timerRef.current = setTimeout(() => {
+        setCurrentIdx(prev => (prev + 1) % itens.length);
+      }, tempo);
+    }
     return () => clearTimeout(timerRef.current);
-  }, [currentIdx, itens.length]);
+  }, [currentIdx, showingCapa, itens.length]);
 
   if (loading) {
     return (
@@ -405,8 +415,11 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       return <SlideAniversario servidores={servidores}/>;
     }
 
-    // Eventos TCEduc
+    // Eventos TCEduc — mostra capa 4s antes se configurada
     if (item.tipo === "eventos_tc") {
+      if (showingCapa && item.capaUrl) {
+        return <SlideImagem url={item.capaUrl}/>;
+      }
       return <SlideEventos eventosTC={eventosTC}/>;
     }
 
