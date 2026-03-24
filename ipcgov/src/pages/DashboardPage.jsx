@@ -213,17 +213,7 @@ export default function DashboardPage({ onBack }) {
 
   const evFiltrados = eventos.filter(e => {
     if (filtroAno !== "todos" && !(e.data && e.data.startsWith(filtroAno))) return false;
-    if (filtroStatus !== "todos") {
-      const st = getStatusEfetivo(e);
-      if (filtroStatus === "Realizado" && st !== "Realizado") return false;
-      if (filtroStatus !== "Realizado") {
-        const stOrig = e.status || "";
-        const match = stOrig === filtroStatus ||
-          (filtroStatus === "Programado" && (stOrig === "Programado" || stOrig === "Programada" || stOrig === "Pendente")) ||
-          (filtroStatus === "Em Execução" && stOrig === "Em Execução");
-        if (!match) return false;
-      }
-    }
+    if (filtroStatus !== "todos" && getStatusEfetivo(e) !== filtroStatus) return false;
     if (filtroTipo !== "todos" && e.tipo !== filtroTipo) return false;
     return true;
   });
@@ -233,9 +223,10 @@ export default function DashboardPage({ onBack }) {
   // Regionais: baseado nas viagens com modalidade Regional
   const viagensRegionais = viagens.filter(v => v.modalidade === "Regional");
   const viagensRegionaisRealizadas = viagensRegionais.filter(v => v.status === "Realizado" || v.status === "Concluída" || v.status === "Realizada");
-  const viagensRegionaisProgramadas = viagensRegionais.filter(v => v.status === "Programado" || v.status === "Programada" || v.status === "Em Execução");
   const regionaisRealizados = evFiltrados.filter(e => e.tipo === "Regional" && getStatusEfetivo(e) === "Realizado");
-  const totalRegionaisCadastradas = viagensRegionais.length || regionaisRealizados.length;
+  // Total regionais = todos os eventos tipo Regional cadastrados no Firebase
+  const totalRegionaisCadastradas = eventos.filter(e => e.tipo === "Regional").length || 4;
+  const totalRegionaisRealizadas = eventos.filter(e => e.tipo === "Regional" && getStatusEfetivo(e) === "Realizado").length;
   const municipaisPendentes = evFiltrados.filter(e => e.tipo === "Municipal" && (e.status === "Pendente" || e.status === "Programado" || e.status === "Em Execução"));
 
   const getEvCapacitados = (e) => {
@@ -352,7 +343,7 @@ export default function DashboardPage({ onBack }) {
           <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
             {[
               { label:"Municipais realizados", value:`${municipaisRealizados.length}/184`, accent:false },
-              { label:`Regionais${filtroStatus==="Realizado"?" realizados":filtroStatus==="Programado"?" programados":filtroStatus==="Em Execução"?" em execução":" cadastrados"}`, value:`${filtroTipo==="Regional" ? evFiltrados.length : viagensRegionaisRealizadas.length}/${totalRegionaisCadastradas || viagensRegionais.length || "?"}`, accent:false },
+              { label:`Regionais${filtroStatus==="Realizado"?" realizados":filtroStatus==="Programado"?" programados":filtroStatus==="Em Execução"?" em execução":" cadastrados"}`, value:`${filtroTipo==="Regional" ? evFiltrados.length : totalRegionaisRealizadas}/${totalRegionaisCadastradas}`, accent:false },
               { label:"Pessoas capacitadas", value:totalCapacitados || "0", accent:true },
               { label:"Próximos eventos", value:proximosEventos.length, accent:false },
             ].map((s,i) => (
@@ -413,7 +404,7 @@ export default function DashboardPage({ onBack }) {
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
               {[
                 { label:"Municipais", value:`${municipaisRealizados.length}`, sub:`de 184`, cor:"#1B3F7A", pct: (municipaisRealizados.length/184)*100 },
-                { label:"Regionais", value:`${viagensRegionaisRealizadas.length}`, sub:`de ${totalRegionaisCadastradas || 7}`, cor:"#E8730A", pct: (viagensRegionaisRealizadas.length/(totalRegionaisCadastradas||7))*100 },
+                { label:"Regionais", value:`${totalRegionaisRealizadas}`, sub:`de ${totalRegionaisCadastradas}`, cor:"#E8730A", pct: (totalRegionaisRealizadas/totalRegionaisCadastradas)*100 },
                 { label:"Capacitados", value:totalCapacitados, sub:"total", cor:"#059669", pct:null },
                 { label:"Agendados", value:municipaisPendentes.length, sub:"municipais", cor:"#7c3aed", pct:null },
               ].map((s,i) => (
@@ -484,7 +475,7 @@ export default function DashboardPage({ onBack }) {
               <div style={{ fontWeight:800, fontSize:14, color:"#fff", marginBottom:14 }}>Progresso 2026</div>
               {[
                 { label:"Municípios capacitados", atual:municipaisRealizados.length, total:184 },
-                { label:"Regionais realizados", atual:viagensRegionaisRealizadas.length, total:totalRegionaisCadastradas||7 },
+                { label:"Regionais realizados", atual:totalRegionaisRealizadas, total:totalRegionaisCadastradas },
               ].map((p,i) => (
                 <div key={i} style={{ marginBottom: i===0?14:0 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
