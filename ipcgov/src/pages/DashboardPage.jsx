@@ -405,7 +405,7 @@ export default function DashboardPage({ onBack }) {
                 { label:"Municipais", value:`${municipaisRealizados.length}`, sub:`de 184`, cor:"#1B3F7A", pct: (municipaisRealizados.length/184)*100 },
                 { label:"Regionais", value:`${totalRegionaisRealizadas}`, sub:`de ${totalRegionaisCadastradas}`, cor:"#E8730A", pct: (totalRegionaisRealizadas/totalRegionaisCadastradas)*100 },
                 { label:"Capacitados", value:totalCapacitados, sub:"total", cor:"#059669", pct:null },
-                { label:"Agendados", value:eventos.filter(e => (getStatusEfetivo(e) === "Programado" || getStatusEfetivo(e) === "Em Execução") && (filtroTipo === "todos" || e.tipo === filtroTipo)).length, sub: filtroTipo === "Regional" ? "regionais" : filtroTipo === "Municipal" ? "municipais" : "total", cor:"#7c3aed", pct:null },
+                { label:"Agendados", value:eventos.filter(e => (filtroTipo === "todos" || e.tipo === filtroTipo) && getEvCapacitados(e) === 0).length, sub: filtroTipo === "Regional" ? "regionais" : filtroTipo === "Municipal" ? "municipais" : "total", cor:"#7c3aed", pct:null },
               ].map((s,i) => (
                 <div key={i} style={{ background:"#fff", borderRadius:18, padding:"16px 18px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderTop:`3px solid ${s.cor}` }}>
                   <div style={{ fontSize:28, fontWeight:900, color:s.cor, lineHeight:1 }}>{s.value}</div>
