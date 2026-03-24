@@ -59,10 +59,23 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
     setLoading(false);
   };
 
+  // Helpers — mesma lógica do DashboardPage
+  const getEvCapacitados = (e) => {
+    if (e.modoTotalManual) return parseInt(e.totalAprovadosManual) || 0;
+    const porAcao = (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+    if (porAcao === 0 && e.totalAprovadosManual) return parseInt(e.totalAprovadosManual) || 0;
+    return porAcao;
+  };
+  const getStatusEfetivo = (e) => {
+    const temCap = getEvCapacitados(e) > 0;
+    if (temCap) return "Realizado";
+    return e.status || "Programado";
+  };
+
   // Apply filters
   const eventosFiltrados = eventos.filter(e => {
     if (filtroTipo !== "todos" && e._modalidade !== filtroTipo) return false;
-    if (filtroStatus !== "todos" && e.status !== filtroStatus) return false;
+    if (filtroStatus !== "todos" && getStatusEfetivo(e) !== filtroStatus) return false;
     if (filtroViagem !== "todos" && e._viagemId !== filtroViagem) return false;
     if (filtroMunicipio !== "todos" && (e.municipio || e.regiao) !== filtroMunicipio) return false;
     if (filtroMes !== "todos") {
@@ -331,8 +344,8 @@ export default function TCEducDashboardDinamico({ ano, onBack }) {
                 </thead>
                 <tbody>
                   {eventosFiltrados.sort((a,b) => (a.data||"").localeCompare(b.data||"")).map((ev,i) => {
+                    const totalEvAprov = getEvCapacitados(ev);
                     const totalEvInsc = ev.modoTotalManual ? (parseInt(ev.totalInscritosManual)||0) : (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.inscritos)||0), 0);
-                    const totalEvAprov = ev.modoTotalManual ? (parseInt(ev.totalAprovadosManual)||0) : (ev.acoesEducacionais||[]).reduce((s,a) => s+(parseInt(a.participantes)||0), 0);
                     const ausEv = totalEvInsc > 0 ? Math.round((totalEvInsc-totalEvAprov)/totalEvInsc*100) : null;
                     return (
                       <tr key={ev.id} style={{ background:i%2===0?"#fff":"#f8f9fb", borderBottom:"1px solid #e8edf2" }}>
