@@ -328,7 +328,7 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
     if (!e.data) return false;
     const d = new Date(e.data+"T00:00:00");
     const diff = Math.ceil((d - hoje) / 86400000);
-    return diff >= 0 && diff <= 7;
+    return diff >= 0 && diff <= 20;
   });
 
   const FONTES_ESPECIAIS = [
@@ -527,6 +527,21 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
                       </div>
                       <div onClick={() => removeItem(i)} style={{ color:"#dc2626", cursor:"pointer", fontSize:14 }}>✕</div>
                     </div>
+                    {item.tipo === "eventos_tc" && (
+                      <div style={{ marginTop:6, paddingLeft:24 }}>
+                        <input
+                          value={item.capaUrl||""}
+                          onChange={e => {
+                            const next = [...editItens];
+                            next[i] = Object.assign({}, next[i], { capaUrl: e.target.value });
+                            setEditItens(next);
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          onKeyDown={e => e.stopPropagation()}
+                          placeholder="🖼️ URL da capa (exibida 4s antes da agenda)"
+                          style={{ width:"100%", background:"#fff", border:"1px solid #e8edf2", borderRadius:8, padding:"5px 10px", fontSize:11, outline:"none", color:"#1B3F7A" }}/>
+                      </div>
+                    )}
                   ))}
                 </div>
               </div>
@@ -703,7 +718,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
     if (!e.data) return false;
     const d = new Date(e.data+"T00:00:00");
     const diff = Math.ceil((d - hoje) / 86400000);
-    return diff >= 0 && diff <= 14;
+    return diff >= 0 && diff <= 20;
   }).slice(0,10);
 
   const salvarEvento = async () => {
@@ -808,9 +823,9 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
 
         {/* Eventos TCEduc */}
         <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>📅 Eventos TCEduc (próximos 14 dias)</div>
+          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>📅 Eventos TCEduc (próximos 20 dias)</div>
           {eventosSemana.length===0 ? (
-            <div style={{ color:"#aaa", fontSize:12 }}>Nenhum evento nos próximos 14 dias</div>
+            <div style={{ color:"#aaa", fontSize:12 }}>Nenhum evento nos próximos 20 dias</div>
           ) : eventosSemana.map(e => (
             <div key={e.id} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, paddingBottom:8, borderBottom:"1px solid #f0f0f0" }}>
               <div style={{ background:"#f0f4ff", borderRadius:8, padding:"4px 10px", textAlign:"center", minWidth:46 }}>
