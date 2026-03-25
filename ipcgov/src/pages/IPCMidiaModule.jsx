@@ -23,6 +23,16 @@ function initials(nome) {
 
 // Drag and drop hook
 // Exclui arquivo do Google Drive via API
+function normDriveUrl(url) {
+  if (!url) return url;
+  if (url.includes("lh3.googleusercontent.com")) return url;
+  const drive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (drive) return `https://lh3.googleusercontent.com/d/${drive[1]}`;
+  const driveUc = url.match(/[?&]id=([^&]+)/);
+  if (url.includes("drive.google.com") && driveUc) return `https://lh3.googleusercontent.com/d/${driveUc[1]}`;
+  return url;
+}
+
 async function deletarDoDrive(driveFileId) {
   if (!driveFileId) return;
   try {
@@ -748,7 +758,7 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidi
               {/* Preview */}
               <div style={{ height:130, background:"#1e293b", display:"flex", alignItems:"center", justifyContent:"center", fontSize:40 }}>
                 {c.tipo==="imagem" ? (
-                  c.url ? <img src={c.url} alt={c.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => { e.target.style.display="none"; }} /> : "🖼️"
+                  c.url ? <img src={normDriveUrl(c.url)} alt={c.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => { e.target.style.display="none"; }} /> : "🖼️"
                 ) : c.tipo==="video" ? "🎥" : "🗓️"}
               </div>
               <div style={{ padding:"12px 14px" }}>
@@ -898,7 +908,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
             <div key={ev.id} style={{ background:"#fff", borderRadius:14, overflow:"hidden", boxShadow:"0 1px 6px rgba(0,0,0,0.05)", opacity:ev.oculto?0.5:1 }}>
               {ev.fotoUrl && (
                 <div style={{ height:72, overflow:"hidden" }}>
-                  <img src={ev.fotoUrl} alt={ev.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.parentElement.style.display="none";}}/>
+                  <img src={normDriveUrl(ev.fotoUrl)} alt={ev.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.parentElement.style.display="none";}}/>
                 </div>
               )}
               <div style={{ padding:"10px 14px" }}>
@@ -1011,7 +1021,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
                   <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:80, background:"#f0f4ff" }}>
-                    <img src={form.fotoUrl} alt="preview"
+                    <img src={normDriveUrl(form.fotoUrl)} alt="preview"
                       style={{ width:"100%", height:"100%", objectFit:"cover" }}
                       onError={e => { e.target.style.display="none"; }}/>
                   </div>
