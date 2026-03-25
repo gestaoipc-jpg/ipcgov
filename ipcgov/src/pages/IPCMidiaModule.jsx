@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
 const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
@@ -69,6 +69,7 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
   const [telas, setTelas] = useState([]);
   const [servidores, setServidores] = useState([]);
   const [eventosTC, setEventosTC] = useState([]);
+  const [escolas, setEscolas] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -86,13 +87,14 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [cSnap, pSnap, tSnap, sSnap, eSnap, gSnap] = await Promise.all([
+      const [cSnap, pSnap, tSnap, sSnap, eSnap, gSnap, oSnap] = await Promise.all([
         getDocs(collection(db, "midia_conteudos")),
         getDocs(collection(db, "midia_playlists")),
         getDocs(collection(db, "midia_telas")),
         getDocs(collection(db, "ipc_servidores")),
         getDocs(collection(db, "tceduc_eventos")),
         getDocs(collection(db, "ipc_grupos_trabalho")),
+        getDocs(collection(db, "olimpiadas_escolas")),
       ]);
       setConteudos(cSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setPlaylists(pSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -100,6 +102,15 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
       setServidores(sSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setEventosTC(eSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setGrupos(gSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setEscolas(oSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // Carrega config de informes
+      try {
+        const cfgSnap = await getDoc(doc(db, "midia_config", "informes"));
+        if (cfgSnap.exists()) {
+          const cfg = cfgSnap.data();
+          // setOcultarTCEduc/setOcultarOlimp serão chamados nas abas
+        }
+      } catch(e) { console.log("midia_config não existe ainda"); }
     } catch(e) { console.error(e); }
     setLoading(false);
   };
@@ -168,7 +179,7 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
             <>
               {aba === "telas" && <AbaTelas telas={telas} setTelas={setTelas} playlists={playlists} isMidiaAdm={isMidiaAdm} user={user} />}
               {aba === "playlists" && <AbaPlaylists playlists={playlists} setPlaylists={setPlaylists} conteudos={conteudos} servidores={servidores} eventosTC={eventosTC} isMidiaAdm={isMidiaAdm} user={user} />}
-              {aba === "conteudos" && <AbaConteudos conteudos={conteudos} setConteudos={setConteudos} playlists={playlists} setPlaylists={setPlaylists} isMidiaAdm={isMidiaAdm} user={user} />}
+              {aba === "conteudos" && <AbaConteudos conteudos={conteudos} setConteudos={setConteudos} playlists={playlists} setPlaylists={setPlaylists} eventosTC={eventosTC} escolas={escolas} isMidiaAdm={isMidiaAdm} user={user} />}
               {aba === "agenda" && <AbaAgenda conteudos={conteudos} setConteudos={setConteudos} playlists={playlists} setPlaylists={setPlaylists} isMidiaAdm={isMidiaAdm} eventosTC={eventosTC} servidores={servidores} />}
             </>
           )}
@@ -447,7 +458,9 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
   const FONTES_ESPECIAIS = [
     { id:"aniv_hoje", tipo:"aniversario", label:"🎂 Aniversariantes de hoje", count: anivHoje.length },
     { id:"aniv_semana", tipo:"aniversario", label:"🎂 Aniversariantes da semana", count: anivProximos.length },
-    { id:"eventos_semana", tipo:"eventos_tc", label:"📅 Eventos TCEduc da semana", count: eventosSemana.length },
+    { id:"eventos_semana", tipo:"eventos_tc", label:"📅 Agenda TCEduc", count: eventosSemana.length },
+    { id:"informe_tceduc", tipo:"informe_tceduc", label:"📊 Informe TCEduc", count: null },
+    { id:"informe_olimpiada", tipo:"informe_olimpiada", label:"🏆 Informe Olímpiada", count: null },
   ];
 
   const isEditMode = modal === "edit";
@@ -685,7 +698,7 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
 // ═══════════════════════════════════════════════
 // ABA CONTEÚDOS
 // ═══════════════════════════════════════════════
-function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAdm, user }) {
+function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, eventosTC, escolas, isMidiaAdm, user }) {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ nome:"", tipo:"imagem", url:"", tempoPadrao:10, descricao:"" });
   const [salvando, setSalvando] = useState(false);
@@ -729,6 +742,70 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidi
 
   const filtrados = filtroTipo==="todos" ? conteudos : conteudos.filter(c => c.tipo===filtroTipo);
 
+  // Dados Informe TCEduc 2026
+  const getStatusEfetivo = (e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((s,a) => s+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    if (cap > 0) return "Realizado";
+    return e.status || "Programado";
+  };
+  const ev2026 = (eventosTC||[]).filter(e => {
+    const ano = e.data ? e.data.split("-")[0] : (e.ano ? String(e.ano) : "");
+    return ano === "2026" && getStatusEfetivo(e) === "Realizado";
+  });
+  const municiRealizados = new Set(ev2026.filter(e=>e.tipo==="Municipal").map(e=>e.municipio||e.regiao)).size;
+  const capMunicipal = ev2026.filter(e=>e.tipo==="Municipal").reduce((s,e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    return s + cap;
+  }, 0);
+  const regionaisRealizadas = new Set(ev2026.filter(e=>e.tipo==="Regional").map(e=>e.municipio||e.regiao)).size;
+  const capRegional = ev2026.filter(e=>e.tipo==="Regional").reduce((s,e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    return s + cap;
+  }, 0);
+  const totalCapTC = capMunicipal + capRegional;
+
+  // Dados Informe Olímpiada 2026
+  const ol2026 = (escolas||[]).filter(e => e.edicao === 2026);
+  const totalEscolas = ol2026.length;
+  const totalAlunos = ol2026.reduce((s,e) => s + (parseInt(e.alunosInscritos)||0), 0);
+
+  // Estado ocultar informes — salvo no Firestore como config
+  const [ocultarTCEduc, setOcultarTCEduc] = useState(false);
+  const [ocultarOlimp, setOcultarOlimp] = useState(false);
+
+  const toggleInforme = async (tipo, valor) => {
+    if (tipo === "tceduc") {
+      setOcultarTCEduc(valor);
+      await updateDoc(doc(db, "midia_config", "informes"), { ocultarTCEduc: valor }).catch(() =>
+        setDoc(doc(db, "midia_config", "informes"), { ocultarTCEduc: valor, ocultarOlimp })
+      );
+      // Propaga oculto nas playlists que tem esse item
+      const afetadas = (playlists||[]).filter(p => (p.itens||[]).some(it => it.id === "informe_tceduc"));
+      for (let pl of afetadas) {
+        const novosItens = (pl.itens||[]).map(it => it.id === "informe_tceduc" ? Object.assign({},it,{oculto:valor}) : it);
+        await updateDoc(doc(db,"midia_playlists",pl.id),{itens:novosItens});
+        setPlaylists(prev => prev.map(p => p.id===pl.id ? Object.assign({},p,{itens:novosItens}) : p));
+      }
+    } else {
+      setOcultarOlimp(valor);
+      await updateDoc(doc(db, "midia_config", "informes"), { ocultarOlimp: valor }).catch(() =>
+        setDoc(doc(db, "midia_config", "informes"), { ocultarTCEduc, ocultarOlimp: valor })
+      );
+      const afetadas = (playlists||[]).filter(p => (p.itens||[]).some(it => it.id === "informe_olimpiada"));
+      for (let pl of afetadas) {
+        const novosItens = (pl.itens||[]).map(it => it.id === "informe_olimpiada" ? Object.assign({},it,{oculto:valor}) : it);
+        await updateDoc(doc(db,"midia_playlists",pl.id),{itens:novosItens});
+        setPlaylists(prev => prev.map(p => p.id===pl.id ? Object.assign({},p,{itens:novosItens}) : p));
+      }
+    }
+  };
+
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:10 }}>
@@ -746,6 +823,76 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidi
             <div onClick={() => { setForm({ nome:"", tipo:"imagem", url:"", tempoPadrao:10, descricao:"" }); setModal("new"); }}
               style={{ background:"#1B3F7A", borderRadius:10, padding:"8px 16px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer" }}>+ Novo</div>
           )}
+        </div>
+      </div>
+
+      {/* ── CARDS FIXOS DE INFORME ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))", gap:14, marginBottom:20 }}>
+
+        {/* Informe TCEduc */}
+        <div style={{ background:"#042C53", borderRadius:18, overflow:"hidden", opacity:ocultarTCEduc?0.5:1 }}>
+          <div style={{ padding:"18px 20px", display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ color:"#85B7EB", fontSize:10, letterSpacing:2, textTransform:"uppercase" }}>Conteúdo fixo</div>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:16, marginTop:2 }}>Informe TCEduc</div>
+              </div>
+              {ocultarTCEduc && <span style={{ background:"#7f1d1d", color:"#fca5a5", fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:8 }}>Oculto</span>}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+              <div style={{ background:"rgba(255,255,255,0.06)", borderRadius:10, padding:"10px 12px" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>{municiRealizados}</div>
+                <div style={{ color:"#85B7EB", fontSize:10, marginTop:2 }}>municípios</div>
+              </div>
+              <div style={{ background:"rgba(255,255,255,0.06)", borderRadius:10, padding:"10px 12px" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>{regionaisRealizadas}</div>
+                <div style={{ color:"#85B7EB", fontSize:10, marginTop:2 }}>regionais</div>
+              </div>
+              <div style={{ background:"rgba(255,255,255,0.06)", borderRadius:10, padding:"10px 12px" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>{totalCapTC.toLocaleString("pt-BR")}</div>
+                <div style={{ color:"#85B7EB", fontSize:10, marginTop:2 }}>capacitados</div>
+              </div>
+            </div>
+            {isMidiaAdm && (
+              <div onClick={() => toggleInforme("tceduc", !ocultarTCEduc)}
+                style={{ background:ocultarTCEduc?"rgba(5,150,105,0.2)":"rgba(220,38,38,0.15)", borderRadius:10, padding:"7px 14px", textAlign:"center", fontSize:12, fontWeight:700, color:ocultarTCEduc?"#34d399":"#f87171", cursor:"pointer" }}>
+                {ocultarTCEduc ? "👁️ Mostrar nas playlists" : "🚫 Ocultar das playlists"}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Informe Olímpiada */}
+        <div style={{ background:"#0f172a", borderRadius:18, overflow:"hidden", border:"1px solid rgba(232,115,10,0.2)", opacity:ocultarOlimp?0.5:1 }}>
+          <div style={{ padding:"18px 20px", display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div>
+                <div style={{ color:"rgba(232,115,10,0.6)", fontSize:10, letterSpacing:2, textTransform:"uppercase" }}>Conteúdo fixo</div>
+                <div style={{ color:"#fff", fontWeight:800, fontSize:16, marginTop:2 }}>Informe Olímpiada</div>
+              </div>
+              {ocultarOlimp && <span style={{ background:"#7f1d1d", color:"#fca5a5", fontSize:10, fontWeight:700, padding:"2px 10px", borderRadius:8 }}>Oculto</span>}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+              <div style={{ background:"rgba(255,255,255,0.04)", borderRadius:10, padding:"10px 12px", border:"1px solid rgba(232,115,10,0.1)" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>{totalEscolas}</div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, marginTop:2 }}>escolas</div>
+              </div>
+              <div style={{ background:"rgba(255,255,255,0.04)", borderRadius:10, padding:"10px 12px", border:"1px solid rgba(232,115,10,0.1)" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>{totalAlunos.toLocaleString("pt-BR")}</div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, marginTop:2 }}>alunos</div>
+              </div>
+              <div style={{ background:"rgba(255,255,255,0.04)", borderRadius:10, padding:"10px 12px", border:"1px solid rgba(232,115,10,0.1)" }}>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24 }}>2026</div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, marginTop:2 }}>edição</div>
+              </div>
+            </div>
+            {isMidiaAdm && (
+              <div onClick={() => toggleInforme("olimpiada", !ocultarOlimp)}
+                style={{ background:ocultarOlimp?"rgba(5,150,105,0.2)":"rgba(220,38,38,0.15)", borderRadius:10, padding:"7px 14px", textAlign:"center", fontSize:12, fontWeight:700, color:ocultarOlimp?"#34d399":"#f87171", cursor:"pointer" }}>
+                {ocultarOlimp ? "👁️ Mostrar nas playlists" : "🚫 Ocultar das playlists"}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
