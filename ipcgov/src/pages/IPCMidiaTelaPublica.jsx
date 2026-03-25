@@ -750,9 +750,6 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     }
 
     // Data comemorativa
-    if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
-      return true;
-    }
     if (item.tipo === "data_comemorativa") {
       const c = conteudos.find(c => c.id === item.id);
       if (c?.url) return <SlideImagem url={c.url}/>;
