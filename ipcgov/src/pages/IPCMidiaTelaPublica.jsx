@@ -445,48 +445,48 @@ function SlideInformeTCEduc({ eventosTC }) {
       </svg>
       {/* Header */}
       <div style={{ position:"relative" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
-        <div style={{ color:"#fff", fontSize:56, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
+        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
+        <div style={{ color:"#fff", fontSize:73, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
           Informe <span style={{ color:"#E8730A" }}>TCEduc</span>
         </div>
       </div>
       {/* Números */}
       <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
         <div style={{ paddingRight:40 }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Municipal</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Municipal</div>
           <div style={{ marginBottom:12 }}>
-            <div style={{ color:"#E8730A", fontSize:64, fontWeight:900, lineHeight:1 }}>{fmt(municiRealizados)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:16, marginTop:4 }}>municípios visitados</div>
+            <div style={{ color:"#E8730A", fontSize:83, fontWeight:900, lineHeight:1 }}>{fmt(municiRealizados)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:21, marginTop:4 }}>municípios visitados</div>
           </div>
           <div>
-            <div style={{ color:"#E8730A", fontSize:44, fontWeight:900, lineHeight:1 }}>{fmt(capMunicipal)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:15, marginTop:4 }}>pessoas capacitadas</div>
+            <div style={{ color:"#E8730A", fontSize:57, fontWeight:900, lineHeight:1 }}>{fmt(capMunicipal)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:20, marginTop:4 }}>pessoas capacitadas</div>
           </div>
         </div>
         <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
         <div style={{ padding:"0 40px" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Regional</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Regional</div>
           <div style={{ marginBottom:12 }}>
-            <div style={{ color:"#E8730A", fontSize:64, fontWeight:900, lineHeight:1 }}>{fmt(regionaisRealizadas)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:16, marginTop:4 }}>regiões visitadas</div>
+            <div style={{ color:"#E8730A", fontSize:83, fontWeight:900, lineHeight:1 }}>{fmt(regionaisRealizadas)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:21, marginTop:4 }}>regiões visitadas</div>
           </div>
           <div>
-            <div style={{ color:"#E8730A", fontSize:44, fontWeight:900, lineHeight:1 }}>{fmt(capRegional)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:15, marginTop:4 }}>pessoas capacitadas</div>
+            <div style={{ color:"#E8730A", fontSize:57, fontWeight:900, lineHeight:1 }}>{fmt(capRegional)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:20, marginTop:4 }}>pessoas capacitadas</div>
           </div>
         </div>
         <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
         <div style={{ paddingLeft:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Total geral</div>
-          <div style={{ color:"#E8730A", fontSize:80, fontWeight:900, lineHeight:1 }}>{fmt(totalCap)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>pessoas capacitadas</div>
-          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:12, fontWeight:700, letterSpacing:1 }}>EM TODO O CEARÁ</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Total geral</div>
+          <div style={{ color:"#E8730A", fontSize:104, fontWeight:900, lineHeight:1 }}>{fmt(totalCap)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>pessoas capacitadas</div>
+          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:16, fontWeight:700, letterSpacing:1 }}>EM TODO O CEARÁ</div>
         </div>
       </div>
       {/* Rodapé */}
       <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11 }}>tce.ce.gov.br</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14 }}>tce.ce.gov.br</div>
       </div>
     </div>
   );
@@ -515,36 +515,36 @@ function SlideInformeOlimpiada({ escolas }) {
       </svg>
       {/* Header */}
       <div style={{ position:"relative" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
-        <div style={{ color:"#fff", fontSize:56, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
+        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
+        <div style={{ color:"#fff", fontSize:73, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
           Informe <span style={{ color:"#E8730A" }}>Olímpiada</span>
         </div>
       </div>
       {/* Números */}
       <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
         <div style={{ paddingRight:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Escolas participantes</div>
-          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalEscolas)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>escolas inscritas</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Escolas participantes</div>
+          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalEscolas)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>escolas inscritas</div>
         </div>
         <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
         <div style={{ padding:"0 40px", textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Alunos participantes</div>
-          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalAlunos)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>alunos inscritos</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Alunos participantes</div>
+          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalAlunos)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>alunos inscritos</div>
         </div>
         <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
         <div style={{ paddingLeft:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Municípios</div>
-          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalMunicipios)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>municípios presentes</div>
-          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:12, fontWeight:700, letterSpacing:1 }}>EDIÇÃO 2026</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Municípios</div>
+          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalMunicipios)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>municípios presentes</div>
+          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:16, fontWeight:700, letterSpacing:1 }}>EDIÇÃO 2026</div>
         </div>
       </div>
       {/* Rodapé */}
       <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11 }}>tce.ce.gov.br</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14 }}>tce.ce.gov.br</div>
       </div>
     </div>
   );
