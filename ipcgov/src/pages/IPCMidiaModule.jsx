@@ -456,8 +456,8 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
   });
 
   const FONTES_ESPECIAIS = [
-    { id:"aniv_hoje", tipo:"aniversario", label:"🎂 Aniversariantes de hoje", count: anivHoje.length },
-    { id:"aniv_semana", tipo:"aniversario", label:"🎂 Aniversariantes da semana", count: anivProximos.length },
+    { id:"aniv_mes", tipo:"aniversario", label:"🎂 Aniversariantes do mês", count: null },
+    { id:"aniv_hoje", tipo:"aniversario", label:"🎂 Aniversariante do dia / fim de semana", count: anivHoje.length },
     { id:"eventos_semana", tipo:"eventos_tc", label:"📅 Agenda TCEduc", count: eventosSemana.length },
     { id:"informe_tceduc", tipo:"informe_tceduc", label:"📊 Informe TCEduc", count: null },
     { id:"informe_olimpiada", tipo:"informe_olimpiada", label:"🏆 Informe Olímpiada", count: null },
