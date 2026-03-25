@@ -22,6 +22,20 @@ function initials(nome) {
 }
 
 // Drag and drop hook
+// Exclui arquivo do Google Drive via API
+async function deletarDoDrive(driveFileId) {
+  if (!driveFileId) return;
+  try {
+    await fetch("/api/delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: driveFileId }),
+    });
+  } catch(e) {
+    console.warn("Não foi possível excluir do Drive:", e);
+  }
+}
+
 function useDragList(items, setItems) {
   const dragIdx = useRef(null);
   const onDragStart = (i) => { dragIdx.current = i; };
@@ -150,6 +164,81 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════
+// COMPONENTE DE UPLOAD — reutilizável
+// ═══════════════════════════════════════════════
+function UploadArquivo({ modulo, onUpload, aceitar, label }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const inputRef = useRef(null);
+
+  const handleArquivo = async (e) => {
+    const arquivo = e.target.files[0];
+    if (!arquivo) return;
+    setErro(null);
+    setEnviando(true);
+
+    try {
+      // Converter para base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(arquivo);
+      });
+
+      const resposta = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nomeArquivo: arquivo.name,
+          tipoArquivo: arquivo.type,
+          tamanho: arquivo.size,
+          modulo: modulo,
+          publico: true,
+          conteudoBase64: base64,
+        }),
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok || !dados.sucesso) {
+        throw new Error(dados.erro || "Erro ao fazer upload");
+      }
+
+      onUpload(dados.linkDireto, dados);
+    } catch(err) {
+      setErro(err.message);
+    }
+    setEnviando(false);
+    // Limpa o input para permitir novo upload do mesmo arquivo
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div style={{ marginTop:6 }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={aceitar || "image/*,video/mp4"}
+        onChange={handleArquivo}
+        style={{ display:"none" }}
+        id="upload-input-midia"/>
+      <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+        <label htmlFor="upload-input-midia"
+          style={{ background:enviando?"#ccc":"#1B3F7A", color:"#fff", borderRadius:8, padding:"7px 14px",
+            fontSize:12, fontWeight:700, cursor:enviando?"not-allowed":"pointer", whiteSpace:"nowrap",
+            display:"flex", alignItems:"center", gap:6 }}>
+          {enviando ? "⏳ Enviando..." : "📤 " + (label || "Fazer upload")}
+        </label>
+        <span style={{ fontSize:11, color:"#aaa" }}>ou cole o link abaixo</span>
+      </div>
+      {erro && <div style={{ fontSize:11, color:"#dc2626", marginTop:4 }}>❌ {erro}</div>}
     </div>
   );
 }
@@ -529,17 +618,28 @@ function AbaPlaylists({ playlists, setPlaylists, conteudos, servidores, eventosT
                         <div onClick={() => removeItem(i)} style={{ color:"#dc2626", cursor:"pointer", fontSize:14 }}>✕</div>
                       </div>
                       {item.tipo === "eventos_tc" && (
-                        <input
-                          value={item.capaUrl||""}
-                          onChange={e => {
-                            const next = [...editItens];
-                            next[i] = Object.assign({}, next[i], { capaUrl: e.target.value });
-                            setEditItens(next);
-                          }}
-                          onClick={e => e.stopPropagation()}
-                          onKeyDown={e => e.stopPropagation()}
-                          placeholder="🖼️ URL da capa (exibida 4s antes da agenda)"
-                          style={{ width:"100%", background:"#fff", border:"1px solid #e0e7ef", borderRadius:8, padding:"5px 10px", fontSize:11, outline:"none", color:"#1B3F7A" }}/>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                          <UploadArquivo
+                            modulo="ipcmidiaindoor"
+                            aceitar="image/*"
+                            label="Enviar capa"
+                            onUpload={(link) => {
+                              const next = [...editItens];
+                              next[i] = Object.assign({}, next[i], { capaUrl: link });
+                              setEditItens(next);
+                            }}/>
+                          <input
+                            value={item.capaUrl||""}
+                            onChange={e => {
+                              const next = [...editItens];
+                              next[i] = Object.assign({}, next[i], { capaUrl: e.target.value });
+                              setEditItens(next);
+                            }}
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => e.stopPropagation()}
+                            placeholder="ou cole a URL da capa (exibida 4s antes da agenda)"
+                            style={{ width:"100%", background:"#fff", border:"1px solid #e0e7ef", borderRadius:8, padding:"5px 10px", fontSize:11, outline:"none", color:"#1B3F7A" }}/>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -590,8 +690,10 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidi
 
   const excluir = async (id) => {
     if (!window.confirm("Excluir este conteúdo? Ele também será removido de todas as playlists.")) return;
+    const item = conteudos.find(c => c.id === id);
     await deleteDoc(doc(db,"midia_conteudos",id));
     setConteudos(prev => prev.filter(c => c.id !== id));
+    if (item && item.driveFileId) await deletarDoDrive(item.driveFileId);
     // Remover o conteúdo de todas as playlists que o contêm
     const playlistsAfetadas = (playlists || []).filter(p => (p.itens || []).some(it => it.id === id));
     for (let pl of playlistsAfetadas) {
@@ -668,9 +770,14 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, isMidi
               </div>
               {(form.tipo==="imagem"||form.tipo==="video") && (
                 <div>
-                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>URL (Google Drive / YouTube) *</label>
-                  <input value={form.url||""} onChange={e => setForm(Object.assign({},form,{url:e.target.value}))} placeholder="https://..." style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
-                  <div style={{ fontSize:10, color:"#888", marginTop:4 }}>Para Google Drive: use o link de visualização público. Para YouTube: cole a URL do vídeo.</div>
+                  <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Arquivo {form.tipo==="video"?"(vídeo)":"(imagem)"} *</label>
+                  <UploadArquivo
+                    modulo="ipcmidiaindoor"
+                    aceitar={form.tipo==="video" ? "video/mp4,video/quicktime" : "image/*"}
+                    label={form.tipo==="video" ? "Enviar vídeo" : "Enviar imagem"}
+                    onUpload={(link, dados) => setForm(Object.assign({},form,{url:link, driveFileId:dados.fileId}))}/>
+                  <input value={form.url||""} onChange={e => setForm(Object.assign({},form,{url:e.target.value}))} placeholder="ou cole a URL aqui (Google Drive / YouTube)" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", marginTop:8 }}/>
+                  {form.tipo==="video" && <div style={{ fontSize:10, color:"#888", marginTop:4 }}>Para YouTube: cole a URL do vídeo no campo acima.</div>}
                 </div>
               )}
               {form.tipo==="data_comemorativa" && (
@@ -741,8 +848,10 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
 
   const excluir = async (id) => {
     if (!window.confirm("Excluir este evento? Ele também será removido de todas as playlists.")) return;
+    const item = conteudos.find(c => c.id === id);
     await deleteDoc(doc(db,"midia_conteudos",id));
     setConteudos(prev => prev.filter(c => c.id!==id));
+    if (item && item.driveFileId) await deletarDoDrive(item.driveFileId);
     // Remover o conteúdo de todas as playlists que o contêm
     const playlistsAfetadas = (playlists || []).filter(p => (p.itens || []).some(it => it.id === id));
     for (let pl of playlistsAfetadas) {
@@ -878,8 +987,13 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                 <input value={form.categoria||""} onChange={e => setForm(Object.assign({},form,{categoria:e.target.value}))} placeholder="Ex: Evento institucional, Capacitação..." style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
               </div>
               <div>
-                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Foto do evento <span style={{ fontWeight:400, textTransform:"none" }}>(link Google Drive ou URL pública)</span></label>
-                <input value={form.fotoUrl||""} onChange={e => setForm(Object.assign({},form,{fotoUrl:e.target.value}))} placeholder="https://drive.google.com/... ou URL da imagem" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none" }}/>
+                <label style={{ display:"block", color:"#888", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:4, fontWeight:700 }}>Foto do evento</label>
+                <UploadArquivo
+                  modulo="ipcmidiaindoor"
+                  aceitar="image/*"
+                  label="Enviar foto do evento"
+                  onUpload={(link, dados) => setForm(Object.assign({},form,{fotoUrl:link, driveFileId:dados.fileId}))}/>
+                <input value={form.fotoUrl||""} onChange={e => setForm(Object.assign({},form,{fotoUrl:e.target.value}))} placeholder="ou cole a URL aqui (Google Drive ou outra)" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", marginTop:8 }}/>
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
                   <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:80, background:"#f0f4ff" }}>
