@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, query, where } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/config";
@@ -45,8 +45,8 @@ function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
   const [arrastando, setArrastando] = useState(false);
   const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
-  const canvasRef = React.useRef(null);
-  const imgRef = React.useRef(null);
+  const canvasRef = useRef(null);
+  const imgRef = useRef(null);
   const TAMANHO = 200;
 
   function corAvatar2(n) {
@@ -91,7 +91,7 @@ function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
     ctx.restore();
   };
 
-  React.useEffect(() => { if (editando) desenharCanvas(); }, [editando, escala, pos, preview]);
+  useEffect(() => { if (editando) desenharCanvas(); }, [editando, escala, pos, preview]);
 
   const confirmar = () => {
     const canvas = canvasRef.current;
