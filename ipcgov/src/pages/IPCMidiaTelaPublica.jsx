@@ -762,17 +762,25 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   // Verifica se item tem conteúdo real para exibir
   const itemTemConteudo = (item) => {
     if (!item) return false;
+    // Aniversariantes do mês — verifica antes do tipo genérico
+    if (item.id === "aniv_mes") {
+      const hoje = new Date();
+      return servidores.some(s => {
+        if (!s.dataAniversario) return false;
+        const [,m] = s.dataAniversario.split("-");
+        return parseInt(m)-1 === hoje.getMonth();
+      });
+    }
+    // Aniversariante do dia / fim de semana
     if (item.tipo === "aniversario") {
       const hoje = new Date();
       const diaSemana = hoje.getDay();
-      // Tem aniversariante hoje
       const temHoje = servidores.some(s => {
         if (!s.dataAniversario) return false;
         const [,m,d] = s.dataAniversario.split("-");
         return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
       });
       if (temHoje) return true;
-      // Se sexta, verifica sab/dom
       if (diaSemana === 5) {
         const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
         const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
@@ -786,8 +794,6 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       }
       return false;
     }
-    // Aniversariantes do mês — exibe sempre
-    if (item.id === "aniv_mes") return true;
     if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
       return true;
     }
