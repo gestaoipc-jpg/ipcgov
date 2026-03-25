@@ -64,7 +64,7 @@ module.exports = async function handler(req, res) {
     }
 
     const drive = autenticar();
-    const nomeFinal = normalizarNome(modulo, nomeOriginal || nomeArquivo);
+    const nomeFinal = normalizarNome(modulo, nomeArquivo);
     const buffer = Buffer.from(conteudoBase64, "base64");
     const stream = Readable.from(buffer);
 
