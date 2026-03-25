@@ -402,6 +402,161 @@ function SlideAgendaManual({ evento, fallbackIdx }) {
   );
 }
 
+
+function SlideInformeTCEduc({ eventosTC }) {
+  const getStatusEfetivo = (e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((s,a) => s+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    return cap > 0 ? "Realizado" : (e.status||"Programado");
+  };
+  const ev2026 = (eventosTC||[]).filter(e => {
+    const ano = e.data ? e.data.split("-")[0] : (e.ano ? String(e.ano) : "");
+    return ano === "2026" && getStatusEfetivo(e) === "Realizado";
+  });
+  const municiRealizados = new Set(ev2026.filter(e=>e.tipo==="Municipal").map(e=>e.municipio||e.regiao)).size;
+  const capMunicipal = ev2026.filter(e=>e.tipo==="Municipal").reduce((s,e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    return s + cap;
+  }, 0);
+  const regionaisRealizadas = new Set(ev2026.filter(e=>e.tipo==="Regional").map(e=>e.municipio||e.regiao)).size;
+  const capRegional = ev2026.filter(e=>e.tipo==="Regional").reduce((s,e) => {
+    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
+      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
+      : (e.totalCapacitados||0);
+    return s + cap;
+  }, 0);
+  const totalCap = capMunicipal + capRegional;
+  const fmt = (n) => n.toLocaleString("pt-BR");
+
+  return (
+    <div style={{ width:"100%", height:"100%", background:"#042C53", display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"40px 52px", fontFamily:"'Montserrat',sans-serif", position:"relative", overflow:"hidden" }}>
+      {/* Fundo decorativo */}
+      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.06, pointerEvents:"none" }} viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+        <circle cx="150" cy="120" r="80" fill="none" stroke="#378ADD" strokeWidth="1"/>
+        <circle cx="150" cy="120" r="150" fill="none" stroke="#378ADD" strokeWidth="0.5"/>
+        <circle cx="650" cy="320" r="100" fill="none" stroke="#378ADD" strokeWidth="1"/>
+        <circle cx="650" cy="320" r="190" fill="none" stroke="#378ADD" strokeWidth="0.5"/>
+        <circle cx="400" cy="220" r="60" fill="none" stroke="#378ADD" strokeWidth="1"/>
+        <line x1="150" y1="120" x2="400" y2="220" stroke="#378ADD" strokeWidth="0.8" strokeDasharray="6,4"/>
+        <line x1="400" y1="220" x2="650" y2="320" stroke="#378ADD" strokeWidth="0.8" strokeDasharray="6,4"/>
+        <circle cx="150" cy="120" r="6" fill="#378ADD" opacity="0.8"/>
+        <circle cx="400" cy="220" r="6" fill="#378ADD" opacity="0.8"/>
+        <circle cx="650" cy="320" r="6" fill="#378ADD" opacity="0.8"/>
+        <circle cx="280" cy="80" r="3" fill="#378ADD" opacity="0.5"/>
+        <circle cx="500" cy="150" r="3" fill="#378ADD" opacity="0.5"/>
+        <circle cx="600" cy="180" r="3" fill="#378ADD" opacity="0.5"/>
+        <circle cx="220" cy="300" r="3" fill="#378ADD" opacity="0.5"/>
+      </svg>
+      {/* Header */}
+      <div style={{ position:"relative" }}>
+        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
+        <div style={{ color:"#fff", fontSize:56, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
+          Informe <span style={{ color:"#E8730A" }}>TCEduc</span>
+        </div>
+      </div>
+      {/* Números */}
+      <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
+        <div style={{ paddingRight:40 }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Municipal</div>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ color:"#E8730A", fontSize:64, fontWeight:900, lineHeight:1 }}>{fmt(municiRealizados)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:16, marginTop:4 }}>municípios visitados</div>
+          </div>
+          <div>
+            <div style={{ color:"#E8730A", fontSize:44, fontWeight:900, lineHeight:1 }}>{fmt(capMunicipal)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:15, marginTop:4 }}>pessoas capacitadas</div>
+          </div>
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
+        <div style={{ padding:"0 40px" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Regional</div>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ color:"#E8730A", fontSize:64, fontWeight:900, lineHeight:1 }}>{fmt(regionaisRealizadas)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:16, marginTop:4 }}>regiões visitadas</div>
+          </div>
+          <div>
+            <div style={{ color:"#E8730A", fontSize:44, fontWeight:900, lineHeight:1 }}>{fmt(capRegional)}</div>
+            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:15, marginTop:4 }}>pessoas capacitadas</div>
+          </div>
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
+        <div style={{ paddingLeft:40, textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Total geral</div>
+          <div style={{ color:"#E8730A", fontSize:80, fontWeight:900, lineHeight:1 }}>{fmt(totalCap)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>pessoas capacitadas</div>
+          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:12, fontWeight:700, letterSpacing:1 }}>EM TODO O CEARÁ</div>
+        </div>
+      </div>
+      {/* Rodapé */}
+      <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11 }}>tce.ce.gov.br</div>
+      </div>
+    </div>
+  );
+}
+
+function SlideInformeOlimpiada({ escolas }) {
+  const ol2026 = (escolas||[]).filter(e => e.edicao === 2026);
+  const totalEscolas = ol2026.length;
+  const totalAlunos = ol2026.reduce((s,e) => s + (parseInt(e.alunosInscritos)||0), 0);
+  const totalMunicipios = new Set(ol2026.map(e=>e.municipio).filter(Boolean)).size;
+  const fmt = (n) => n.toLocaleString("pt-BR");
+
+  return (
+    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"40px 52px", fontFamily:"'Montserrat',sans-serif", position:"relative", overflow:"hidden" }}>
+      {/* Fundo decorativo */}
+      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.06, pointerEvents:"none" }} viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="#E8730A"/>
+        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="none" stroke="#E8730A" strokeWidth="1" transform="translate(400,225) scale(1.6) translate(-400,-225)"/>
+        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="none" stroke="#E8730A" strokeWidth="0.5" transform="translate(400,225) scale(2.4) translate(-400,-225)"/>
+        <circle cx="80" cy="60" r="4" fill="#E8730A" opacity="0.5"/>
+        <circle cx="720" cy="60" r="4" fill="#E8730A" opacity="0.5"/>
+        <circle cx="80" cy="390" r="4" fill="#E8730A" opacity="0.5"/>
+        <circle cx="720" cy="390" r="4" fill="#E8730A" opacity="0.5"/>
+        <circle cx="200" cy="220" r="2.5" fill="#E8730A" opacity="0.4"/>
+        <circle cx="600" cy="240" r="2.5" fill="#E8730A" opacity="0.4"/>
+      </svg>
+      {/* Header */}
+      <div style={{ position:"relative" }}>
+        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
+        <div style={{ color:"#fff", fontSize:56, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
+          Informe <span style={{ color:"#E8730A" }}>Olímpiada</span>
+        </div>
+      </div>
+      {/* Números */}
+      <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
+        <div style={{ paddingRight:40, textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Escolas participantes</div>
+          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalEscolas)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>escolas inscritas</div>
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
+        <div style={{ padding:"0 40px", textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Alunos participantes</div>
+          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalAlunos)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>alunos inscritos</div>
+        </div>
+        <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
+        <div style={{ paddingLeft:40, textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Municípios</div>
+          <div style={{ color:"#E8730A", fontSize:96, fontWeight:900, lineHeight:1 }}>{fmt(totalMunicipios)}</div>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:18, marginTop:8 }}>municípios presentes</div>
+          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:12, fontWeight:700, letterSpacing:1 }}>EDIÇÃO 2026</div>
+        </div>
+      </div>
+      {/* Rodapé */}
+      <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:11 }}>tce.ce.gov.br</div>
+      </div>
+    </div>
+  );
+}
+
 function Relogio() {
   const [hora, setHora] = useState(new Date());
   useEffect(() => {
@@ -426,6 +581,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const [conteudos, setConteudos] = useState([]);
   const [servidores, setServidores] = useState([]);
   const [eventosTC, setEventosTC] = useState([]);
+  const [escolas, setEscolas] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showingCapa, setShowingCapa] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -445,14 +601,16 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       const telaData = { id: telaDoc.id, ...telaDoc.data() };
       setTela(telaData);
 
-      const [cSnap, sSnap, eSnap] = await Promise.all([
+      const [cSnap, sSnap, eSnap, oSnap] = await Promise.all([
         getDocs(collection(db, "midia_conteudos")),
         getDocs(collection(db, "ipc_servidores")),
         getDocs(collection(db, "tceduc_eventos")),
+        getDocs(collection(db, "olimpiadas_escolas")),
       ]);
       setConteudos(cSnap.docs.map(d => ({ id:d.id, ...d.data() })));
       setServidores(sSnap.docs.map(d => ({ id:d.id, ...d.data() })));
       setEventosTC(eSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setEscolas(oSnap.docs.map(d => ({ id:d.id, ...d.data() })));
 
       if (telaData.playlistId) {
         const plDoc = await getDoc(doc(db, "midia_playlists", telaData.playlistId));
@@ -487,6 +645,9 @@ export default function IPCMidiaTelaPublica({ telaId }) {
         const [,m,d] = s.dataAniversario.split("-");
         return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
       });
+    }
+    if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
+      return true;
     }
     if (item.tipo === "data_comemorativa") {
       const c = conteudos.find(c => c.id === item.id);
@@ -589,6 +750,9 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     }
 
     // Data comemorativa
+    if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
+      return true;
+    }
     if (item.tipo === "data_comemorativa") {
       const c = conteudos.find(c => c.id === item.id);
       if (c?.url) return <SlideImagem url={c.url}/>;
@@ -605,6 +769,16 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       const c = conteudos.find(c => c.id === item.id);
       const url = c?.url || item.thumb;
       if (url) return <SlideImagem url={url}/>;
+    }
+
+    // Informe TCEduc
+    if (item.tipo === "informe_tceduc") {
+      return <SlideInformeTCEduc eventosTC={eventosTC}/>;
+    }
+
+    // Informe Olímpiada
+    if (item.tipo === "informe_olimpiada") {
+      return <SlideInformeOlimpiada escolas={escolas}/>;
     }
 
     // Fallback
