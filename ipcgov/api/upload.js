@@ -2,7 +2,7 @@ const { google } = require("googleapis");
 const { Readable } = require("stream");
 
 const PASTAS = {
-  ipcmidiaindoor: "1ArG684gg8Vr3Er9pDijHyHeuRcj_hrz4",
+  ipcmidiaindoor: "1tqsEA3unM4kEyV8bQy5DicoI7WU2l5SX",
 };
 
 const TIPOS_PERMITIDOS = [
@@ -26,6 +26,7 @@ function autenticar() {
 async function tornarPublico(drive, fileId) {
   await drive.permissions.create({
     fileId,
+    supportsAllDrives: true,
     requestBody: { role: "reader", type: "anyone" },
   });
 }
@@ -63,11 +64,12 @@ module.exports = async function handler(req, res) {
     }
 
     const drive = autenticar();
-    const nomeFinal = normalizarNome(modulo, nomeArquivo);
+    const nomeFinal = normalizarNome(modulo, nomeOriginal || nomeArquivo);
     const buffer = Buffer.from(conteudoBase64, "base64");
     const stream = Readable.from(buffer);
 
     const resposta = await drive.files.create({
+      supportsAllDrives: true,
       requestBody: {
         name: nomeFinal,
         parents: [pastaId],
