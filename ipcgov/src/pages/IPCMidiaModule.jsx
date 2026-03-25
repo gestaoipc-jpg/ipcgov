@@ -743,31 +743,21 @@ function AbaConteudos({ conteudos, setConteudos, playlists, setPlaylists, evento
   const filtrados = filtroTipo==="todos" ? conteudos : conteudos.filter(c => c.tipo===filtroTipo);
 
   // Dados Informe TCEduc 2026
-  const getStatusEfetivo = (e) => {
-    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
-      : e.porAcao ? Object.values(e.porAcao).reduce((s,a) => s+(a.capacitados||0),0)
-      : (e.totalCapacitados||0);
-    if (cap > 0) return "Realizado";
-    return e.status || "Programado";
+  const getCapacitadosEv = (e) => {
+    if (e.modoTotalManual) return parseInt(e.totalAprovadosManual) || 0;
+    const porAcao = (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
+    if (porAcao === 0 && e.totalAprovadosManual) return parseInt(e.totalAprovadosManual) || 0;
+    return porAcao;
   };
+  const getStatusEfetivo = (e) => getCapacitadosEv(e) > 0 ? "Realizado" : (e.status || "Programado");
   const ev2026 = (eventosTC||[]).filter(e => {
     const ano = e.data ? e.data.split("-")[0] : (e.ano ? String(e.ano) : "");
     return ano === "2026" && getStatusEfetivo(e) === "Realizado";
   });
   const municiRealizados = new Set(ev2026.filter(e=>e.tipo==="Municipal").map(e=>e.municipio||e.regiao)).size;
-  const capMunicipal = ev2026.filter(e=>e.tipo==="Municipal").reduce((s,e) => {
-    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
-      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
-      : (e.totalCapacitados||0);
-    return s + cap;
-  }, 0);
+  const capMunicipal = ev2026.filter(e=>e.tipo==="Municipal").reduce((s,e) => s + getCapacitadosEv(e), 0);
   const regionaisRealizadas = new Set(ev2026.filter(e=>e.tipo==="Regional").map(e=>e.municipio||e.regiao)).size;
-  const capRegional = ev2026.filter(e=>e.tipo==="Regional").reduce((s,e) => {
-    const cap = e.modoTotalManual ? (e.totalAprovadosManual||0)
-      : e.porAcao ? Object.values(e.porAcao).reduce((ss,a) => ss+(a.capacitados||0),0)
-      : (e.totalCapacitados||0);
-    return s + cap;
-  }, 0);
+  const capRegional = ev2026.filter(e=>e.tipo==="Regional").reduce((s,e) => s + getCapacitadosEv(e), 0);
   const totalCapTC = capMunicipal + capRegional;
 
   // Dados Informe Olímpiada 2026
