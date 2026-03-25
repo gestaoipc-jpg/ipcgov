@@ -23,7 +23,10 @@ module.exports = async function handler(req, res) {
 
   try {
     const drive = autenticar();
-    await drive.files.delete({ fileId });
+    await drive.files.delete({
+      fileId,
+      supportsAllDrives: true,
+    });
     return res.status(200).json({ sucesso: true });
   } catch (erro) {
     if (erro.code === 404) {
