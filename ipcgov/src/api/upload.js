@@ -1,22 +1,15 @@
 const { google } = require("googleapis");
+const { Readable } = require("stream");
 
-// Pastas por módulo
 const PASTAS = {
   ipcmidiaindoor: "1ArG684gg8Vr3Er9pDijHyHeuRcj_hrz4",
 };
 
-// Tipos de arquivo permitidos
 const TIPOS_PERMITIDOS = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "video/mp4",
-  "video/quicktime",
-  "application/pdf",
+  "image/jpeg","image/png","image/gif","image/webp",
+  "video/mp4","video/quicktime","application/pdf",
 ];
 
-// Tamanho máximo: 50MB
 const TAMANHO_MAXIMO = 50 * 1024 * 1024;
 
 function autenticar() {
@@ -33,15 +26,21 @@ function autenticar() {
 async function tornarPublico(drive, fileId) {
   await drive.permissions.create({
     fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
+    requestBody: { role: "reader", type: "anyone" },
   });
 }
 
-export default async function handler(req, res) {
-  // Só aceita POST
+function normalizarNome(modulo, nomeOriginal) {
+  const timestamp = Date.now();
+  const nomeLimpo = nomeOriginal
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .toLowerCase();
+  return `${modulo}_${timestamp}_${nomeLimpo}`;
+}
+
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
   }
@@ -49,36 +48,28 @@ export default async function handler(req, res) {
   try {
     const { nomeArquivo, tipoArquivo, tamanho, modulo, publico, conteudoBase64 } = req.body;
 
-    // Validações
     if (!nomeArquivo || !tipoArquivo || !modulo || !conteudoBase64) {
       return res.status(400).json({ erro: "Dados incompletos" });
     }
-
     if (!TIPOS_PERMITIDOS.includes(tipoArquivo)) {
       return res.status(400).json({ erro: "Tipo de arquivo não permitido" });
     }
-
     if (tamanho > TAMANHO_MAXIMO) {
       return res.status(400).json({ erro: "Arquivo muito grande. Máximo 50MB" });
     }
-
     const pastaId = PASTAS[modulo];
     if (!pastaId) {
       return res.status(400).json({ erro: "Módulo não reconhecido" });
     }
 
-    // Autenticar
     const drive = autenticar();
-
-    // Converter base64 para buffer
+    const nomeFinal = normalizarNome(modulo, nomeArquivo);
     const buffer = Buffer.from(conteudoBase64, "base64");
-    const { Readable } = require("stream");
     const stream = Readable.from(buffer);
 
-    // Fazer upload
     const resposta = await drive.files.create({
       requestBody: {
-        name: nomeArquivo,
+        name: nomeFinal,
         parents: [pastaId],
       },
       media: {
@@ -89,20 +80,16 @@ export default async function handler(req, res) {
     });
 
     const fileId = resposta.data.id;
+    if (publico) await tornarPublico(drive, fileId);
 
-    // Tornar público se solicitado
-    if (publico) {
-      await tornarPublico(drive, fileId);
-    }
-
-    // Montar link direto para imagem
     const linkDireto = `https://drive.google.com/uc?export=view&id=${fileId}`;
     const linkVisualizacao = `https://drive.google.com/file/d/${fileId}/view`;
 
     return res.status(200).json({
       sucesso: true,
       fileId,
-      nome: resposta.data.name,
+      nome: nomeFinal,
+      nomeOriginal: nomeArquivo,
       linkDireto,
       linkVisualizacao,
       publico: !!publico,
@@ -112,4 +99,4 @@ export default async function handler(req, res) {
     console.error("Erro no upload:", erro);
     return res.status(500).json({ erro: "Erro ao fazer upload: " + erro.message });
   }
-}
+};
