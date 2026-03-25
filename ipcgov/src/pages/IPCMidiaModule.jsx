@@ -205,7 +205,21 @@ function UploadArquivo({ modulo, onUpload, aceitar, label }) {
         }),
       });
 
-      const dados = await resposta.json();
+      // Lê o texto bruto primeiro para debugar
+      const textoResposta = await resposta.text();
+      console.log("Resposta bruta da API:", textoResposta);
+      console.log("Status HTTP:", resposta.status);
+
+      if (!textoResposta) {
+        throw new Error("API retornou resposta vazia (status " + resposta.status + ")");
+      }
+
+      let dados;
+      try {
+        dados = JSON.parse(textoResposta);
+      } catch(e) {
+        throw new Error("Resposta inválida da API: " + textoResposta.substring(0, 200));
+      }
 
       if (!resposta.ok || !dados.sucesso) {
         throw new Error(dados.erro || "Erro ao fazer upload");
