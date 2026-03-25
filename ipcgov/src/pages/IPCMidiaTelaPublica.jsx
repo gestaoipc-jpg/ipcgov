@@ -83,35 +83,153 @@ function SlideAniversario({ servidores }) {
 
 function SlideEventos({ eventosTC }) {
   const hoje = new Date();
-  const proximos = eventosTC.filter(e => {
+  const MESES_NOME = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const MESES_CURTO2 = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
+  // Pega eventos dos próximos 45 dias + passados do mês atual
+  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const eventos = eventosTC.filter(e => {
     if (!e.data) return false;
     const d = new Date(e.data+"T00:00:00");
-    const diff = Math.ceil((d - hoje) / 86400000);
-    return diff >= 0 && diff <= 20;
-  }).slice(0,6);
+    return d >= inicioMes;
+  }).sort((a,b) => a.data.localeCompare(b.data)).slice(0, 24);
 
-  const MESES = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  // Agrupa por semana (seg-sex)
+  const getInicioSemana = (data) => {
+    const d = new Date(data+"T00:00:00");
+    const dia = d.getDay();
+    const diff = dia === 0 ? -6 : 1 - dia;
+    const seg = new Date(d);
+    seg.setDate(d.getDate() + diff);
+    return seg;
+  };
+
+  const getFimSemana = (seg) => {
+    const sex = new Date(seg);
+    sex.setDate(seg.getDate() + 4);
+    return sex;
+  };
+
+  const semanas = [];
+  const vistas = new Set();
+  eventos.forEach(e => {
+    const seg = getInicioSemana(e.data);
+    const chave = seg.toISOString().split("T")[0];
+    if (!vistas.has(chave)) {
+      vistas.add(chave);
+      semanas.push({ seg, sex: getFimSemana(seg), eventos: [] });
+    }
+    semanas.find(s => s.seg.toISOString().split("T")[0] === chave).eventos.push(e);
+  });
+
+  const isEstaSemana = (seg) => {
+    const hojeInicio = getInicioSemana(hoje.toISOString().split("T")[0]);
+    return seg.toISOString().split("T")[0] === hojeInicio.toISOString().split("T")[0];
+  };
+
+  const isPassada = (sex) => sex < hoje;
+
+  const fmtDia = (d) => d.getDate().toString().padStart(2,"0");
+  const fmtMes = (d) => MESES_CURTO2[d.getMonth()];
+
+  // Divide semanas em 2 colunas
+  const metade = Math.ceil(semanas.length / 2);
+  const col1 = semanas.slice(0, metade);
+  const col2 = semanas.slice(metade);
+
+  const mesAtual = MESES_NOME[hoje.getMonth()];
+  const anoAtual = hoje.getFullYear();
+
+  const renderSemana = (s) => {
+    const passada = isPassada(s.sex);
+    const atual = isEstaSemana(s.seg);
+    const cor = passada ? "#0F6E56" : atual ? "#854F0B" : "#185FA5";
+    const corBarra = passada ? "#1D9E75" : atual ? "#EF9F27" : "#378ADD";
+    const corLabel = passada ? "#5DCAA5" : atual ? "#FAC775" : "#85B7EB";
+    const corItem = passada ? "#9FE1CB" : atual ? "#FAC775" : "#B5D4F4";
+    const corTipo = passada ? "#5DCAA5" : atual ? "#EF9F27" : "#85B7EB";
+    const bgItem = passada ? "rgba(15,110,86,0.25)" : atual ? "rgba(133,79,11,0.3)" : "rgba(24,95,165,0.25)";
+    const borderItem = atual ? "1px solid rgba(239,159,39,0.3)" : "none";
+
+    return (
+      <div key={s.seg.toISOString()} style={{ marginBottom:14 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:7 }}>
+          <div style={{ width:3, height:14, background:corBarra, borderRadius:2, flexShrink:0 }}/>
+          <span style={{ color:corLabel, fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>
+            {fmtDia(s.seg)} – {fmtDia(s.sex)} {fmtMes(s.sex)}
+          </span>
+          {atual && (
+            <span style={{ background:"#854F0B", color:"#FAC775", fontSize:9, fontWeight:700, padding:"1px 7px", borderRadius:10 }}>esta semana</span>
+          )}
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+          {s.eventos.map(e => (
+            <div key={e.id} style={{ display:"flex", alignItems:"center", gap:8, background:bgItem, borderRadius:8, padding:"6px 10px", border:borderItem }}>
+              <div style={{ width:16, height:16, borderRadius:4, background:cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                {passada && (
+                  <svg width="9" height="9" viewBox="0 0 10 10">
+                    <polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                  </svg>
+                )}
+              </div>
+              <span style={{ color:corItem, fontSize:13, fontWeight:600, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {e.municipio||e.regiao||"Evento"}
+              </span>
+              {e.tipo && (
+                <span style={{ color:corTipo, fontSize:10, flexShrink:0 }}>{e.tipo}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"flex", flexDirection:"column", padding:48 }}>
-      <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>Próximos Eventos</div>
-      <div style={{ color:"#fff", fontWeight:900, fontSize:40, marginBottom:32 }}>📅 Agenda TCEduc</div>
-      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-        {proximos.map(e => {
-          const [y,m,d] = (e.data||"").split("-");
-          return (
-            <div key={e.id} style={{ display:"flex", alignItems:"center", gap:20, background:"rgba(255,255,255,0.05)", borderRadius:16, padding:"16px 24px" }}>
-              <div style={{ background:"#1B3F7A", borderRadius:12, padding:"10px 14px", textAlign:"center", minWidth:60 }}>
-                <div style={{ color:"#fff", fontWeight:900, fontSize:28, lineHeight:1 }}>{d}</div>
-                <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, textTransform:"uppercase" }}>{MESES[parseInt(m)-1]}</div>
+    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"190px 1fr 1fr", fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
+
+      {/* Coluna esquerda */}
+      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", padding:"28px 20px", gap:16, borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        <div>
+          <div style={{ color:"#85B7EB", fontSize:10, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>TCEduc</div>
+          <div style={{ color:"#fff", fontWeight:700, fontSize:18, lineHeight:1.25 }}>Agenda TCEduc</div>
+        </div>
+        <div style={{ width:32, height:2, background:"#378ADD", borderRadius:1 }}/>
+        <div style={{ background:"#185FA5", borderRadius:10, padding:"12px 14px", textAlign:"center" }}>
+          <div style={{ color:"#E6F1FB", fontSize:22, fontWeight:700, lineHeight:1 }}>{mesAtual.toUpperCase().slice(0,3)}</div>
+          <div style={{ color:"#85B7EB", fontSize:11, letterSpacing:1, marginTop:3 }}>{anoAtual}</div>
+        </div>
+        <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", gap:8 }}>
+          {[
+            { cor:"#0F6E56", label:"Realizado", check:true },
+            { cor:"#854F0B", label:"Esta semana", check:false },
+            { cor:"#185FA5", label:"Agendado", check:false },
+          ].map(item => (
+            <div key={item.label} style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:14, height:14, borderRadius:4, background:item.cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                {item.check && (
+                  <svg width="8" height="8" viewBox="0 0 10 10">
+                    <polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+                  </svg>
+                )}
               </div>
-              <div>
-                <div style={{ color:"#fff", fontWeight:700, fontSize:22 }}>{e.municipio||e.regiao||"Evento"}</div>
-                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:14, marginTop:2 }}>{e.tipo}</div>
-              </div>
+              <span style={{ color:"#85B7EB", fontSize:11 }}>{item.label}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
+        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:10, letterSpacing:1 }}>TCE-CE · IPC</div>
+      </div>
+
+      {/* Coluna central */}
+      <div style={{ padding:"24px 18px", overflowY:"hidden", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
+        {col1.length === 0 ? (
+          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:14, marginTop:40, textAlign:"center" }}>Sem eventos</div>
+        ) : col1.map(s => renderSemana(s))}
+      </div>
+
+      {/* Coluna direita */}
+      <div style={{ padding:"24px 18px", overflowY:"hidden" }}>
+        {col2.map(s => renderSemana(s))}
       </div>
     </div>
   );
