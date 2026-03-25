@@ -1,986 +1,1067 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { doc, getDoc, getDocs, collection, updateDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
+import { useState, useEffect } from "react";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, query, where } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase/config";
+import emailjs from "@emailjs/browser";
 
-function normYoutubeUrl(url) {
-  if (!url) return null;
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}?autoplay=1&mute=1&loop=1&playlist=${yt[1]}&controls=0&showinfo=0`;
-  return null;
-}
+const EMAILJS_SERVICE = "service_m6wjek9";
+const EMAILJS_TEMPLATE = "template_lglpt37";
+const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
 
-function normDriveUrl(url) {
-  if (!url) return null;
-  // lh3.googleusercontent.com — link direto de Shared Drive, usa direto
-  if (url.includes("lh3.googleusercontent.com")) return url;
-  // drive.google.com/file/d/ID/view ou /preview
-  const drive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (drive) return `https://lh3.googleusercontent.com/d/${drive[1]}`;
-  // drive.google.com/uc?export=view&id=ID — converte para lh3
-  const driveUc = url.match(/[?&]id=([^&]+)/);
-  if (url.includes("drive.google.com") && driveUc) return `https://lh3.googleusercontent.com/d/${driveUc[1]}`;
-  return null;
-}
+const MODULOS_NOMES = {
+  tceduc:"🎓 TCEduc", designer:"🎨 IPC Designer", processos:"📁 IPC Processos",
+  almoxarifado:"🗃️ Almoxarifado", pessoas:"👥 IPC Pessoas",
+};
 
-function SlideImagem({ url }) {
-  const ytUrl = normYoutubeUrl(url);
-  const driveUrl = normDriveUrl(url);
-  const finalUrl = ytUrl || driveUrl || url;
-  const isEmbed = ytUrl || driveUrl;
+const TIPOS_EXTERNO = ["Instrutor(a)","Motorista","Apoio de Outro Órgão","Consultor(a)","Voluntário(a)","Outro"];
+const ORGAOS = ["SESA","SEDUC","SECULT","STDS","SSPDS","TCE","MPE","Prefeitura","Outro"];
+const MODULOS = [
+  { id:"tceduc", nome:"TCEduc", icon:"🎓" },
+  { id:"designer", nome:"IPC Designer", icon:"🎨" },
+  { id:"processos", nome:"IPC Processos", icon:"📁" },
+  { id:"almoxarifado", nome:"Almoxarifado", icon:"🗃️" },
+  { id:"pessoas", nome:"IPC Pessoas", icon:"👥" },
+];
+const SENHA_PADRAO = "Tce1234567890!@#";
 
-  if (isEmbed) {
+function initials(nome) { if(!nome)return"?"; return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase(); }
+function corAvatar(nome) { const cores=["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"]; let h=0; for(let c of (nome||""))h+=c.charCodeAt(0); return cores[h%cores.length]; }
+function formatDate(d) { if(!d)return"—"; const[y,m,day]=d.split("-"); return`${day}/${m}/${y}`; }
+
+const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
+const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
+
+const PESSOAS_ICON = (<svg width="20" height="20" viewBox="0 0 42 42" fill="none"><circle cx="21" cy="17" r="5.5" stroke="white" strokeWidth="1.8" fill="rgba(255,255,255,0.22)"/><path d="M10 35C10 29 15 25 21 25C27 25 32 29 32 35" stroke="white" strokeWidth="1.8" strokeLinecap="round" fill="none"/><circle cx="31.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/><circle cx="10.5" cy="14" r="3.5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.3" fill="none"/></svg>);
+
+
+// ═══════════════════════════════════════════════
+// EDITOR DE FOTO CIRCULAR
+// ═══════════════════════════════════════════════
+function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
+  const [editando, setEditando] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [escala, setEscala] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [arrastando, setArrastando] = useState(false);
+  const [startDrag, setStartDrag] = useState({ x: 0, y: 0 });
+  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
+  const canvasRef = React.useRef(null);
+  const imgRef = React.useRef(null);
+  const TAMANHO = 200;
+
+  function corAvatar2(n) {
+    const cores = ["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"];
+    let h = 0; for (let ch of (n||"")) h += ch.charCodeAt(0); return cores[h%cores.length];
+  }
+  function initials2(n) {
+    if (!n) return "?"; return n.split(" ").slice(0,2).map(w=>w[0]).join("").toUpperCase();
+  }
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      setImgSize({ w: img.width, h: img.height });
+      setPreview(url);
+      setEscala(1);
+      setPos({ x: 0, y: 0 });
+      setEditando(true);
+    };
+    img.src = url;
+  };
+
+  const desenharCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !preview) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, TAMANHO, TAMANHO);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(TAMANHO/2, TAMANHO/2, TAMANHO/2, 0, Math.PI*2);
+    ctx.clip();
+    const img = imgRef.current;
+    if (!img) return;
+    const escW = imgSize.w * escala;
+    const escH = imgSize.h * escala;
+    const x = (TAMANHO - escW) / 2 + pos.x;
+    const y = (TAMANHO - escH) / 2 + pos.y;
+    ctx.drawImage(img, x, y, escW, escH);
+    ctx.restore();
+  };
+
+  React.useEffect(() => { if (editando) desenharCanvas(); }, [editando, escala, pos, preview]);
+
+  const confirmar = () => {
+    const canvas = canvasRef.current;
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      onConfirm(blob, url);
+      setEditando(false);
+    }, "image/jpeg", 0.92);
+  };
+
+  const onMouseDown = (e) => {
+    setArrastando(true);
+    setStartDrag({ x: e.clientX - pos.x, y: e.clientY - pos.y });
+  };
+  const onMouseMove = (e) => {
+    if (!arrastando) return;
+    setPos({ x: e.clientX - startDrag.x, y: e.clientY - startDrag.y });
+  };
+  const onMouseUp = () => setArrastando(false);
+
+  const fotoExibir = fotoAtual && fotoAtual.startsWith("http") ? fotoAtual : null;
+
+  if (editando) {
     return (
-      <iframe src={finalUrl} style={{ width:"100%", height:"100%", border:"none" }}
-        allow="autoplay; fullscreen" allowFullScreen title="media"/>
+      <div style={{ background:"#f8f9fb", borderRadius:18, padding:20, marginBottom:20, textAlign:"center" }}>
+        <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:12 }}>✂️ Ajustar posição da foto</div>
+        <canvas ref={canvasRef} width={TAMANHO} height={TAMANHO}
+          style={{ borderRadius:"50%", border:"3px solid #1B3F7A", cursor:"grab", display:"block", margin:"0 auto" }}
+          onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}/>
+        <img ref={imgRef} src={preview} onLoad={desenharCanvas} style={{ display:"none" }} alt=""/>
+        <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:11, color:"#888" }}>🔍</span>
+          <input type="range" min="0.5" max="3" step="0.05" value={escala}
+            onChange={e => setEscala(parseFloat(e.target.value))}
+            style={{ flex:1 }}/>
+          <span style={{ fontSize:11, color:"#888" }}>🔎</span>
+        </div>
+        <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Arraste para reposicionar · Use o zoom para ajustar</div>
+        <div style={{ display:"flex", gap:10, marginTop:14 }}>
+          <div onClick={() => { setEditando(false); setPreview(null); }}
+            style={{ flex:1, background:"#f0f4ff", borderRadius:12, padding:"10px", textAlign:"center", fontWeight:700, fontSize:12, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+          <div onClick={confirmar}
+            style={{ flex:2, background:"#1B3F7A", borderRadius:12, padding:"10px", textAlign:"center", fontWeight:700, fontSize:12, color:"#fff", cursor:"pointer" }}>✅ Confirmar foto</div>
+        </div>
+      </div>
     );
   }
-  return (
-    <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-  );
-}
-
-function corAvatar(nome) {
-  const cores = ["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"];
-  let h = 0;
-  for (let ch of (nome||"")) h += ch.charCodeAt(0);
-  return cores[h % cores.length];
-}
-function initials(nome) {
-  if (!nome) return "?";
-  return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase();
-}
-function nomeExibir(s) {
-  return s.nomePreferido || s.nome.split(" ")[0];
-}
-
-function FotoCircular({ servidor, tamanho }) {
-  const sz = tamanho || 120;
-  const url = servidor.foto && servidor.foto.startsWith("http") ? servidor.foto : null;
-  return (
-    <div style={{ width:sz, height:sz, borderRadius:"50%", overflow:"hidden", border:"4px solid rgba(255,255,255,0.3)", flexShrink:0,
-      background:url?"transparent":corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center" }}>
-      {url
-        ? <img src={url} alt={servidor.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-        : <span style={{ color:"#fff", fontWeight:900, fontSize:sz*0.35 }}>{initials(servidor.nome)}</span>}
-    </div>
-  );
-}
-
-// Slide 1: Aniversariantes do Mês
-function SlideAniversarioMes({ servidores }) {
-  const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-
-  const doMes = servidores.filter(s => {
-    if (!s.dataAniversario) return false;
-    const [,m] = s.dataAniversario.split("-");
-    return parseInt(m)-1 === mesAtual;
-  }).sort((a,b) => {
-    const [,,da] = a.dataAniversario.split("-");
-    const [,,db] = b.dataAniversario.split("-");
-    return parseInt(da) - parseInt(db);
-  });
-
-  if (doMes.length === 0) return null;
 
   return (
-    <div style={{ width:"100%", height:"100%", background:"#1B3F7A", display:"grid", gridTemplateColumns:"1fr 1.5fr",
-      fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
-      {/* Arte esquerda */}
-      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", alignItems:"center",
-        justifyContent:"center", padding:"32px 28px", gap:16, position:"relative", overflow:"hidden" }}>
-        <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.07 }} viewBox="0 0 300 450">
-          <circle cx="150" cy="225" r="200" fill="none" stroke="#E8730A" strokeWidth="1"/>
-          <circle cx="150" cy="225" r="140" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
-          <circle cx="150" cy="225" r="80" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
-        </svg>
-        <div style={{ fontSize:72, position:"relative", zIndex:1 }}>🎂</div>
-        <div style={{ position:"relative", zIndex:1, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>IPC · TCE-CE</div>
-          <div style={{ color:"#fff", fontWeight:900, fontSize:30, lineHeight:1.1 }}>Aniversariantes</div>
-          <div style={{ color:"#E8730A", fontWeight:900, fontSize:30, lineHeight:1.1 }}>de {MESES[mesAtual]}</div>
-        </div>
-        <div style={{ position:"relative", zIndex:1, background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)",
-          borderRadius:20, padding:"4px 18px" }}>
-          <span style={{ color:"#E8730A", fontSize:13, fontWeight:700, letterSpacing:1 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
-        </div>
+    <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:20 }}>
+      <div style={{ width:80, height:80, borderRadius:"50%", overflow:"hidden", flexShrink:0, border:"3px solid #e8edf2", background:fotoExibir?"transparent":corAvatar2(nome), display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {fotoExibir
+          ? <img src={fotoExibir} alt="foto" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          : <span style={{ color:"#fff", fontWeight:900, fontSize:24 }}>{initials2(nome)}</span>}
       </div>
-      {/* Lista direita */}
-      <div style={{ padding:"24px 28px", display:"flex", flexDirection:"column", gap:8, overflowY:"hidden" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>Este mês celebramos</div>
-        {doMes.slice(0,7).map(s => {
-          const [,,dia] = s.dataAniversario.split("-");
-          const isHoje = parseInt(dia) === hoje.getDate();
-          return (
-            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:12, background:isHoje?"rgba(232,115,10,0.2)":"rgba(255,255,255,0.06)",
-              borderRadius:12, padding:"10px 14px", border:isHoje?"1px solid rgba(232,115,10,0.4)":"none" }}>
-              <FotoCircular servidor={s} tamanho={40}/>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ color:"#fff", fontWeight:700, fontSize:15, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {nomeExibir(s)}
-                </div>
-                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11 }}>{s.cargo||s.setor||""}</div>
-              </div>
-              <div style={{ background:isHoje?"rgba(232,115,10,0.3)":"rgba(255,255,255,0.1)", borderRadius:10, padding:"4px 12px", flexShrink:0 }}>
-                <span style={{ color:isHoje?"#E8730A":"rgba(255,255,255,0.6)", fontWeight:700, fontSize:13 }}>dia {parseInt(dia)}</span>
-              </div>
-            </div>
-          );
-        })}
+      <div>
+        <div style={{ fontWeight:600, fontSize:13, color:"#1B3F7A", marginBottom:6 }}>Foto de perfil</div>
+        <label style={{ background:"#f0f4ff", borderRadius:10, padding:"8px 14px", fontSize:12, color:"#1B3F7A", fontWeight:700, cursor:"pointer", display:"inline-block" }}>
+          📷 {fotoExibir ? "Trocar foto" : "Selecionar foto"}
+          <input type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile}/>
+        </label>
+        <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>JPG, PNG · será salva pública no Drive</div>
       </div>
     </div>
   );
 }
 
-// Slide 2: Aniversariante do Dia / Fim de Semana
-function SlideAniversario({ servidores }) {
-  const hoje = new Date();
-  const diaSemana = hoje.getDay(); // 0=dom, 6=sab
-
-  // Verifica aniversariantes hoje
-  const anivHoje = servidores.filter(s => {
-    if (!s.dataAniversario) return false;
-    const [,m,d] = s.dataAniversario.split("-");
-    return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
-  });
-
-  // Verifica próximo dia útil se hoje é sexta (5)
-  const anivFimDeSemana = diaSemana === 5 ? servidores.filter(s => {
-    if (!s.dataAniversario) return false;
-    const [,m,d] = s.dataAniversario.split("-");
-    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
-    const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
-    const isSab = parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
-    const isDom = parseInt(m)-1===domingo.getMonth() && parseInt(d)===domingo.getDate();
-    return isSab || isDom;
-  }) : [];
-
-  const lista = anivHoje.length > 0 ? anivHoje : anivFimDeSemana;
-  if (lista.length === 0) return null;
-
-  const isFimDeSemana = anivHoje.length === 0 && anivFimDeSemana.length > 0;
-  const isSabado = isFimDeSemana && (() => {
-    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
-    const [,m,d] = lista[0].dataAniversario.split("-");
-    return parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
-  })();
-
-  const bgGrad = isFimDeSemana
-    ? "linear-gradient(135deg,#1B3F7A 0%,#7c3aed 100%)"
-    : "linear-gradient(135deg,#042C53 0%,#1B3F7A 60%,#0891b2 100%)";
-
-  const tagTexto = isFimDeSemana
-    ? `🗓️ ${isSabado?"Sábado":"Domingo"} é o aniversário de`
-    : "🎉 Hoje é o aniversário de";
-
-  const msgTexto = isFimDeSemana
-    ? "Antecipamos os parabéns! 🎂"
-    : `Parabéns${lista.length===1?" "+nomeExibir(lista[0]):""}! Que seu dia seja incrível ✨`;
-
-  return (
-    <div style={{ width:"100%", height:"100%", background:bgGrad, display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", gap:20, fontFamily:"'Montserrat',sans-serif",
-      position:"relative", overflow:"hidden" }}>
-      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} viewBox="0 0 800 450">
-        <circle cx="80" cy="60" r="8" fill="#E8730A" opacity="0.5"/>
-        <circle cx="720" cy="80" r="6" fill="#fbbf24" opacity="0.4"/>
-        <circle cx="150" cy="380" r="5" fill="#E8730A" opacity="0.3"/>
-        <circle cx="650" cy="360" r="7" fill="#fbbf24" opacity="0.4"/>
-        <circle cx="400" cy="30" r="4" fill="#E8730A" opacity="0.5"/>
-        <rect x="700" y="200" width="8" height="8" rx="2" fill="#E8730A" opacity="0.3" transform="rotate(20 700 200)"/>
-        <rect x="100" y="200" width="6" height="6" rx="1" fill="#fbbf24" opacity="0.3" transform="rotate(-15 100 200)"/>
-      </svg>
-      <div style={{ background:"rgba(255,255,255,0.15)", borderRadius:24, padding:"6px 24px", zIndex:1 }}>
-        <span style={{ color:"#fff", fontSize:16, fontWeight:700, letterSpacing:1 }}>{tagTexto}</span>
-      </div>
-      <div style={{ display:"flex", gap:32, justifyContent:"center", flexWrap:"wrap", zIndex:1 }}>
-        {lista.map(s => (
-          <div key={s.id} style={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-            <FotoCircular servidor={s} tamanho={lista.length===1?140:100}/>
-            <div>
-              <div style={{ color:"#fff", fontWeight:900, fontSize:lista.length===1?52:36, lineHeight:1, letterSpacing:-1 }}>
-                {nomeExibir(s)}
-              </div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, marginTop:4 }}>{s.cargo||s.setor||""}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ color:"#E8730A", fontSize:22, fontWeight:700, zIndex:1 }}>{msgTexto}</div>
-    </div>
-  );
-}
-
-function SlideEventos({ eventosTC }) {
-  const hoje = new Date();
-  const MESES_NOME = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  const MESES_CURTO2 = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-
-  // Pega eventos dos próximos 45 dias + passados do mês atual
-  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  const eventos = eventosTC.filter(e => {
-    if (!e.data) return false;
-    const d = new Date(e.data+"T00:00:00");
-    return d >= inicioMes;
-  }).sort((a,b) => a.data.localeCompare(b.data)).slice(0, 24);
-
-  // Agrupa por semana (seg-sex)
-  const getInicioSemana = (data) => {
-    const d = new Date(data+"T00:00:00");
-    const dia = d.getDay();
-    const diff = dia === 0 ? -6 : 1 - dia;
-    const seg = new Date(d);
-    seg.setDate(d.getDate() + diff);
-    return seg;
-  };
-
-  const getFimSemana = (seg) => {
-    const sex = new Date(seg);
-    sex.setDate(seg.getDate() + 4);
-    return sex;
-  };
-
-  const semanas = [];
-  const vistas = new Set();
-  eventos.forEach(e => {
-    const seg = getInicioSemana(e.data);
-    const chave = seg.toISOString().split("T")[0];
-    if (!vistas.has(chave)) {
-      vistas.add(chave);
-      semanas.push({ seg, sex: getFimSemana(seg), eventos: [] });
-    }
-    semanas.find(s => s.seg.toISOString().split("T")[0] === chave).eventos.push(e);
-  });
-
-  const isEstaSemana = (seg) => {
-    const hojeInicio = getInicioSemana(hoje.toISOString().split("T")[0]);
-    return seg.toISOString().split("T")[0] === hojeInicio.toISOString().split("T")[0];
-  };
-
-  const isPassada = (sex) => sex < hoje;
-
-  const fmtDia = (d) => d.getDate().toString().padStart(2,"0");
-  const fmtMes = (d) => MESES_CURTO2[d.getMonth()];
-
-  // Divide semanas em 2 colunas
-  const metade = Math.ceil(semanas.length / 2);
-  const col1 = semanas.slice(0, metade);
-  const col2 = semanas.slice(metade);
-
-  const mesAtual = MESES_NOME[hoje.getMonth()];
-  const anoAtual = hoje.getFullYear();
-
-  const renderSemana = (s) => {
-    const passada = isPassada(s.sex);
-    const atual = isEstaSemana(s.seg);
-    const cor = passada ? "#0F6E56" : atual ? "#854F0B" : "#185FA5";
-    const corBarra = passada ? "#1D9E75" : atual ? "#EF9F27" : "#378ADD";
-    const corLabel = passada ? "#5DCAA5" : atual ? "#FAC775" : "#85B7EB";
-    const corItem = passada ? "#9FE1CB" : atual ? "#FAC775" : "#B5D4F4";
-    const corTipo = passada ? "#5DCAA5" : atual ? "#EF9F27" : "#85B7EB";
-    const bgItem = passada ? "rgba(15,110,86,0.25)" : atual ? "rgba(133,79,11,0.3)" : "rgba(24,95,165,0.25)";
-    const borderItem = atual ? "1px solid rgba(239,159,39,0.3)" : "none";
-
-    return (
-      <div key={s.seg.toISOString()} style={{ marginBottom:14 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:7 }}>
-          <div style={{ width:3, height:14, background:corBarra, borderRadius:2, flexShrink:0 }}/>
-          <span style={{ color:corLabel, fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>
-            {fmtDia(s.seg)} – {fmtDia(s.sex)} {fmtMes(s.sex)}
-          </span>
-          {atual && (
-            <span style={{ background:"#854F0B", color:"#FAC775", fontSize:9, fontWeight:700, padding:"1px 7px", borderRadius:10 }}>esta semana</span>
-          )}
-        </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-          {s.eventos.map(e => (
-            <div key={e.id} style={{ display:"flex", alignItems:"center", gap:8, background:bgItem, borderRadius:8, padding:"6px 10px", border:borderItem }}>
-              <div style={{ width:16, height:16, borderRadius:4, background:cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                {passada && (
-                  <svg width="9" height="9" viewBox="0 0 10 10">
-                    <polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                  </svg>
-                )}
-              </div>
-              <span style={{ color:corItem, fontSize:13, fontWeight:600, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                {e.municipio||e.regiao||"Evento"}
-              </span>
-              {e.tipo && (
-                <span style={{ color:corTipo, fontSize:10, flexShrink:0 }}>{e.tipo}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"190px 1fr 1fr", fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
-
-      {/* Coluna esquerda */}
-      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", padding:"28px 20px", gap:16, borderRight:"1px solid rgba(255,255,255,0.08)" }}>
-        <div>
-          <div style={{ color:"#85B7EB", fontSize:10, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>TCEduc</div>
-          <div style={{ color:"#fff", fontWeight:700, fontSize:18, lineHeight:1.25 }}>Agenda TCEduc</div>
-        </div>
-        <div style={{ width:32, height:2, background:"#378ADD", borderRadius:1 }}/>
-        <div style={{ background:"#185FA5", borderRadius:10, padding:"12px 14px", textAlign:"center" }}>
-          <div style={{ color:"#E6F1FB", fontSize:22, fontWeight:700, lineHeight:1 }}>{mesAtual.toUpperCase().slice(0,3)}</div>
-          <div style={{ color:"#85B7EB", fontSize:11, letterSpacing:1, marginTop:3 }}>{anoAtual}</div>
-        </div>
-        <div style={{ marginTop:"auto", display:"flex", flexDirection:"column", gap:8 }}>
-          {[
-            { cor:"#0F6E56", label:"Realizado", check:true },
-            { cor:"#854F0B", label:"Esta semana", check:false },
-            { cor:"#185FA5", label:"Agendado", check:false },
-          ].map(item => (
-            <div key={item.label} style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ width:14, height:14, borderRadius:4, background:item.cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                {item.check && (
-                  <svg width="8" height="8" viewBox="0 0 10 10">
-                    <polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-                  </svg>
-                )}
-              </div>
-              <span style={{ color:"#85B7EB", fontSize:11 }}>{item.label}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:10, letterSpacing:1 }}>TCE-CE · IPC</div>
-      </div>
-
-      {/* Coluna central */}
-      <div style={{ padding:"24px 18px", overflowY:"hidden", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
-        {col1.length === 0 ? (
-          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:14, marginTop:40, textAlign:"center" }}>Sem eventos</div>
-        ) : col1.map(s => renderSemana(s))}
-      </div>
-
-      {/* Coluna direita */}
-      <div style={{ padding:"24px 18px", overflowY:"hidden" }}>
-        {col2.map(s => renderSemana(s))}
-      </div>
-    </div>
-  );
-}
-
-// Artes fallback quando não há foto
-const FALLBACK_ARTS = [
-  {
-    bg: "linear-gradient(135deg,#042C53 0%,#0C447C 50%,#185FA5 100%)",
-    svgContent: (
-      <svg viewBox="0 0 400 300" style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.12 }}>
-        <circle cx="60" cy="60" r="120" fill="#E6F1FB"/>
-        <circle cx="340" cy="240" r="100" fill="#378ADD"/>
-        <circle cx="350" cy="50" r="60" fill="#B5D4F4"/>
-        <rect x="100" y="120" width="200" height="3" rx="1.5" fill="#E6F1FB"/>
-        <rect x="140" y="140" width="120" height="3" rx="1.5" fill="#E6F1FB"/>
-        <rect x="120" y="160" width="160" height="3" rx="1.5" fill="#E6F1FB"/>
-      </svg>
-    ),
-    accent: "#378ADD", textColor: "#E6F1FB", subColor: "#B5D4F4", tag: "#185FA5"
-  },
-  {
-    bg: "linear-gradient(135deg,#0F6E56 0%,#1D9E75 50%,#5DCAA5 100%)",
-    svgContent: (
-      <svg viewBox="0 0 400 300" style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.12 }}>
-        <polygon points="200,20 380,280 20,280" fill="#E1F5EE"/>
-        <polygon points="200,60 340,260 60,260" fill="#9FE1CB"/>
-        <circle cx="200" cy="200" r="50" fill="#5DCAA5"/>
-      </svg>
-    ),
-    accent: "#5DCAA5", textColor: "#E1F5EE", subColor: "#9FE1CB", tag: "#0F6E56"
-  },
-  {
-    bg: "linear-gradient(135deg,#3C3489 0%,#534AB7 50%,#7F77DD 100%)",
-    svgContent: (
-      <svg viewBox="0 0 400 300" style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.12 }}>
-        <rect x="20" y="20" width="160" height="160" rx="8" fill="#EEEDFE"/>
-        <rect x="220" y="120" width="160" height="160" rx="8" fill="#AFA9EC"/>
-        <rect x="140" y="60" width="120" height="180" rx="8" fill="#CECBF6"/>
-      </svg>
-    ),
-    accent: "#AFA9EC", textColor: "#EEEDFE", subColor: "#CECBF6", tag: "#3C3489"
-  },
-  {
-    bg: "linear-gradient(135deg,#712B13 0%,#993C1D 50%,#D85A30 100%)",
-    svgContent: (
-      <svg viewBox="0 0 400 300" style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.12 }}>
-        <circle cx="100" cy="150" r="120" fill="#FAECE7"/>
-        <circle cx="300" cy="150" r="80" fill="#F09977"/>
-        <circle cx="200" cy="80" r="60" fill="#F5C4B3"/>
-      </svg>
-    ),
-    accent: "#F09977", textColor: "#FAECE7", subColor: "#F5C4B3", tag: "#712B13"
-  },
-];
-
-function FallbackArt({ nome, idx }) {
-  const art = FALLBACK_ARTS[idx % FALLBACK_ARTS.length];
-  const sigla = (nome||"").split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("").toUpperCase() || "IPC";
-  return (
-    <div style={{ width:"100%", height:"100%", background:art.bg, position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
-      {art.svgContent}
-      <div style={{ position:"relative", textAlign:"center" }}>
-        <div style={{ width:80, height:80, borderRadius:20, background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:"2px solid rgba(255,255,255,0.25)" }}>
-          <span style={{ color:"#fff", fontWeight:900, fontSize:28, fontFamily:"'Montserrat',sans-serif" }}>{sigla}</span>
-        </div>
-        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:3, textTransform:"uppercase", fontFamily:"'Montserrat',sans-serif" }}>TCE-CE · IPC</div>
-      </div>
-    </div>
-  );
-}
-
-const MESES_EXT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-const MESES_CURTO = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
-
-function SlideAgendaManual({ evento, fallbackIdx }) {
-  const temFoto = !!(evento.fotoUrl && evento.fotoUrl.trim());
-  const [fotoError, setFotoError] = useState(false);
-  const usarFallback = !temFoto || fotoError;
-
-  const dataInicioObj = evento.dataInicio ? new Date(evento.dataInicio+"T00:00:00") : null;
-  const dataFimObj = evento.dataFim && evento.dataFim !== evento.dataInicio ? new Date(evento.dataFim+"T00:00:00") : null;
-
-  const diaInicio = dataInicioObj ? dataInicioObj.getDate() : null;
-  const diaFim = dataFimObj ? dataFimObj.getDate() : null;
-  const mesIdx = dataInicioObj ? dataInicioObj.getMonth() : null;
-  const ano = dataInicioObj ? dataInicioObj.getFullYear() : null;
-
-  const dataLabel = !dataInicioObj ? null
-    : diaFim ? `${diaInicio} – ${diaFim} de ${MESES_EXT[mesIdx]} de ${ano}`
-    : `${diaInicio} de ${MESES_EXT[mesIdx]} de ${ano}`;
-
-  // Opção D: grade 2x2 — foto ocupa lado esquerdo inteiro
-  return (
-    <div style={{ width:"100%", height:"100%", background:"#042C53", display:"grid", gridTemplateColumns:"1fr 1fr", gridTemplateRows:"1fr 1fr", fontFamily:"'Montserrat',sans-serif" }}>
-
-      {/* Foto / arte — ocupa coluna esquerda inteira */}
-      <div style={{ gridRow:"1 / 3", position:"relative", overflow:"hidden", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
-        {usarFallback ? (
-          <FallbackArt nome={evento.nome} idx={fallbackIdx||0}/>
-        ) : (() => {
-          const ytUrl = normYoutubeUrl(evento.fotoUrl);
-          const driveUrl = normDriveUrl(evento.fotoUrl);
-          const finalUrl = ytUrl || driveUrl || evento.fotoUrl;
-          const isEmbed = ytUrl || driveUrl;
-          if (isEmbed) return <iframe src={finalUrl} style={{ width:"100%", height:"100%", border:"none" }} allow="autoplay; fullscreen" allowFullScreen title="foto"/>;
-          return <img src={finalUrl} alt={evento.nome} onError={() => setFotoError(true)} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>;
-        })()}
-        {/* Overlay gradiente no rodapé da foto */}
-        <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"35%", background:"linear-gradient(transparent,rgba(4,44,83,0.85))" }}/>
-        {/* Tag TCE no canto */}
-        <div style={{ position:"absolute", top:24, left:24, background:"rgba(4,44,83,0.8)", borderRadius:8, padding:"5px 14px", backdropFilter:"blur(4px)" }}>
-          <span style={{ color:"#85B7EB", fontSize:14, letterSpacing:2, textTransform:"uppercase", fontWeight:700 }}>TCE-CE · IPC</span>
-        </div>
-      </div>
-
-      {/* Top-right: título + data */}
-      <div style={{ padding:"36px 40px", display:"flex", flexDirection:"column", justifyContent:"center", gap:16, borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
-        {evento.categoria && (
-          <span style={{ background:"#185FA5", color:"#E6F1FB", fontSize:14, padding:"6px 18px", borderRadius:20, width:"fit-content", letterSpacing:0.5, fontWeight:700 }}>
-            {evento.categoria}
-          </span>
-        )}
-        <div style={{ color:"#E6F1FB", fontWeight:700, fontSize:38, lineHeight:1.2 }}>{evento.nome}</div>
-        {dataLabel && (
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            {diaInicio && mesIdx !== null && (
-              <div style={{ background:"#185FA5", borderRadius:10, padding:"8px 14px", textAlign:"center", flexShrink:0 }}>
-                <div style={{ color:"#E6F1FB", fontWeight:900, fontSize:42, lineHeight:1 }}>{diaInicio}</div>
-                <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1 }}>{MESES_CURTO[mesIdx]}</div>
-              </div>
-            )}
-            <div style={{ color:"#85B7EB", fontSize:20, lineHeight:1.4 }}>{dataLabel}</div>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom-right: local + horário + descrição */}
-      <div style={{ padding:"28px 40px", display:"flex", flexDirection:"column", justifyContent:"center", gap:14 }}>
-        {evento.local && (
-          <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}>
-              <path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.5-2-4.5-4.5-4.5z" stroke="#85B7EB" strokeWidth="1.3"/>
-              <circle cx="8" cy="6" r="1.5" stroke="#85B7EB" strokeWidth="1.3"/>
-            </svg>
-            <div>
-              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Local</div>
-              <div style={{ color:"#E6F1FB", fontSize:24, fontWeight:700 }}>{evento.local}</div>
-            </div>
-          </div>
-        )}
-        {evento.horario && (
-          <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}>
-              <circle cx="8" cy="8" r="5.5" stroke="#85B7EB" strokeWidth="1.3"/>
-              <line x1="8" y1="4.5" x2="8" y2="8" stroke="#85B7EB" strokeWidth="1.3" strokeLinecap="round"/>
-              <line x1="8" y1="8" x2="10.5" y2="9.5" stroke="#85B7EB" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            <div>
-              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Horário</div>
-              <div style={{ color:"#E6F1FB", fontSize:22, fontWeight:700 }}>{evento.horario}</div>
-            </div>
-          </div>
-        )}
-        {evento.descricao && (
-          <div style={{ color:"#B5D4F4", fontSize:18, lineHeight:1.7, marginTop:4 }}>{evento.descricao}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-function SlideInformeTCEduc({ eventosTC }) {
-  const getCapacitados = (e) => {
-    if (e.modoTotalManual) return parseInt(e.totalAprovadosManual) || 0;
-    const porAcao = (e.acoesEducacionais || []).reduce((s, a) => s + (parseInt(a.participantes) || 0), 0);
-    if (porAcao === 0 && e.totalAprovadosManual) return parseInt(e.totalAprovadosManual) || 0;
-    return porAcao;
-  };
-  const getStatusEfetivo = (e) => {
-    return getCapacitados(e) > 0 ? "Realizado" : (e.status || "Programado");
-  };
-  const ev2026 = (eventosTC||[]).filter(e => {
-    const ano = e.data ? e.data.split("-")[0] : (e.ano ? String(e.ano) : "");
-    return ano === "2026" && getStatusEfetivo(e) === "Realizado";
-  });
-  const municiRealizados = new Set(ev2026.filter(e=>e.tipo==="Municipal").map(e=>e.municipio||e.regiao)).size;
-  const capMunicipal = ev2026.filter(e=>e.tipo==="Municipal").reduce((s,e) => s + getCapacitados(e), 0);
-  const regionaisRealizadas = new Set(ev2026.filter(e=>e.tipo==="Regional").map(e=>e.municipio||e.regiao)).size;
-  const capRegional = ev2026.filter(e=>e.tipo==="Regional").reduce((s,e) => s + getCapacitados(e), 0);
-  const totalCap = capMunicipal + capRegional;
-  const fmt = (n) => n.toLocaleString("pt-BR");
-
-  return (
-    <div style={{ width:"100%", height:"100%", background:"#042C53", display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"40px 52px", fontFamily:"'Montserrat',sans-serif", position:"relative", overflow:"hidden" }}>
-      {/* Fundo decorativo */}
-      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.06, pointerEvents:"none" }} viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
-        <circle cx="150" cy="120" r="80" fill="none" stroke="#378ADD" strokeWidth="1"/>
-        <circle cx="150" cy="120" r="150" fill="none" stroke="#378ADD" strokeWidth="0.5"/>
-        <circle cx="650" cy="320" r="100" fill="none" stroke="#378ADD" strokeWidth="1"/>
-        <circle cx="650" cy="320" r="190" fill="none" stroke="#378ADD" strokeWidth="0.5"/>
-        <circle cx="400" cy="220" r="60" fill="none" stroke="#378ADD" strokeWidth="1"/>
-        <line x1="150" y1="120" x2="400" y2="220" stroke="#378ADD" strokeWidth="0.8" strokeDasharray="6,4"/>
-        <line x1="400" y1="220" x2="650" y2="320" stroke="#378ADD" strokeWidth="0.8" strokeDasharray="6,4"/>
-        <circle cx="150" cy="120" r="6" fill="#378ADD" opacity="0.8"/>
-        <circle cx="400" cy="220" r="6" fill="#378ADD" opacity="0.8"/>
-        <circle cx="650" cy="320" r="6" fill="#378ADD" opacity="0.8"/>
-        <circle cx="280" cy="80" r="3" fill="#378ADD" opacity="0.5"/>
-        <circle cx="500" cy="150" r="3" fill="#378ADD" opacity="0.5"/>
-        <circle cx="600" cy="180" r="3" fill="#378ADD" opacity="0.5"/>
-        <circle cx="220" cy="300" r="3" fill="#378ADD" opacity="0.5"/>
-      </svg>
-      {/* Header */}
-      <div style={{ position:"relative" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
-        <div style={{ color:"#fff", fontSize:73, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
-          Informe <span style={{ color:"#E8730A" }}>TCEduc</span>
-        </div>
-      </div>
-      {/* Números */}
-      <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
-        <div style={{ paddingRight:40 }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Municipal</div>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ color:"#E8730A", fontSize:83, fontWeight:900, lineHeight:1 }}>{fmt(municiRealizados)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:21, marginTop:4 }}>municípios visitados</div>
-          </div>
-          <div>
-            <div style={{ color:"#E8730A", fontSize:57, fontWeight:900, lineHeight:1 }}>{fmt(capMunicipal)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:20, marginTop:4 }}>pessoas capacitadas</div>
-          </div>
-        </div>
-        <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
-        <div style={{ padding:"0 40px" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Modalidade Regional</div>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ color:"#E8730A", fontSize:83, fontWeight:900, lineHeight:1 }}>{fmt(regionaisRealizadas)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:21, marginTop:4 }}>regiões visitadas</div>
-          </div>
-          <div>
-            <div style={{ color:"#E8730A", fontSize:57, fontWeight:900, lineHeight:1 }}>{fmt(capRegional)}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:20, marginTop:4 }}>pessoas capacitadas</div>
-          </div>
-        </div>
-        <div style={{ background:"rgba(255,255,255,0.1)", height:140 }}/>
-        <div style={{ paddingLeft:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Total geral</div>
-          <div style={{ color:"#E8730A", fontSize:104, fontWeight:900, lineHeight:1 }}>{fmt(totalCap)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>pessoas capacitadas</div>
-          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:16, fontWeight:700, letterSpacing:1 }}>EM TODO O CEARÁ</div>
-        </div>
-      </div>
-      {/* Rodapé */}
-      <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14 }}>tce.ce.gov.br</div>
-      </div>
-    </div>
-  );
-}
-
-function SlideInformeOlimpiada({ escolas }) {
-  const ol2026 = (escolas||[]).filter(e => e.edicao === 2026);
-  const totalEscolas = ol2026.length;
-  const totalAlunos = ol2026.reduce((s,e) => s + (parseInt(e.alunosInscritos)||0), 0);
-  const totalMunicipios = new Set(ol2026.map(e=>e.municipio).filter(Boolean)).size;
-  const fmt = (n) => n.toLocaleString("pt-BR");
-
-  return (
-    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"40px 52px", fontFamily:"'Montserrat',sans-serif", position:"relative", overflow:"hidden" }}>
-      {/* Fundo decorativo */}
-      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.06, pointerEvents:"none" }} viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
-        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="#E8730A"/>
-        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="none" stroke="#E8730A" strokeWidth="1" transform="translate(400,225) scale(1.6) translate(-400,-225)"/>
-        <polygon points="400,20 430,110 520,110 450,165 476,255 400,203 324,255 350,165 280,110 370,110" fill="none" stroke="#E8730A" strokeWidth="0.5" transform="translate(400,225) scale(2.4) translate(-400,-225)"/>
-        <circle cx="80" cy="60" r="4" fill="#E8730A" opacity="0.5"/>
-        <circle cx="720" cy="60" r="4" fill="#E8730A" opacity="0.5"/>
-        <circle cx="80" cy="390" r="4" fill="#E8730A" opacity="0.5"/>
-        <circle cx="720" cy="390" r="4" fill="#E8730A" opacity="0.5"/>
-        <circle cx="200" cy="220" r="2.5" fill="#E8730A" opacity="0.4"/>
-        <circle cx="600" cy="240" r="2.5" fill="#E8730A" opacity="0.4"/>
-      </svg>
-      {/* Header */}
-      <div style={{ position:"relative" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>TCE-CE · IPC</div>
-        <div style={{ color:"#fff", fontSize:73, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>
-          Informe <span style={{ color:"#E8730A" }}>Olímpiada</span>
-        </div>
-      </div>
-      {/* Números */}
-      <div style={{ position:"relative", display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", alignItems:"center" }}>
-        <div style={{ paddingRight:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Escolas participantes</div>
-          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalEscolas)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>escolas inscritas</div>
-        </div>
-        <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
-        <div style={{ padding:"0 40px", textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Alunos participantes</div>
-          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalAlunos)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>alunos inscritos</div>
-        </div>
-        <div style={{ background:"rgba(255,255,255,0.08)", height:140 }}/>
-        <div style={{ paddingLeft:40, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, letterSpacing:2, textTransform:"uppercase", marginBottom:14 }}>Municípios</div>
-          <div style={{ color:"#E8730A", fontSize:125, fontWeight:900, lineHeight:1 }}>{fmt(totalMunicipios)}</div>
-          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:23, marginTop:8 }}>municípios presentes</div>
-          <div style={{ display:"inline-block", background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)", borderRadius:24, padding:"5px 20px", marginTop:14, color:"#E8730A", fontSize:16, fontWeight:700, letterSpacing:1 }}>EDIÇÃO 2026</div>
-        </div>
-      </div>
-      {/* Rodapé */}
-      <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14, letterSpacing:2 }}>Dados atualizados em tempo real · 2026</div>
-        <div style={{ color:"rgba(255,255,255,0.2)", fontSize:14 }}>tce.ce.gov.br</div>
-      </div>
-    </div>
-  );
-}
-
-function Relogio() {
-  const [hora, setHora] = useState(new Date());
-  useEffect(() => {
-    const t = setInterval(() => setHora(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <div style={{ position:"absolute", bottom:20, right:24, textAlign:"right", zIndex:10 }}>
-      <div style={{ color:"rgba(255,255,255,0.9)", fontWeight:900, fontSize:28, lineHeight:1, textShadow:"0 2px 8px rgba(0,0,0,0.5)" }}>
-        {hora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })}
-      </div>
-      <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, textTransform:"capitalize", textShadow:"0 1px 4px rgba(0,0,0,0.5)" }}>
-        {hora.toLocaleDateString("pt-BR", { weekday:"long", day:"2-digit", month:"long" })}
-      </div>
-    </div>
-  );
-}
-
-export default function IPCMidiaTelaPublica({ telaId }) {
-  const [tela, setTela] = useState(null);
-  const [playlist, setPlaylist] = useState(null);
-  const [conteudos, setConteudos] = useState([]);
+export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios, onEstrutura, onFerias }) {
   const [servidores, setServidores] = useState([]);
-  const [eventosTC, setEventosTC] = useState([]);
-  const [escolas, setEscolas] = useState([]);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [showingCapa, setShowingCapa] = useState(false);
+  const [externos, setExternos] = useState([]);
+  const [setores, setSetores] = useState([]);
+  const [cargos, setCargos] = useState([]);
+  const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(null);
-  const timerRef = useRef(null);
-  const pingRef = useRef(null);
+  const [aba, setAba] = useState("equipe");
+  const [modal, setModal] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({});
+  const [formExterno, setFormExterno] = useState({});
+  const [busca, setBusca] = useState("");
+  const [filtroSetor, setFiltroSetor] = useState("todos");
+  const [salvando, setSalvando] = useState(false);
+  const [erroLogin, setErroLogin] = useState("");
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const [emailEnviado, setEmailEnviado] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    loadTela();
-  }, [telaId]);
+  useEffect(() => { loadAll(); }, []);
 
-  const loadTela = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const telaDoc = await getDoc(doc(db, "midia_telas", telaId));
-      if (!telaDoc.exists()) { setErro("Tela não encontrada"); setLoading(false); return; }
-      const telaData = { id: telaDoc.id, ...telaDoc.data() };
-      setTela(telaData);
-
-      const [cSnap, sSnap, eSnap, oSnap] = await Promise.all([
-        getDocs(collection(db, "midia_conteudos")),
-        getDocs(collection(db, "ipc_servidores")),
-        getDocs(collection(db, "tceduc_eventos")),
-        getDocs(collection(db, "olimpiadas_escolas")),
+      const [sSnap, eSnap, setSnap, cSnap, gSnap] = await Promise.all([
+        getDocs(collection(db,"ipc_servidores")),
+        getDocs(collection(db,"ipc_externos")),
+        getDocs(collection(db,"ipc_setores")),
+        getDocs(collection(db,"ipc_cargos")),
+        getDocs(collection(db,"ipc_grupos_trabalho")),
       ]);
-      setConteudos(cSnap.docs.map(d => ({ id:d.id, ...d.data() })));
-      setServidores(sSnap.docs.map(d => ({ id:d.id, ...d.data() })));
-      setEventosTC(eSnap.docs.map(d => ({ id:d.id, ...d.data() })));
-      setEscolas(oSnap.docs.map(d => ({ id:d.id, ...d.data() })));
-
-      if (telaData.playlistId) {
-        const plDoc = await getDoc(doc(db, "midia_playlists", telaData.playlistId));
-        if (plDoc.exists()) setPlaylist({ id: plDoc.id, ...plDoc.data() });
-      }
-    } catch(e) {
-      setErro("Erro ao carregar tela: " + e.message);
-    }
+      const servidoresCarregados = sSnap.docs.map(d=>({id:d.id,...d.data()}));
+      setServidores(servidoresCarregados);
+      setExternos(eSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setSetores(setSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setCargos(cSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setGrupos(gSnap.docs.map(d=>({id:d.id,...d.data()})));
+      verificarTodosAniversarios(servidoresCarregados).catch(e=>console.error(e));
+    } catch(e) { console.error(e); }
     setLoading(false);
   };
 
-  // Ping a cada 30s
-  useEffect(() => {
-    if (!telaId) return;
-    const doPing = () => updateDoc(doc(db,"midia_telas",telaId), { ultimoPing: new Date().toISOString() }).catch(()=>{});
-    doPing();
-    pingRef.current = setInterval(doPing, 30000);
-    return () => clearInterval(pingRef.current);
-  }, [telaId]);
+  const enviarEmailCadastro = async (servidor) => {
+    if (!servidor.email) return { ok: false, erro: "Servidor sem e-mail cadastrado." };
+    setEnviandoEmail(true);
+    try {
+      // Busca template customizado do Firebase
+      let template = null;
+      try {
+        const tSnap = await getDoc(doc(db,"config_emails","templates"));
+        if (tSnap.exists()) template = tSnap.data()?.confirmacao_cadastro;
+      } catch(e) {}
 
-  // Autoplay
-  const itens = playlist?.itens?.filter(item => !item.oculto) || [];
-  const capaShownRef = useRef(false); // controla se já exibiu a capa para o idx atual
+      const modulosTexto = servidor.isAdmin
+        ? Object.values(MODULOS_NOMES).join("\n• ")
+        : (servidor.modulosAcesso||[]).map(m => MODULOS_NOMES[m]||m).join("\n• ");
 
-  // Verifica se item tem conteúdo real para exibir
-  const itemTemConteudo = (item) => {
-    if (!item) return false;
-    if (item.tipo === "aniversario") {
-      const hoje = new Date();
-      const diaSemana = hoje.getDay();
-      // Tem aniversariante hoje
-      const temHoje = servidores.some(s => {
-        if (!s.dataAniversario) return false;
-        const [,m,d] = s.dataAniversario.split("-");
-        return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
+      const corpo = (template?.corpo || "")
+        .replace("{{nome}}", servidor.nome)
+        .replace("{{email}}", servidor.email)
+        .replace("{{senha}}", "Tce1234567890!@#")
+        .replace("{{modulos}}", modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado");
+
+      const saudacao = (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome);
+      const rodape = template?.rodape || "Atenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo";
+
+      // corpo_completo é a única variável no template do EmailJS
+      const corpo_completo = `${saudacao}\n\n${corpo}\n\n---\n${rodape}\n\n🔗 Acesse: https://ipcgov.vercel.app`;
+
+      const params = {
+        to_name: servidor.nome,
+        to_email: servidor.email,
+        subject: template?.assunto || "Bem-vindo(a) ao IPCgov — Seus dados de acesso",
+        corpo_completo,
+      };
+
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, params, EMAILJS_PUBLIC_KEY);
+      setEnviandoEmail(false);
+      setEmailEnviado(true);
+      setTimeout(() => setEmailEnviado(false), 4000);
+      return { ok: true };
+    } catch(e) {
+      console.error(e);
+      setEnviandoEmail(false);
+      return { ok: false, erro: e?.text || "Erro ao enviar e-mail." };
+    }
+  };
+
+  // Calcula chefia imediata pelo cargo selecionado
+  const calcularChefiaImediata = (cargoId, chefiaManual) => {
+    if (chefiaManual) return chefiaManual;
+    if (!cargoId) return "";
+    const cargo = cargos.find(c => c.id === cargoId);
+    if (!cargo?.cargoPaiId) return "";
+    // Busca servidor que tem esse cargo pai
+    const cargoPai = cargos.find(c => c.id === cargo.cargoPaiId);
+    if (!cargoPai) return "";
+    const servidorChefe = servidores.find(s => s.cargoId === cargo.cargoPaiId);
+    return servidorChefe?.nome || cargoPai.nome;
+  };
+
+  const uploadFotoDrive = async (blob) => {
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
       });
-      if (temHoje) return true;
-      // Se sexta, verifica sab/dom
-      if (diaSemana === 5) {
-        const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
-        const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
-        return servidores.some(s => {
-          if (!s.dataAniversario) return false;
-          const [,m,d] = s.dataAniversario.split("-");
-          const isSab = parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
-          const isDom = parseInt(m)-1===domingo.getMonth() && parseInt(d)===domingo.getDate();
-          return isSab || isDom;
+      const resposta = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nomeArquivo: `foto_${Date.now()}.jpg`,
+          tipoArquivo: "image/jpeg",
+          tamanho: blob.size,
+          modulo: "ipcpessoas",
+          publico: true,
+          conteudoBase64: base64,
+        }),
+      });
+      const texto = await resposta.text();
+      const dados = JSON.parse(texto);
+      if (!dados.sucesso) throw new Error(dados.erro || "Erro no upload");
+      return dados.linkDireto;
+    } catch(e) {
+      console.error("Erro upload foto Drive:", e);
+      return null;
+    }
+  };
+
+  const salvarServidor = async () => {
+    if (!form.nome) return;
+    setSalvando(true); setErroLogin("");
+    try {
+      let uid = form.uid || null;
+      // Nunca salvar blob URL no Firestore — só URLs reais do Firebase Storage
+      let fotoUrl = (form.foto && form.foto.startsWith("http")) ? form.foto : "";
+
+      if (form._fotoBlob) {
+        fotoUrl = await uploadFotoDrive(form._fotoBlob) || fotoUrl;
+      }
+
+      const chefiaFinal = calcularChefiaImediata(form.cargoId, form.chefiaManual);
+
+      if (form.criarAcesso && form.email && !form.uid) {
+        try {
+          const cred = await createUserWithEmailAndPassword(auth, form.email, SENHA_PADRAO);
+          uid = cred.user.uid;
+          await setDoc(doc(db, "usuarios", cred.user.uid), {
+            email: form.email, nome: form.nome, cargo: form.cargo||"", cargoId: form.cargoId||"",
+            setor: form.setor||"", setorId: form.setorId||"", perfil: form.isAdmin?"admin":"usuario",
+            modulos: form.isAdmin ? MODULOS.map(m=>m.id) : (form.modulosAcesso||[]),
+            ativo: true, servidorId: selected?.id||null,
+            criadoEm: new Date().toISOString()
+          });
+          uid = cred.user.uid;
+        } catch(e) {
+          setErroLogin(e.code==="auth/email-already-in-use"?"E-mail já cadastrado no sistema.":`Erro ao criar acesso: ${e.message}`);
+          setSalvando(false); return;
+        }
+      }
+
+      // Se editando e já tem uid, sincroniza permissões
+      if (form.uid && selected) {
+        try {
+          await updateDoc(doc(db, "usuarios", form.uid), {
+            perfil: form.isAdmin ? "admin" : "usuario",
+            modulos: form.isAdmin ? MODULOS.map(m=>m.id) : (form.modulosAcesso||[]),
+            nome: form.nome, cargo: form.cargo||"", setor: form.setor||"",
+          });
+        } catch(e) { console.error("Erro ao atualizar permissões:", e); }
+      }
+
+      const { _fotoFile, _fotoBlob, chefiaManual, enviarEmail, ...formLimpo } = form;
+      const dados = { ...formLimpo, foto: fotoUrl, uid: uid||"", chefia: chefiaFinal, atualizadoEm: new Date().toISOString() };
+
+      if (selected) {
+        await updateDoc(doc(db,"ipc_servidores",selected.id), dados);
+        setServidores(s=>s.map(x=>x.id===selected.id?{...x,...dados}:x));
+      } else {
+        dados.criadoEm = new Date().toISOString();
+        dados.registros = [];
+        const docRef = await addDoc(collection(db,"ipc_servidores"), dados);
+        setServidores(s=>[...s,{id:docRef.id,...dados}]);
+        if (dados.dataAniversario) verificarAniversarioProximo({id:docRef.id,...dados}).catch(()=>{});
+        if (enviarEmail && form.email) enviarEmailCadastro({...dados, id:docRef.id}).catch(()=>{});
+      }
+
+      // Sincronizar com tceduc_instrutores
+      const servidorId = selected?.id || dados.servidorId || null;
+      if (form.isInstrutor && form.nomeInstrutor?.trim()) {
+        try {
+          // Verifica se já existe instrutor vinculado a este servidor
+          const instSnap = await getDocs(collection(db, "tceduc_instrutores"));
+          const instExist = instSnap.docs.find(d => d.data().servidorId === (selected?.id || "") || d.data().email === (form.email || ""));
+          const dadosInst = {
+            nome: form.nomeInstrutor.trim(),
+            email: form.email || "",
+            servidorId: selected?.id || "",
+            servidorNome: form.nome || "",
+            atualizadoEm: new Date().toISOString(),
+          };
+          if (instExist) {
+            await updateDoc(doc(db, "tceduc_instrutores", instExist.id), dadosInst);
+          } else {
+            await addDoc(collection(db, "tceduc_instrutores"), { ...dadosInst, criadoEm: new Date().toISOString() });
+          }
+        } catch(e) { console.error("Erro ao sincronizar instrutor:", e); }
+      } else if (!form.isInstrutor && selected) {
+        // Se desmarcou isInstrutor, remove o cadastro de instrutor vinculado
+        try {
+          const instSnap = await getDocs(collection(db, "tceduc_instrutores"));
+          const instExist = instSnap.docs.find(d => d.data().servidorId === selected.id || (form.email && d.data().email === form.email));
+          if (instExist) {
+            await deleteDoc(doc(db, "tceduc_instrutores", instExist.id));
+          }
+        } catch(e) { console.error("Erro ao remover instrutor:", e); }
+      }
+
+      // Toast de sucesso
+      setErroLogin("");
+      setSalvando(false);
+      setModal(null);
+      setForm({});
+      setToast({ tipo:"sucesso", msg: selected ? "✅ Cadastro atualizado com sucesso!" : "✅ Servidor cadastrado com sucesso!" });
+      setTimeout(() => setToast(null), 4000);
+      return;
+    } catch(e) {
+      console.error("Erro ao salvar:", e);
+      setToast({ tipo:"erro", msg:`❌ Erro no cadastro: ${e.message||"Tente novamente."}` });
+      setTimeout(() => setToast(null), 5000);
+    }
+    setSalvando(false);
+  };
+
+
+  // Verifica todos os servidores e cria tarefas no Designer para aniversários próximos
+  const verificarTodosAniversarios = async (listaServidores) => {
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+
+    // Busca tarefas de aniversário já criadas para evitar duplicatas
+    const atSnap = await getDocs(collection(db,"designer_atividades"));
+    const tarefasExistentes = atSnap.docs
+      .map(d => d.data())
+      .filter(t => t.tipo === "aniversario");
+
+    await Promise.all(listaServidores.map(async servidor => {
+      if (!servidor.dataAniversario) return;
+      const [,mes,dia] = servidor.dataAniversario.split("-");
+      const proxAniv = new Date(anoAtual + "-" + mes + "-" + dia);
+      if (proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
+      const diasAte = Math.ceil((proxAniv - hoje) / 86400000);
+
+      if (diasAte <= 5 && diasAte >= 0) {
+        const jaExiste = tarefasExistentes.some(t =>
+          t.servidorId === servidor.id &&
+          t.dataEntrega && t.dataEntrega.startsWith(proxAniv.getFullYear().toString())
+        );
+        if (jaExiste) return;
+
+        const dataEntrega = new Date(proxAniv);
+        dataEntrega.setDate(dataEntrega.getDate() - 1);
+        await addDoc(collection(db,"designer_atividades"), {
+          titulo: "Fazer arte de aniversário de " + servidor.nome,
+          descricao: "Criar arte comemorativa para o aniversário de " + servidor.nome + " em " + dia + "/" + mes,
+          status: "Aguardando", prioridade: "Alta",
+          dataEntrega: dataEntrega.toISOString().split("T")[0],
+          tipo: "aniversario", servidorId: servidor.id,
+          criadoEm: new Date().toISOString(), criadoPor: "sistema",
+          ocorrencias: [],
         });
       }
-      return false;
-    }
-    // Aniversariantes do mês — exibe sempre
-    if (item.id === "aniv_mes") return true;
-    if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
-      return true;
-    }
-    if (item.tipo === "data_comemorativa") {
-      const c = conteudos.find(c => c.id === item.id);
-      const hoje = new Date();
-      if (!c?.dataFixa) return false;
-      const [mm,dd] = c.dataFixa.split("-");
-      return parseInt(mm)-1 === hoje.getMonth() && parseInt(dd) === hoje.getDate();
-    }
-    return true; // outros tipos sempre exibem
+    }));
   };
 
-  useEffect(() => {
-    if (itens.length === 0) return;
-    const item = itens[currentIdx] || itens[0];
-    clearTimeout(timerRef.current);
-    capaShownRef.current = false;
-    setShowingCapa(false);
+  // Verifica aniversário de um servidor específico (no cadastro)
+  const verificarAniversarioProximo = async (servidor) => {
+    await verificarTodosAniversarios([servidor]);
+  };
 
-    // Pula imediatamente se não tem conteúdo
-    if (!itemTemConteudo(item)) {
-      timerRef.current = setTimeout(() => {
-        setCurrentIdx(prev => (prev + 1) % itens.length);
-      }, 100);
-      return () => clearTimeout(timerRef.current);
-    }
-
-    if (item?.tipo === "eventos_tc" && item?.capaUrl) {
-      setShowingCapa(true);
-      timerRef.current = setTimeout(() => {
-        setShowingCapa(false);
-        const tempo = (item?.tempo || 10) * 1000;
-        timerRef.current = setTimeout(() => {
-          setCurrentIdx(prev => (prev + 1) % itens.length);
-        }, tempo);
-      }, 4000);
-    } else {
-      const tempo = (item?.tempo || 10) * 1000;
-      timerRef.current = setTimeout(() => {
-        setCurrentIdx(prev => (prev + 1) % itens.length);
-      }, tempo);
-    }
-    return () => clearTimeout(timerRef.current);
-  }, [currentIdx, itens.length]);
-
-  if (loading) {
-    return (
-      <div style={{ width:"100vw", height:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, fontWeight:700 }}>Carregando...</div>
-      </div>
-    );
-  }
-
-  if (erro) {
-    return (
-      <div style={{ width:"100vw", height:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:48, marginBottom:16 }}>📺</div>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:18 }}>{erro}</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!playlist || itens.length === 0) {
-    return (
-      <div style={{ width:"100vw", height:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Montserrat',sans-serif" }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap')`}</style>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:64, marginBottom:20 }}>📺</div>
-          <div style={{ color:"rgba(255,255,255,0.7)", fontWeight:900, fontSize:24, marginBottom:8 }}>{tela?.nome}</div>
-          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:16 }}>Nenhuma playlist vinculada</div>
-        </div>
-        <Relogio/>
-      </div>
-    );
-  }
-
-  const item = itens[currentIdx] || itens[0];
-
-  const renderSlide = () => {
-    if (!item) return null;
-
-    // Aniversariantes do mês
-    if (item.id === "aniv_mes") {
-      return <SlideAniversarioMes servidores={servidores}/>;
-    }
-    // Aniversariante do dia / fim de semana
-    if (item.tipo === "aniversario") {
-      return <SlideAniversario servidores={servidores}/>;
-    }
-
-    // Eventos TCEduc — mostra capa 4s antes se configurada
-    if (item.tipo === "eventos_tc") {
-      if (showingCapa && item.capaUrl) {
-        return <SlideImagem url={item.capaUrl}/>;
+  const salvarExterno = async () => {
+    if (!formExterno.nome || !formExterno.tipo) return;
+    setSalvando(true);
+    try {
+      const dados = { ...formExterno, atualizadoEm: new Date().toISOString() };
+      if (selected) {
+        await updateDoc(doc(db,"ipc_externos",selected.id), dados);
+        setExternos(e=>e.map(x=>x.id===selected.id?{...x,...dados}:x));
+      } else {
+        dados.criadoEm = new Date().toISOString();
+        const docRef = await addDoc(collection(db,"ipc_externos"), dados);
+        setExternos(e=>[...e,{id:docRef.id,...dados}]);
       }
-      return <SlideEventos eventosTC={eventosTC}/>;
-    }
-
-    // Evento manual da agenda
-    if (item.tipo === "evento_manual") {
-      const ev = conteudos.find(c => c.id === item.id) || item;
-      return <SlideAgendaManual evento={ev} fallbackIdx={currentIdx}/>;
-    }
-
-    // Data comemorativa
-    if (item.tipo === "data_comemorativa") {
-      const c = conteudos.find(c => c.id === item.id);
-      if (c?.url) return <SlideImagem url={c.url}/>;
-      return (
-        <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#E8730A,#dc2626)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ fontSize:72, marginBottom:16 }}>🗓️</div>
-          <div style={{ color:"#fff", fontWeight:900, fontSize:48 }}>{item.label || c?.nome}</div>
-        </div>
-      );
-    }
-
-    // Imagem ou vídeo
-    if (item.tipo === "imagem" || item.tipo === "video") {
-      const c = conteudos.find(c => c.id === item.id);
-      const url = c?.url || item.thumb;
-      if (url) return <SlideImagem url={url}/>;
-    }
-
-    // Informe TCEduc
-    if (item.tipo === "informe_tceduc") {
-      return <SlideInformeTCEduc eventosTC={eventosTC}/>;
-    }
-
-    // Informe Olímpiada
-    if (item.tipo === "informe_olimpiada") {
-      return <SlideInformeOlimpiada escolas={escolas}/>;
-    }
-
-    // Fallback
-    return (
-      <div style={{ width:"100%", height:"100%", background:"#1e293b", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ color:"rgba(255,255,255,0.3)", fontSize:18 }}>{item.label || item.tipo}</div>
-      </div>
-    );
+      setModal(null); setFormExterno({});
+    } catch(e) { console.error(e); }
+    setSalvando(false);
   };
 
-  const isVertical = tela?.orientacao === "vertical";
+  const deletarServidor = async (id) => {
+    if (!window.confirm("Excluir servidor? Esta ação também removerá o acesso ao sistema.")) return;
+    // Busca o servidor para pegar o uid
+    const servidor = servidores.find(s => s.id === id);
+    // Remove doc do Firestore do servidor
+    await deleteDoc(doc(db, "ipc_servidores", id));
+    // Se tinha acesso, remove o doc de permissões de usuário
+    if (servidor?.uid) {
+      try {
+        await deleteDoc(doc(db, "usuarios", servidor.uid));
+      } catch(e) { console.error("Erro ao remover permissões:", e); }
+    }
+    setServidores(s => s.filter(x => x.id !== id));
+    setModal(null);
+  };
+
+  const deletarExterno = async (id) => {
+    if (!window.confirm("Excluir colaborador externo?")) return;
+    await deleteDoc(doc(db,"ipc_externos",id));
+    setExternos(e=>e.filter(x=>x.id!==id));
+    setModal(null);
+  };
+
+  const adicionarRegistro = async (servidor, texto, tipo) => {
+    if (!texto.trim()) return;
+    const reg = { texto, tipo, data: new Date().toISOString(), autor: user?.email||"sistema" };
+    const novos = [...(servidor.registros||[]), reg];
+    await updateDoc(doc(db,"ipc_servidores",servidor.id), { registros: novos });
+    const atualizado = { ...servidor, registros: novos };
+    setServidores(s=>s.map(x=>x.id===servidor.id?atualizado:x));
+    if(selected?.id===servidor.id) setSelected(atualizado);
+  };
+
+  const filtradosServidor = servidores.filter(s=>{
+    if (filtroSetor!=="todos" && s.setor!==filtroSetor) return false;
+    if (busca) { const b=busca.toLowerCase(); if(!((s.nome||"").toLowerCase().includes(b)||(s.cargo||"").toLowerCase().includes(b)||(s.setor||"").toLowerCase().includes(b))) return false; }
+    return true;
+  });
+  const filtradosExterno = externos.filter(e=>{
+    if (busca) { const b=busca.toLowerCase(); if(!((e.nome||"").toLowerCase().includes(b)||(e.tipo||"").toLowerCase().includes(b))) return false; }
+    return true;
+  });
+
+  const setoresExistentes = [...new Set(servidores.map(s=>s.setor).filter(Boolean))];
+
+  // Aniversários próximos (5 dias)
+  const aniversariosProximos = servidores.filter(s=>{
+    if(!s.dataAniversario) return false;
+    const hoje = new Date(); const anoAtual = hoje.getFullYear();
+    const [,mes,dia] = s.dataAniversario.split("-");
+    const proxAniv = new Date(`${anoAtual}-${mes}-${dia}`);
+    if(proxAniv < hoje) proxAniv.setFullYear(anoAtual+1);
+    return Math.ceil((proxAniv-hoje)/86400000) <= 5;
+  });
 
   return (
-    <div style={{
-      width: "100vw", height: "100vh",
-      background: "#0f172a",
-      overflow: "hidden",
-      position: "relative",
-      fontFamily: "'Montserrat',sans-serif",
-    }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{overflow:hidden}`}</style>
+    <div style={{ minHeight:"100vh", background:"#E8EDF2", fontFamily:"'Montserrat',sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap'); *{box-sizing:border-box;margin:0;padding:0} ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-thumb{background:#1B3F7A44;border-radius:3px} select,input,textarea{font-family:'Montserrat',sans-serif}`}</style>
 
-      {/* SLIDE ATUAL */}
-      <div style={{
-        width: "100%",
-        height: "100%",
-        position: "absolute",
-        inset: 0,
-      }}>
-        {renderSlide()}
-      </div>
-
-      {/* Barra inferior com logo + nome tela */}
-      <div style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
-        padding: "40px 24px 16px",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        zIndex: 5,
-        pointerEvents: "none",
-      }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase" }}>
-          TCE-CE · IPC · {tela?.nome}
+      {/* TOAST */}
+      {toast && (
+        <div style={{ position:"fixed", top:24, left:"50%", transform:"translateX(-50%)", zIndex:999, background:toast.tipo==="sucesso"?"#059669":"#dc2626", color:"#fff", borderRadius:16, padding:"14px 28px", fontWeight:700, fontSize:15, boxShadow:"0 8px 32px rgba(0,0,0,0.18)", display:"flex", alignItems:"center", gap:10, minWidth:280, textAlign:"center", justifyContent:"center" }}>
+          {toast.msg}
         </div>
-        {itens.length > 1 && (
-          <div style={{ display:"flex", gap:4 }}>
-            {itens.map((_,i) => (
-              <div key={i} style={{ width: i===currentIdx?20:6, height:4, borderRadius:2, background: i===currentIdx?"#fff":"rgba(255,255,255,0.3)", transition:"width 0.3s" }}/>
+      )}
+
+      <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"20px 32px" }}>
+        <div style={{ maxWidth:1300, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+            <div onClick={onBack} style={{ width:40, height:40, background:"rgba(255,255,255,0.15)", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:20, flexShrink:0 }}>←</div>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:"linear-gradient(145deg,#0369A1,#38BDF8)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 3px 10px rgba(3,105,161,0.4)" }}>{PESSOAS_ICON}</div>
+              <div>
+                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:3 }}>MÓDULO</div>
+                <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>IPC Pessoas</div>
+              </div>
+            </div>
+            <div style={{ marginLeft:"auto", display:"flex", gap:8, flexWrap:"wrap" }}>
+              <div onClick={onOrganograma} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🌳 Organograma</div>
+              <div onClick={onEstrutura} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🏗️ Estrutura</div>
+              <div onClick={onFerias} style={{ background:"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>🏖️ Férias</div>
+              <div onClick={onAniversarios} style={{ background:aniversariosProximos.length>0?"rgba(232,115,10,0.4)":"rgba(255,255,255,0.12)", borderRadius:12, padding:"8px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                🎂 Aniversários{aniversariosProximos.length>0?` (${aniversariosProximos.length})` :""}
+              </div>
+              {aba==="equipe" && <div onClick={()=>{ setForm({ modulosAcesso:[] }); setSelected(null); setModal("form_servidor"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Servidor</div>}
+              {aba==="externos" && <div onClick={()=>{ setFormExterno({}); setSelected(null); setModal("form_externo"); }} style={{ background:"#E8730A", borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Novo Colaborador</div>}
+            </div>
+          </div>
+          <div style={{ display:"flex", gap:10, marginTop:14 }}>
+            {[{id:"equipe",label:"👥 Equipe IPC"},{id:"externos",label:"🤝 Colaboradores Externos"}].map(a=>(
+              <div key={a.id} onClick={()=>{ setAba(a.id); setBusca(""); setFiltroSetor("todos"); }} style={{ background:aba===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${aba===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:12, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:1300, margin:"0 auto", padding:"24px 32px 80px" }}>
+        {/* STATS */}
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:20 }}>
+          {[
+            { label:"Servidores IPC", value:servidores.length, cor:"#1B3F7A" },
+            { label:"Com acesso ao sistema", value:servidores.filter(s=>s.criarAcesso).length, cor:"#0891b2" },
+            { label:"Colaboradores externos", value:externos.length, cor:"#7c3aed" },
+            { label:"Aniversários próximos", value:aniversariosProximos.length, cor:aniversariosProximos.length>0?"#E8730A":"#aaa" },
+          ].map((s,i)=>(
+            <div key={i} style={{ background:"#fff", borderRadius:14, padding:"12px 20px", boxShadow:"0 2px 12px rgba(27,63,122,0.07)", borderLeft:`4px solid ${s.cor}` }}>
+              <div style={{ color:s.cor, fontWeight:900, fontSize:22 }}>{s.value}</div>
+              <div style={{ color:"#888", fontSize:11, marginTop:2, fontWeight:600 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:"flex", gap:10, marginBottom:24, flexWrap:"wrap", alignItems:"center" }}>
+          <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder={`🔍 Buscar ${aba==="equipe"?"servidor":"colaborador"}...`} style={{ ...inputStyle, maxWidth:300, padding:"9px 14px" }}/>
+          {aba==="equipe" && (
+            <select value={filtroSetor} onChange={e=>setFiltroSetor(e.target.value)} style={{ background:"#fff", border:"none", borderRadius:20, padding:"8px 16px", fontSize:12, fontWeight:700, color:"#1B3F7A", cursor:"pointer", outline:"none", boxShadow:"0 2px 8px rgba(27,63,122,0.08)" }}>
+              <option value="todos">Todos os setores</option>
+              {setoresExistentes.map(s=><option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {(busca||filtroSetor!=="todos") && <div onClick={()=>{ setBusca(""); setFiltroSetor("todos"); }} style={{ background:"#fee2e2", borderRadius:20, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#dc2626", cursor:"pointer" }}>✕ Limpar</div>}
+          <span style={{ marginLeft:"auto", fontSize:12, color:"#aaa" }}>{aba==="equipe"?filtradosServidor.length:filtradosExterno.length} resultado{(aba==="equipe"?filtradosServidor.length:filtradosExterno.length)!==1?"s":""}</span>
+        </div>
+
+        {loading ? <div style={{ textAlign:"center", padding:60, color:"#aaa" }}>Carregando...</div> : (
+          <>
+            {aba==="equipe" && (
+              filtradosServidor.length===0 ? (
+                <div style={{ textAlign:"center", padding:60 }}>
+                  <div style={{ fontSize:56, marginBottom:16 }}>👥</div>
+                  <div style={{ fontWeight:700, fontSize:16, color:"#333", marginBottom:8 }}>Nenhum servidor cadastrado</div>
+                  <div onClick={()=>{ setForm({modulosAcesso:[]}); setSelected(null); setModal("form_servidor"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Cadastrar Servidor</div>
+                </div>
+              ) : (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:16 }}>
+                  {filtradosServidor.map(s=>(
+                    <div key={s.id} onClick={()=>{ setSelected(s); setModal("perfil"); }} style={{ background:"#fff", borderRadius:20, padding:"22px", boxShadow:"0 2px 12px rgba(27,63,122,0.08)", cursor:"pointer", transition:"transform 0.15s, box-shadow 0.15s" }}
+                      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow="0 8px 24px rgba(27,63,122,0.14)"}}
+                      onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 2px 12px rgba(27,63,122,0.08)"}}>
+                      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
+                        {s.foto ? (
+                          <img src={s.foto} alt={s.nome} style={{ width:52, height:52, borderRadius:16, objectFit:"cover", flexShrink:0 }}/>
+                        ) : (
+                          <div style={{ width:52, height:52, borderRadius:16, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0 }}>{initials(s.nome)}</div>
+                        )}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:15, color:"#1B3F7A", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{s.nome}</div>
+                          <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{s.cargo}</div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                        {s.setor && <div style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{s.setor}</div>}
+                        {s.criarAcesso && <div style={{ background:"#e8f5e9", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#059669" }}>🔑 {s.isAdmin?"admin":"colaborador"}</div>}{s.isInstrutor && <div style={{ background:"#f3e8ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#7c3aed" }}>👨‍🏫 instrutor</div>}
+                      </div>
+                      {s.dataAniversario && (() => {
+                        const hoje = new Date(); const [,mes,dia] = s.dataAniversario.split("-");
+                        const proxAniv = new Date(`${hoje.getFullYear()}-${mes}-${dia}`);
+                        if(proxAniv<hoje) proxAniv.setFullYear(hoje.getFullYear()+1);
+                        const dias = Math.ceil((proxAniv-hoje)/86400000);
+                        return dias<=5 ? <div style={{ marginTop:8, background:"#fff3e0", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#E8730A" }}>🎂 {dias===0?"Hoje!":dias===1?"Amanhã!":`Em ${dias} dias`}</div> : null;
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {aba==="externos" && (
+              filtradosExterno.length===0 ? (
+                <div style={{ textAlign:"center", padding:60 }}>
+                  <div style={{ fontSize:56, marginBottom:16 }}>🤝</div>
+                  <div style={{ fontWeight:700, fontSize:16, color:"#333", marginBottom:8 }}>Nenhum colaborador externo</div>
+                  <div onClick={()=>{ setFormExterno({}); setSelected(null); setModal("form_externo"); }} style={{ display:"inline-block", background:"#1B3F7A", borderRadius:14, padding:"12px 24px", color:"#fff", fontWeight:700, cursor:"pointer", marginTop:12 }}>+ Cadastrar Colaborador</div>
+                </div>
+              ) : (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:16 }}>
+                  {filtradosExterno.map(e=>(
+                    <div key={e.id} onClick={()=>{ setSelected(e); setModal("perfil_externo"); }} style={{ background:"#fff", borderRadius:20, padding:"22px", boxShadow:"0 2px 12px rgba(27,63,122,0.08)", cursor:"pointer", transition:"transform 0.15s" }}
+                      onMouseEnter={ev=>ev.currentTarget.style.transform="translateY(-3px)"} onMouseLeave={ev=>ev.currentTarget.style.transform=""}>
+                      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
+                        <div style={{ width:52, height:52, borderRadius:16, background:corAvatar(e.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0 }}>{initials(e.nome)}</div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:15, color:"#1B3F7A", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{e.nome}</div>
+                          <div style={{ fontSize:12, color:"#888", marginTop:2 }}>{e.tipo}</div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                        <div style={{ background:"#f5f3ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#7c3aed" }}>{e.tipo}</div>
+                        {e.orgao && <div style={{ background:"#f0f4ff", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#1B3F7A" }}>{e.orgao}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </>
         )}
       </div>
 
-      <Relogio/>
+      {/* MODAL PERFIL */}
+      {modal==="perfil" && selected && <PerfilModal servidor={selected} onClose={()=>setModal(null)} onEditar={()=>{ setForm({...selected, modulosAcesso:selected.modulosAcesso||[], grupos:selected.grupos||[]}); setModal("form_servidor"); }} onDeletar={()=>deletarServidor(selected.id)} onAddRegistro={adicionarRegistro} user={user} servidores={servidores} grupos={grupos} />}
+
+      {/* MODAL PERFIL EXTERNO */}
+      {modal==="perfil_externo" && selected && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:500, padding:32 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ width:60, height:60, borderRadius:18, background:corAvatar(selected.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:22 }}>{initials(selected.nome)}</div>
+                <div>
+                  <div style={{ fontWeight:900, fontSize:20, color:"#1B3F7A" }}>{selected.nome}</div>
+                  <div style={{ fontSize:13, color:"#888" }}>{selected.tipo}</div>
+                </div>
+              </div>
+              <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#f0f4ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#1B3F7A" }}>✕</div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:20 }}>
+              {[{label:"Tipo",value:selected.tipo},{label:"Órgão/Origem",value:selected.orgao},{label:"Contato",value:selected.contato},{label:"Email",value:selected.email},{label:"Especialidade",value:selected.especialidade},{label:"Observações",value:selected.observacoes}].filter(f=>f.value).map((f,i)=>(
+                <div key={i} style={{ background:"#f8f9fb", borderRadius:12, padding:"12px 14px", gridColumn:f.label==="Observações"?"1/-1":"auto" }}>
+                  <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>{f.label}</div>
+                  <div style={{ color:"#1B3F7A", fontWeight:600, fontSize:13 }}>{f.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={()=>{ setFormExterno({...selected}); setModal("form_externo"); }} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
+              <button onClick={()=>deletarExterno(selected.id)} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORM SERVIDOR */}
+      {modal==="form_servidor" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:700, maxHeight:"93vh", overflow:"auto" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ padding:"28px 32px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+                <div style={{ fontWeight:900, fontSize:20, color:"#1B3F7A" }}>{selected?"✏️ Editar Servidor":"➕ Novo Servidor IPC"}</div>
+                <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#f0f4ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#1B3F7A" }}>✕</div>
+              </div>
+
+              {/* FOTO COM CROP */}
+              <FotoEditorCircular
+                fotoAtual={form.foto}
+                nome={form.nome||""}
+                onConfirm={(blob, preview) => setForm(f => Object.assign({}, f, { foto: preview, _fotoBlob: blob }))}
+              />
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Nome Completo *</label>
+                  <input value={form.nome||""} onChange={e=>setForm(f=>({...f,nome:e.target.value}))} placeholder="Nome completo do servidor" style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Como gosta de ser chamado(a)</label>
+                  <input value={form.nomePreferido||""} onChange={e=>setForm(f=>({...f,nomePreferido:e.target.value}))} placeholder="Ex: João, Dra. Ana, Carioca..." style={inputStyle}/>
+                  <div style={{ fontSize:10, color:"#aaa", marginTop:3 }}>Usado nos slides de aniversário na TV</div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Cargo</label>
+                  <select value={form.cargoId||""} onChange={e=>{
+                    const cargoSel = cargos.find(c=>c.id===e.target.value);
+                    setForm(f=>({...f, cargoId:e.target.value, cargo:cargoSel?.nome||""}));
+                  }} style={inputStyle}>
+                    <option value="">Sem cargo formal</option>
+                    {[...cargos].sort((a,b)=>(a.nivel||1)-(b.nivel||1)).map(c=><option key={c.id} value={c.id}>{'  '.repeat((c.nivel||1)-1)}{c.nome}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Setor</label>
+                  <select value={form.setorId||""} onChange={e=>{
+                    const setorSel = setores.find(s=>s.id===e.target.value);
+                    setForm(f=>({...f, setorId:e.target.value, setor:setorSel?.nome||""}));
+                  }} style={inputStyle}>
+                    <option value="">Selecione o setor...</option>
+                    {setores.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Grupos de Trabalho</label>
+                  {grupos.length === 0 ? (
+                    <div style={{ fontSize:12, color:"#aaa", padding:"10px 14px", background:"#f8f9fb", borderRadius:12 }}>Nenhum grupo cadastrado ainda. Crie grupos em Estrutura Organizacional.</div>
+                  ) : (
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                      {grupos.sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).map(g => {
+                        const sel = (form.grupos||[]).includes(g.id);
+                        return (
+                          <div key={g.id} onClick={()=>{
+                            const atual = form.grupos||[];
+                            setForm(f=>({...f, grupos: sel ? atual.filter(x=>x!==g.id) : [...atual, g.id]}));
+                          }} style={{ display:"flex", alignItems:"center", gap:6, background:sel?"#1B3F7A":"#f0f4ff", border:`1px solid ${sel?"#1B3F7A":"#e8edf2"}`, borderRadius:10, padding:"7px 14px", cursor:"pointer", transition:"all 0.15s" }}>
+                            <div style={{ width:8, height:8, borderRadius:"50%", background:sel?"#fff":"#1B3F7A44" }}/>
+                            <span style={{ fontSize:12, fontWeight:700, color:sel?"#fff":"#1B3F7A" }}>👥 {g.nome}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Chefia Imediata</label>
+                  {form.cargoId && calcularChefiaImediata(form.cargoId, null) ? (
+                    <div style={{ background:"#e8f5e9", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#059669", fontWeight:600 }}>
+                      ✅ Calculada automaticamente: <strong>{calcularChefiaImediata(form.cargoId, null)}</strong>
+                      <div style={{ fontSize:11, color:"#888", marginTop:4, fontWeight:400 }}>Baseada na hierarquia de cargos</div>
+                    </div>
+                  ) : (
+                    <div>
+                      <select value={form.chefiaManual||""} onChange={e=>setForm(f=>({...f,chefiaManual:e.target.value,chefia:e.target.value}))} style={inputStyle}>
+                        <option value="">Selecione a chefia imediata...</option>
+                        {servidores.filter(s=>s.id!==selected?.id).map(s=><option key={s.id} value={s.nome}>{s.nome} {s.cargo?"— "+s.cargo:""}</option>)}
+                      </select>
+                      <div style={{ fontSize:11, color:"#aaa", marginTop:4 }}>
+                        {form.cargoId ? "Cargo selecionado não tem superior cadastrado — selecione manualmente" : "Sem cargo formal — selecione a chefia diretamente"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label style={labelStyle}>E-mail</label>
+                  <input type="email" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@tce.ce.gov.br" style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data de Aniversário</label>
+                  <input type="date" value={form.dataAniversario||""} onChange={e=>setForm(f=>({...f,dataAniversario:e.target.value}))} style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Matrícula</label>
+                  <input value={form.matricula||""} onChange={e=>setForm(f=>({...f,matricula:e.target.value}))} placeholder="Nº de matrícula" style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Contato / Telefone</label>
+                  <input value={form.contato||""} onChange={e=>setForm(f=>({...f,contato:e.target.value}))} placeholder="(85) 99999-9999" style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data de Ingresso</label>
+                  <input type="date" value={form.dataIngresso||""} onChange={e=>setForm(f=>({...f,dataIngresso:e.target.value}))} style={inputStyle}/>
+                </div>
+                <div>
+                  <label style={labelStyle}>CPF</label>
+                  <input value={form.cpf||""} onChange={e=>setForm(f=>({...f,cpf:e.target.value}))} placeholder="000.000.000-00" style={inputStyle}/>
+                </div>
+
+                {/* ACESSO AO SISTEMA */}
+                <div style={{ gridColumn:"1/-1", background:"#f0f4ff", borderRadius:16, padding:"18px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:form.criarAcesso?16:0 }}>
+                    <div onClick={()=>setForm(f=>({...f,criarAcesso:!f.criarAcesso}))} style={{ width:44, height:24, borderRadius:12, background:form.criarAcesso?"#1B3F7A":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                      <div style={{ position:"absolute", top:3, left:form.criarAcesso?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A" }}>🔑 Criar acesso ao sistema</div>
+                      <div style={{ fontSize:11, color:"#888" }}>Senha padrão: <strong>{SENHA_PADRAO}</strong></div>
+                    </div>
+                  </div>
+                  {form.criarAcesso && (
+                    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                      <div>
+                        <label style={labelStyle}>E-mail de acesso *</label>
+                        <input type="email" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="Mesmo e-mail acima" style={inputStyle}/>
+                        <div style={{ fontSize:11, color:"#888", marginTop:4 }}>Usando o e-mail do campo acima automaticamente</div>
+                      </div>
+                      {/* Admin toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div onClick={()=>setForm(f=>({...f,isAdmin:!f.isAdmin}))} style={{ width:44, height:24, borderRadius:12, background:form.isAdmin?"#E8730A":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                          <div style={{ position:"absolute", top:3, left:form.isAdmin?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>👑 Administrador</div>
+                          <div style={{ fontSize:11, color:"#888" }}>{form.isAdmin?"Acesso total a todos os módulos":"Acesso somente aos módulos selecionados"}</div>
+                        </div>
+                      </div>
+                      {/* Módulos */}
+                      {!form.isAdmin && (
+                        <div>
+                          <label style={labelStyle}>Módulos com acesso</label>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+                            {MODULOS.map(m=>{
+                              const sel = (form.modulosAcesso||[]).includes(m.id);
+                              return (
+                                <div key={m.id} onClick={()=>{
+                                  const atual = form.modulosAcesso||[];
+                                  setForm(f=>({...f,modulosAcesso:sel?atual.filter(x=>x!==m.id):[...atual,m.id]}));
+                                }} style={{ background:sel?"#1B3F7A":"#f0f4ff", borderRadius:10, padding:"7px 14px", fontSize:12, fontWeight:700, color:sel?"#fff":"#1B3F7A", cursor:"pointer", border:`1px solid ${sel?"#1B3F7A":"#dce8f5"}` }}>
+                                  {m.icon} {m.nome}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {erroLogin && <div style={{ marginTop:10, color:"#dc2626", fontSize:12, fontWeight:600 }}>⚠️ {erroLogin}</div>}
+
+                  {/* Toggle enviar e-mail */}
+                  {form.criarAcesso && form.email && (
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:8, padding:"10px 0", borderTop:"1px solid #e8edf2" }}>
+                      <div onClick={()=>setForm(f=>({...f,enviarEmail:!f.enviarEmail}))} style={{ width:44, height:24, borderRadius:12, background:form.enviarEmail?"#059669":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                        <div style={{ position:"absolute", top:3, left:form.enviarEmail?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A" }}>📧 Enviar e-mail de boas-vindas</div>
+                        <div style={{ fontSize:11, color:"#888" }}>Envia usuário, senha e módulos para {form.email}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* INSTRUTOR TCEDUC */}
+                <div style={{ gridColumn:"1/-1", background:"#f3e8ff", borderRadius:16, padding:"18px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom: form.isInstrutor ? 16 : 0 }}>
+                    <div onClick={()=>setForm(f=>({...f, isInstrutor:!f.isInstrutor, nomeInstrutor: !f.isInstrutor ? f.nome : f.nomeInstrutor}))} style={{ width:44, height:24, borderRadius:12, background:form.isInstrutor?"#7c3aed":"#ddd", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+                      <div style={{ position:"absolute", top:3, left:form.isInstrutor?22:3, width:18, height:18, borderRadius:9, background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}/>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14, color:"#7c3aed" }}>👨‍🏫 Também é Instrutor (TCEduc)</div>
+                      <div style={{ fontSize:11, color:"#888" }}>Cadastra automaticamente na lista de instrutores do TCEduc</div>
+                    </div>
+                  </div>
+                  {form.isInstrutor && (
+                    <div>
+                      <label style={labelStyle}>Como identificar na lista de instrutores *</label>
+                      <input
+                        value={form.nomeInstrutor||""}
+                        onChange={e=>setForm(f=>({...f, nomeInstrutor:e.target.value}))}
+                        placeholder="Ex: Dr. João Silva, Prof. João, João Silva (TCE)"
+                        style={inputStyle}
+                      />
+                      <div style={{ fontSize:11, color:"#888", marginTop:4 }}>Nome que aparecerá ao alocar o instrutor em eventos e viagens</div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ gridColumn:"1/-1" }}>
+                  <label style={labelStyle}>Observações Iniciais</label>
+                  <textarea value={form.observacoes||""} onChange={e=>setForm(f=>({...f,observacoes:e.target.value}))} placeholder="Observações gerais..." style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/>
+                </div>
+              </div>
+              <button onClick={salvarServidor} disabled={salvando||!form.nome} style={{ width:"100%", marginTop:20, background:salvando||!form.nome?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!form.nome?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                {salvando?"Salvando...":selected?"💾 Salvar Alterações":"💾 Cadastrar Servidor"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORM EXTERNO */}
+      {modal==="form_externo" && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={()=>setModal(null)}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:600, maxHeight:"90vh", overflow:"auto" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ padding:"28px 32px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
+                <div style={{ fontWeight:900, fontSize:20, color:"#7c3aed" }}>{selected?"✏️ Editar Colaborador":"➕ Novo Colaborador Externo"}</div>
+                <div onClick={()=>setModal(null)} style={{ width:36, height:36, background:"#f5f3ff", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:"#7c3aed" }}>✕</div>
+              </div>
+              <div style={{ background:"#f5f3ff", borderRadius:12, padding:"10px 14px", marginBottom:20, fontSize:12, color:"#7c3aed", fontWeight:600 }}>🤝 Colaboradores externos não têm acesso ao sistema IPCgov</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Nome Completo *</label><input value={formExterno.nome||""} onChange={e=>setFormExterno(f=>({...f,nome:e.target.value}))} placeholder="Nome completo" style={inputStyle}/></div>
+                <div><label style={labelStyle}>Tipo *</label><select value={formExterno.tipo||""} onChange={e=>setFormExterno(f=>({...f,tipo:e.target.value}))} style={inputStyle}><option value="">Selecione...</option>{TIPOS_EXTERNO.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+                <div><label style={labelStyle}>Órgão / Origem</label><select value={formExterno.orgao||""} onChange={e=>setFormExterno(f=>({...f,orgao:e.target.value}))} style={inputStyle}><option value="">Selecione...</option>{ORGAOS.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+                <div><label style={labelStyle}>Contato / Telefone</label><input value={formExterno.contato||""} onChange={e=>setFormExterno(f=>({...f,contato:e.target.value}))} placeholder="(85) 99999-9999" style={inputStyle}/></div>
+                <div><label style={labelStyle}>E-mail</label><input type="email" value={formExterno.email||""} onChange={e=>setFormExterno(f=>({...f,email:e.target.value}))} placeholder="email@exemplo.com" style={inputStyle}/></div>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Especialidade / Área</label><input value={formExterno.especialidade||""} onChange={e=>setFormExterno(f=>({...f,especialidade:e.target.value}))} placeholder="Ex: Gestão Fiscal, CNH categoria D..." style={inputStyle}/></div>
+                <div style={{ gridColumn:"1/-1" }}><label style={labelStyle}>Observações</label><textarea value={formExterno.observacoes||""} onChange={e=>setFormExterno(f=>({...f,observacoes:e.target.value}))} style={{ ...inputStyle, minHeight:70, resize:"vertical" }}/></div>
+              </div>
+              <button onClick={salvarExterno} disabled={salvando||!formExterno.nome||!formExterno.tipo} style={{ width:"100%", marginTop:20, background:salvando||!formExterno.nome||!formExterno.tipo?"#ccc":"linear-gradient(135deg,#7c3aed,#8b5cf6)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:15, cursor:salvando||!formExterno.nome||!formExterno.tipo?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
+                {salvando?"Salvando...":"💾 Salvar Colaborador"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, user, servidores, grupos }) {
+  const [novoRegistro, setNovoRegistro] = useState("");
+  const [tipoRegistro, setTipoRegistro] = useState("observacao");
+  const [novaSolicitacao, setNovaSolicitacao] = useState("");
+  const [abaP, setAbaP] = useState("dados");
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={onClose}>
+      <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:680, maxHeight:"92vh", overflow:"auto" }} onClick={e=>e.stopPropagation()}>
+        <div style={{ background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", padding:"24px 28px", borderRadius:"24px 24px 0 0" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              {servidor.foto ? (
+                <img src={servidor.foto} alt={servidor.nome} style={{ width:64, height:64, borderRadius:18, objectFit:"cover", flexShrink:0, border:"3px solid rgba(255,255,255,0.3)" }}/>
+              ) : (
+                <div style={{ width:64, height:64, borderRadius:18, background:corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:24, flexShrink:0 }}>{initials(servidor.nome)}</div>
+              )}
+              <div>
+                <div style={{ color:"rgba(255,255,255,0.5)", fontSize:10, letterSpacing:2 }}>SERVIDOR IPC</div>
+                <div style={{ color:"#fff", fontWeight:900, fontSize:22 }}>{servidor.nome}</div>
+                <div style={{ color:"rgba(255,255,255,0.7)", fontSize:13, marginTop:2 }}>{servidor.cargo} · {servidor.setor}</div>
+              </div>
+            </div>
+            <div onClick={onClose} style={{ width:36, height:36, background:"rgba(255,255,255,0.15)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:18 }}>✕</div>
+          </div>
+          <div style={{ display:"flex", gap:8, marginTop:18 }}>
+            {[{id:"dados",label:"📋 Dados"},{id:"registros",label:`📝 Registros (${(servidor.registros||[]).length})`},{id:"solicitacoes",label:"📚 Solicitações"}].map(a=>(
+              <div key={a.id} onClick={()=>setAbaP(a.id)} style={{ background:abaP===a.id?"rgba(255,255,255,0.25)":"rgba(255,255,255,0.1)", border:`1px solid ${abaP===a.id?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.15)"}`, borderRadius:10, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>{a.label}</div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding:"24px 28px" }}>
+          {abaP==="dados" && (
+            <>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:20 }}>
+                {[
+                  { label:"Cargo", value:servidor.cargo },
+                  { label:"Setor", value:servidor.setor },
+                  { label:"Chefia", value:servidor.chefia||"Topo da hierarquia" },
+                  { label:"E-mail", value:servidor.email },
+                  { label:"Matrícula", value:servidor.matricula },
+                  { label:"Contato", value:servidor.contato },
+                  { label:"Aniversário", value:servidor.dataAniversario?formatDate(servidor.dataAniversario):null },
+                  { label:"Data de Ingresso", value:servidor.dataIngresso?new Date(servidor.dataIngresso).toLocaleDateString("pt-BR"):null },
+                  { label:"Acesso", value:servidor.criarAcesso?`✅ ${servidor.isAdmin?"admin":"colaborador"}`:"❌ Sem acesso" },
+                ].filter(f=>f.value).map((f,i)=>(
+                  <div key={i} style={{ background:"#f8f9fb", borderRadius:12, padding:"12px 14px" }}>
+                    <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>{f.label}</div>
+                    <div style={{ color:"#1B3F7A", fontWeight:600, fontSize:13 }}>{f.value}</div>
+                  </div>
+                ))}
+              </div>
+              {servidor.criarAcesso && !servidor.isAdmin && (servidor.modulosAcesso||[]).length>0 && (
+                <div style={{ background:"#f0f4ff", borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+                  <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>Módulos com acesso</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {(servidor.modulosAcesso||[]).map(m=>{ const mod=MODULOS.find(x=>x.id===m); return mod?<div key={m} style={{ background:"#1B3F7A", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>{mod.icon} {mod.nome}</div>:null; })}
+                  </div>
+                </div>
+              )}
+              {(servidor.grupos||[]).length > 0 && (
+                <div style={{ background:"#f0fdf4", borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+                  <div style={{ color:"#aaa", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8 }}>Grupos de Trabalho</div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {(servidor.grupos||[]).map(gId=>{ const g=(grupos||[]).find(x=>x.id===gId); return g?<div key={gId} style={{ background:"#059669", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:700, color:"#fff" }}>👥 {g.nome}</div>:null; })}
+                  </div>
+                </div>
+              )}
+              {servidor.isInstrutor && (
+                <div style={{ background:"#f3e8ff", borderRadius:12, padding:"12px 14px", marginBottom:16, border:"1px solid #e9d5ff" }}>
+                  <div style={{ color:"#7c3aed", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:8, fontWeight:700 }}>👨‍🏫 Instrutor TCEduc</div>
+                  <div style={{ color:"#7c3aed", fontWeight:700, fontSize:14 }}>{servidor.nomeInstrutor || servidor.nome}</div>
+                  <div style={{ color:"#888", fontSize:11, marginTop:2 }}>Identificado assim na lista de instrutores</div>
+                </div>
+              )}
+              {servidor.observacoes && (
+                <div style={{ background:"#f5f3ff", borderRadius:12, padding:"14px 16px", marginBottom:20, borderLeft:"3px solid #7c3aed" }}>
+                  <div style={{ color:"#7c3aed", fontSize:10, letterSpacing:1, textTransform:"uppercase", marginBottom:6 }}>Observações</div>
+                  <div style={{ color:"#333", fontSize:14, lineHeight:1.6 }}>{servidor.observacoes}</div>
+                </div>
+              )}
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={onEditar} style={{ flex:1, background:"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:14, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>✏️ Editar</button>
+                <button onClick={onDeletar} style={{ background:"#fee2e2", border:"none", borderRadius:14, padding:"14px 18px", color:"#dc2626", fontWeight:700, cursor:"pointer", fontFamily:"'Montserrat',sans-serif" }}>🗑️</button>
+              </div>
+            </>
+          )}
+          {abaP==="registros" && (
+            <>
+              <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+                {[{id:"observacao",label:"📝 Obs."},{id:"curso",label:"📚 Curso"},{id:"elogio",label:"⭐ Elogio"},{id:"ocorrencia",label:"⚠️ Ocorrência"}].map(t=>(
+                  <div key={t.id} onClick={()=>setTipoRegistro(t.id)} style={{ flex:1, textAlign:"center", padding:"8px", borderRadius:10, border:`2px solid ${tipoRegistro===t.id?"#1B3F7A":"#e8edf2"}`, background:tipoRegistro===t.id?"#f0f4ff":"#fff", color:tipoRegistro===t.id?"#1B3F7A":"#888", fontWeight:700, fontSize:11, cursor:"pointer" }}>{t.label}</div>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+                <textarea value={novoRegistro} onChange={e=>setNovoRegistro(e.target.value)} placeholder="Digite o registro..." style={{ flex:1, background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif", minHeight:70, resize:"vertical" }}/>
+                <div onClick={()=>{ if(novoRegistro.trim()){ onAddRegistro(servidor,novoRegistro,tipoRegistro); setNovoRegistro(""); } }} style={{ width:44, background:"#1B3F7A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:22, flexShrink:0 }}>+</div>
+              </div>
+              {(servidor.registros||[]).length===0 ? <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhum registro ainda</div>
+              : [...(servidor.registros||[])].reverse().map((r,i)=>(
+                <div key={i} style={{ background:r.tipo==="ocorrencia"?"#fff3e0":r.tipo==="elogio"?"#f0fdf4":r.tipo==="curso"?"#f5f3ff":"#f8f9fb", borderRadius:12, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${r.tipo==="ocorrencia"?"#E8730A":r.tipo==="elogio"?"#059669":r.tipo==="curso"?"#7c3aed":"#1B3F7A"}` }}>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>{new Date(r.data).toLocaleString("pt-BR")} · {r.autor} · {r.tipo}</div>
+                  <div style={{ fontSize:13, color:"#333" }}>{r.texto}</div>
+                </div>
+              ))}
+            </>
+          )}
+          {abaP==="solicitacoes" && (
+            <>
+              <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+                <textarea value={novaSolicitacao} onChange={e=>setNovaSolicitacao(e.target.value)} placeholder="Ex: Solicito participação no curso de Gestão Pública..." style={{ flex:1, background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:13, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif", minHeight:70, resize:"vertical" }}/>
+                <div onClick={()=>{ if(novaSolicitacao.trim()){ onAddRegistro(servidor,novaSolicitacao,"solicitacao"); setNovaSolicitacao(""); } }} style={{ width:44, background:"#E8730A", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:22, flexShrink:0 }}>+</div>
+              </div>
+              {(servidor.registros||[]).filter(r=>r.tipo==="solicitacao").length===0 ? <div style={{ textAlign:"center", color:"#aaa", padding:30, fontSize:13 }}>Nenhuma solicitação ainda</div>
+              : [...(servidor.registros||[])].filter(r=>r.tipo==="solicitacao").reverse().map((r,i)=>(
+                <div key={i} style={{ background:"#fff8f0", borderRadius:12, padding:"12px 14px", marginBottom:8, borderLeft:"3px solid #E8730A" }}>
+                  <div style={{ fontSize:11, color:"#aaa", marginBottom:4 }}>{new Date(r.data).toLocaleString("pt-BR")} · {r.autor}</div>
+                  <div style={{ fontSize:13, color:"#333" }}>{r.texto}</div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
