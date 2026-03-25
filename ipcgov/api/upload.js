@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
     const fileId = resposta.data.id;
     if (publico) await tornarPublico(drive, fileId);
 
-    const linkDireto = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    const linkDireto = `https://lh3.googleusercontent.com/d/${fileId}`;
     const linkVisualizacao = `https://drive.google.com/file/d/${fileId}/view`;
 
     return res.status(200).json({
