@@ -39,44 +39,175 @@ function SlideImagem({ url }) {
   );
 }
 
+function corAvatar(nome) {
+  const cores = ["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"];
+  let h = 0;
+  for (let ch of (nome||"")) h += ch.charCodeAt(0);
+  return cores[h % cores.length];
+}
+function initials(nome) {
+  if (!nome) return "?";
+  return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase();
+}
+function nomeExibir(s) {
+  return s.nomePreferido || s.nome.split(" ")[0];
+}
+
+function FotoCircular({ servidor, tamanho }) {
+  const sz = tamanho || 120;
+  const url = servidor.foto && servidor.foto.startsWith("http") ? servidor.foto : null;
+  return (
+    <div style={{ width:sz, height:sz, borderRadius:"50%", overflow:"hidden", border:"4px solid rgba(255,255,255,0.3)", flexShrink:0,
+      background:url?"transparent":corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center" }}>
+      {url
+        ? <img src={url} alt={servidor.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+        : <span style={{ color:"#fff", fontWeight:900, fontSize:sz*0.35 }}>{initials(servidor.nome)}</span>}
+    </div>
+  );
+}
+
+// Slide 1: Aniversariantes do Mês
+function SlideAniversarioMes({ servidores }) {
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth();
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  const doMes = servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m] = s.dataAniversario.split("-");
+    return parseInt(m)-1 === mesAtual;
+  }).sort((a,b) => {
+    const [,,da] = a.dataAniversario.split("-");
+    const [,,db] = b.dataAniversario.split("-");
+    return parseInt(da) - parseInt(db);
+  });
+
+  if (doMes.length === 0) return null;
+
+  return (
+    <div style={{ width:"100%", height:"100%", background:"#1B3F7A", display:"grid", gridTemplateColumns:"1fr 1.5fr",
+      fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
+      {/* Arte esquerda */}
+      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", padding:"32px 28px", gap:16, position:"relative", overflow:"hidden" }}>
+        <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.07 }} viewBox="0 0 300 450">
+          <circle cx="150" cy="225" r="200" fill="none" stroke="#E8730A" strokeWidth="1"/>
+          <circle cx="150" cy="225" r="140" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
+          <circle cx="150" cy="225" r="80" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
+        </svg>
+        <div style={{ fontSize:72, position:"relative", zIndex:1 }}>🎂</div>
+        <div style={{ position:"relative", zIndex:1, textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>IPC · TCE-CE</div>
+          <div style={{ color:"#fff", fontWeight:900, fontSize:30, lineHeight:1.1 }}>Aniversariantes</div>
+          <div style={{ color:"#E8730A", fontWeight:900, fontSize:30, lineHeight:1.1 }}>de {MESES[mesAtual]}</div>
+        </div>
+        <div style={{ position:"relative", zIndex:1, background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)",
+          borderRadius:20, padding:"4px 18px" }}>
+          <span style={{ color:"#E8730A", fontSize:13, fontWeight:700, letterSpacing:1 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
+        </div>
+      </div>
+      {/* Lista direita */}
+      <div style={{ padding:"24px 28px", display:"flex", flexDirection:"column", gap:8, overflowY:"hidden" }}>
+        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>Este mês celebramos</div>
+        {doMes.slice(0,7).map(s => {
+          const [,,dia] = s.dataAniversario.split("-");
+          const isHoje = parseInt(dia) === hoje.getDate();
+          return (
+            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:12, background:isHoje?"rgba(232,115,10,0.2)":"rgba(255,255,255,0.06)",
+              borderRadius:12, padding:"10px 14px", border:isHoje?"1px solid rgba(232,115,10,0.4)":"none" }}>
+              <FotoCircular servidor={s} tamanho={40}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ color:"#fff", fontWeight:700, fontSize:15, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {nomeExibir(s)}
+                </div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11 }}>{s.cargo||s.setor||""}</div>
+              </div>
+              <div style={{ background:isHoje?"rgba(232,115,10,0.3)":"rgba(255,255,255,0.1)", borderRadius:10, padding:"4px 12px", flexShrink:0 }}>
+                <span style={{ color:isHoje?"#E8730A":"rgba(255,255,255,0.6)", fontWeight:700, fontSize:13 }}>dia {parseInt(dia)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Slide 2: Aniversariante do Dia / Fim de Semana
 function SlideAniversario({ servidores }) {
   const hoje = new Date();
-  const aniv = servidores.filter(s => {
+  const diaSemana = hoje.getDay(); // 0=dom, 6=sab
+
+  // Verifica aniversariantes hoje
+  const anivHoje = servidores.filter(s => {
     if (!s.dataAniversario) return false;
     const [,m,d] = s.dataAniversario.split("-");
     return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
   });
 
-  if (aniv.length === 0) return null;
+  // Verifica próximo dia útil se hoje é sexta (5)
+  const anivFimDeSemana = diaSemana === 5 ? servidores.filter(s => {
+    if (!s.dataAniversario) return false;
+    const [,m,d] = s.dataAniversario.split("-");
+    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
+    const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
+    const isSab = parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
+    const isDom = parseInt(m)-1===domingo.getMonth() && parseInt(d)===domingo.getDate();
+    return isSab || isDom;
+  }) : [];
 
-  function corAvatar(nome) {
-    const cores = ["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"];
-    let h = 0;
-    for (let c of (nome||"")) h += c.charCodeAt(0);
-    return cores[h % cores.length];
-  }
-  function initials(nome) {
-    if (!nome) return "?";
-    return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase();
-  }
+  const lista = anivHoje.length > 0 ? anivHoje : anivFimDeSemana;
+  if (lista.length === 0) return null;
+
+  const isFimDeSemana = anivHoje.length === 0 && anivFimDeSemana.length > 0;
+  const isSabado = isFimDeSemana && (() => {
+    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
+    const [,m,d] = lista[0].dataAniversario.split("-");
+    return parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
+  })();
+
+  const bgGrad = isFimDeSemana
+    ? "linear-gradient(135deg,#1B3F7A 0%,#7c3aed 100%)"
+    : "linear-gradient(135deg,#042C53 0%,#1B3F7A 60%,#0891b2 100%)";
+
+  const tagTexto = isFimDeSemana
+    ? `🗓️ ${isSabado?"Sábado":"Domingo"} é o aniversário de`
+    : "🎉 Hoje é o aniversário de";
+
+  const msgTexto = isFimDeSemana
+    ? "Antecipamos os parabéns! 🎂"
+    : `Parabéns${lista.length===1?" "+nomeExibir(lista[0]):""}! Que seu dia seja incrível ✨`;
 
   return (
-    <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#1B3F7A,#7c3aed)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:40 }}>
-      <div style={{ fontSize:72, marginBottom:20 }}>🎂</div>
-      <div style={{ color:"rgba(255,255,255,0.7)", fontSize:22, fontWeight:700, marginBottom:20, letterSpacing:4, textTransform:"uppercase" }}>Parabéns!</div>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:24, justifyContent:"center" }}>
-        {aniv.map(s => (
-          <div key={s.id} style={{ textAlign:"center" }}>
-            {s.artAniversario ? (
-              <img src={s.artAniversario} alt={s.nome} style={{ width:120, height:120, borderRadius:20, objectFit:"cover" }}/>
-            ) : (
-              <div style={{ width:120, height:120, borderRadius:20, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:40, margin:"0 auto" }}>{initials(s.nome)}</div>
-            )}
-            <div style={{ color:"#fff", fontWeight:800, fontSize:18, marginTop:12 }}>{s.nome.split(" ").slice(0,2).join(" ")}</div>
-            <div style={{ color:"rgba(255,255,255,0.6)", fontSize:14 }}>{s.cargo||s.setor||""}</div>
+    <div style={{ width:"100%", height:"100%", background:bgGrad, display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", gap:20, fontFamily:"'Montserrat',sans-serif",
+      position:"relative", overflow:"hidden" }}>
+      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} viewBox="0 0 800 450">
+        <circle cx="80" cy="60" r="8" fill="#E8730A" opacity="0.5"/>
+        <circle cx="720" cy="80" r="6" fill="#fbbf24" opacity="0.4"/>
+        <circle cx="150" cy="380" r="5" fill="#E8730A" opacity="0.3"/>
+        <circle cx="650" cy="360" r="7" fill="#fbbf24" opacity="0.4"/>
+        <circle cx="400" cy="30" r="4" fill="#E8730A" opacity="0.5"/>
+        <rect x="700" y="200" width="8" height="8" rx="2" fill="#E8730A" opacity="0.3" transform="rotate(20 700 200)"/>
+        <rect x="100" y="200" width="6" height="6" rx="1" fill="#fbbf24" opacity="0.3" transform="rotate(-15 100 200)"/>
+      </svg>
+      <div style={{ background:"rgba(255,255,255,0.15)", borderRadius:24, padding:"6px 24px", zIndex:1 }}>
+        <span style={{ color:"#fff", fontSize:16, fontWeight:700, letterSpacing:1 }}>{tagTexto}</span>
+      </div>
+      <div style={{ display:"flex", gap:32, justifyContent:"center", flexWrap:"wrap", zIndex:1 }}>
+        {lista.map(s => (
+          <div key={s.id} style={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
+            <FotoCircular servidor={s} tamanho={lista.length===1?140:100}/>
+            <div>
+              <div style={{ color:"#fff", fontWeight:900, fontSize:lista.length===1?52:36, lineHeight:1, letterSpacing:-1 }}>
+                {nomeExibir(s)}
+              </div>
+              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, marginTop:4 }}>{s.cargo||s.setor||""}</div>
+            </div>
           </div>
         ))}
       </div>
+      <div style={{ color:"#E8730A", fontSize:22, fontWeight:700, zIndex:1 }}>{msgTexto}</div>
     </div>
   );
 }
@@ -633,12 +764,30 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     if (!item) return false;
     if (item.tipo === "aniversario") {
       const hoje = new Date();
-      return servidores.some(s => {
+      const diaSemana = hoje.getDay();
+      // Tem aniversariante hoje
+      const temHoje = servidores.some(s => {
         if (!s.dataAniversario) return false;
         const [,m,d] = s.dataAniversario.split("-");
         return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
       });
+      if (temHoje) return true;
+      // Se sexta, verifica sab/dom
+      if (diaSemana === 5) {
+        const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
+        const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
+        return servidores.some(s => {
+          if (!s.dataAniversario) return false;
+          const [,m,d] = s.dataAniversario.split("-");
+          const isSab = parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
+          const isDom = parseInt(m)-1===domingo.getMonth() && parseInt(d)===domingo.getDate();
+          return isSab || isDom;
+        });
+      }
+      return false;
     }
+    // Aniversariantes do mês — exibe sempre
+    if (item.id === "aniv_mes") return true;
     if (item.tipo === "informe_tceduc" || item.tipo === "informe_olimpiada") {
       return true;
     }
@@ -723,7 +872,11 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const renderSlide = () => {
     if (!item) return null;
 
-    // Aniversariantes
+    // Aniversariantes do mês
+    if (item.id === "aniv_mes") {
+      return <SlideAniversarioMes servidores={servidores}/>;
+    }
+    // Aniversariante do dia / fim de semana
     if (item.tipo === "aniversario") {
       return <SlideAniversario servidores={servidores}/>;
     }
