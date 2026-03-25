@@ -11,11 +11,14 @@ function normYoutubeUrl(url) {
 
 function normDriveUrl(url) {
   if (!url) return null;
+  // lh3.googleusercontent.com — link direto de Shared Drive, usa direto
+  if (url.includes("lh3.googleusercontent.com")) return url;
+  // drive.google.com/file/d/ID/view ou /preview
   const drive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (drive) return `https://drive.google.com/file/d/${drive[1]}/preview`;
-  // Direct image from drive
-  const driveImg = url.match(/drive\.google\.com\/uc\?/);
-  if (driveImg) return url;
+  if (drive) return `https://lh3.googleusercontent.com/d/${drive[1]}`;
+  // drive.google.com/uc?export=view&id=ID — converte para lh3
+  const driveUc = url.match(/[?&]id=([^&]+)/);
+  if (url.includes("drive.google.com") && driveUc) return `https://lh3.googleusercontent.com/d/${driveUc[1]}`;
   return null;
 }
 
