@@ -564,6 +564,140 @@ function SlideInformeOlimpiada({ escolas }) {
   );
 }
 
+
+const FALLBACK_ARTS = [
+  {
+    bg: "#042C53",
+    accent: "#378ADD", textColor: "#E6F1FB", subColor: "#B5D4F4", tag: "#185FA5"
+  },
+  {
+    bg: "#0F6E56",
+    accent: "#5DCAA5", textColor: "#E1F5EE", subColor: "#9FE1CB", tag: "#0F6E56"
+  },
+  {
+    bg: "#3C3489",
+    accent: "#AFA9EC", textColor: "#EEEDFE", subColor: "#CECBF6", tag: "#3C3489"
+  },
+  {
+    bg: "#712B13",
+    accent: "#F09977", textColor: "#FAECE7", subColor: "#F5C4B3", tag: "#712B13"
+  },
+];
+
+function FallbackArt({ nome, idx }) {
+  const art = FALLBACK_ARTS[idx % FALLBACK_ARTS.length];
+  const sigla = (nome||"").split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("").toUpperCase() || "IPC";
+  return (
+    <div style={{ width:"100%", height:"100%", background:art.bg, position:"relative", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <svg viewBox="0 0 400 300" style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.1 }}>
+        <circle cx="200" cy="150" r="200" fill="none" stroke={art.accent} strokeWidth="1"/>
+        <circle cx="200" cy="150" r="130" fill="none" stroke={art.accent} strokeWidth="0.5"/>
+        <circle cx="200" cy="150" r="60" fill="none" stroke={art.accent} strokeWidth="0.5"/>
+      </svg>
+      <div style={{ position:"relative", textAlign:"center" }}>
+        <div style={{ width:80, height:80, borderRadius:20, background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", border:"2px solid rgba(255,255,255,0.25)" }}>
+          <span style={{ color:"#fff", fontWeight:900, fontSize:28, fontFamily:"'Montserrat',sans-serif" }}>{sigla}</span>
+        </div>
+        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:3, textTransform:"uppercase", fontFamily:"'Montserrat',sans-serif" }}>TCE-CE · IPC</div>
+      </div>
+    </div>
+  );
+}
+
+const MESES_EXT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const MESES_CURTO_EV = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
+function SlideAgendaManual({ evento, fallbackIdx }) {
+  const temFoto = !!(evento.fotoUrl && evento.fotoUrl.trim());
+  const [fotoError, setFotoError] = useState(false);
+  const usarFallback = !temFoto || fotoError;
+
+  const dataInicioObj = evento.dataInicio ? new Date(evento.dataInicio+"T00:00:00") : null;
+  const dataFimObj = evento.dataFim && evento.dataFim !== evento.dataInicio ? new Date(evento.dataFim+"T00:00:00") : null;
+
+  const diaInicio = dataInicioObj ? dataInicioObj.getDate() : null;
+  const diaFim = dataFimObj ? dataFimObj.getDate() : null;
+  const mesIdx = dataInicioObj ? dataInicioObj.getMonth() : null;
+  const ano = dataInicioObj ? dataInicioObj.getFullYear() : null;
+
+  const dataLabel = !dataInicioObj ? null
+    : diaFim ? `${diaInicio} – ${diaFim} de ${MESES_EXT[mesIdx]} de ${ano}`
+    : `${diaInicio} de ${MESES_EXT[mesIdx]} de ${ano}`;
+
+  return (
+    <div style={{ width:"100%", height:"100%", background:"#042C53", display:"grid", gridTemplateColumns:"1fr 1fr", gridTemplateRows:"1fr 1fr", fontFamily:"'Montserrat',sans-serif" }}>
+      {/* Foto / arte — ocupa coluna esquerda inteira */}
+      <div style={{ gridRow:"1 / 3", position:"relative", overflow:"hidden", borderRight:"1px solid rgba(255,255,255,0.08)" }}>
+        {usarFallback ? (
+          <FallbackArt nome={evento.nome} idx={fallbackIdx||0}/>
+        ) : (() => {
+          const ytUrl = normYoutubeUrl(evento.fotoUrl);
+          const driveUrl = normDriveUrl(evento.fotoUrl);
+          const finalUrl = ytUrl || driveUrl || evento.fotoUrl;
+          const isEmbed = ytUrl || driveUrl;
+          if (isEmbed) return <iframe src={finalUrl} style={{ width:"100%", height:"100%", border:"none" }} allow="autoplay; fullscreen" allowFullScreen title="foto"/>;
+          return <img src={finalUrl} alt={evento.nome} onError={() => setFotoError(true)} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>;
+        })()}
+        <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"35%", background:"linear-gradient(transparent,rgba(4,44,83,0.85))" }}/>
+        <div style={{ position:"absolute", top:24, left:24, background:"rgba(4,44,83,0.8)", borderRadius:8, padding:"5px 14px" }}>
+          <span style={{ color:"#85B7EB", fontSize:14, letterSpacing:2, textTransform:"uppercase", fontWeight:700 }}>TCE-CE · IPC</span>
+        </div>
+      </div>
+      {/* Top-right: título + data */}
+      <div style={{ padding:"36px 40px", display:"flex", flexDirection:"column", justifyContent:"center", gap:16, borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
+        {evento.categoria && (
+          <span style={{ background:"#185FA5", color:"#E6F1FB", fontSize:14, padding:"4px 14px", borderRadius:20, width:"fit-content", letterSpacing:0.5, fontWeight:700 }}>
+            {evento.categoria}
+          </span>
+        )}
+        <div style={{ color:"#E6F1FB", fontWeight:700, fontSize:38, lineHeight:1.2 }}>{evento.nome}</div>
+        {dataLabel && (
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            {diaInicio && mesIdx !== null && (
+              <div style={{ background:"#185FA5", borderRadius:10, padding:"8px 14px", textAlign:"center", flexShrink:0 }}>
+                <div style={{ color:"#E6F1FB", fontWeight:900, fontSize:42, lineHeight:1 }}>{diaInicio}</div>
+                <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1 }}>{MESES_CURTO_EV[mesIdx]}</div>
+              </div>
+            )}
+            <div style={{ color:"#85B7EB", fontSize:20, lineHeight:1.4 }}>{dataLabel}</div>
+          </div>
+        )}
+      </div>
+      {/* Bottom-right: local + horário + descrição */}
+      <div style={{ padding:"28px 40px", display:"flex", flexDirection:"column", justifyContent:"center", gap:14 }}>
+        {evento.local && (
+          <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}>
+              <path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.5-2-4.5-4.5-4.5z" stroke="#85B7EB" strokeWidth="1.3"/>
+              <circle cx="8" cy="6" r="1.5" stroke="#85B7EB" strokeWidth="1.3"/>
+            </svg>
+            <div>
+              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Local</div>
+              <div style={{ color:"#E6F1FB", fontSize:24, fontWeight:700 }}>{evento.local}</div>
+            </div>
+          </div>
+        )}
+        {evento.horario && (
+          <div style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}>
+              <circle cx="8" cy="8" r="5.5" stroke="#85B7EB" strokeWidth="1.3"/>
+              <line x1="8" y1="4.5" x2="8" y2="8" stroke="#85B7EB" strokeWidth="1.3" strokeLinecap="round"/>
+              <line x1="8" y1="8" x2="10.5" y2="9.5" stroke="#85B7EB" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+            <div>
+              <div style={{ color:"#85B7EB", fontSize:13, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Horário</div>
+              <div style={{ color:"#E6F1FB", fontSize:22, fontWeight:700 }}>{evento.horario}</div>
+            </div>
+          </div>
+        )}
+        {evento.descricao && (
+          <div style={{ color:"#B5D4F4", fontSize:18, lineHeight:1.7, marginTop:4 }}>{evento.descricao}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Relogio() {
   const [hora, setHora] = useState(new Date());
   useEffect(() => {
