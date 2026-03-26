@@ -1208,15 +1208,13 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
   return (
     <div style={{
-      width: "100vw", height: "100vh",
-      maxWidth: "100vw", maxHeight: "100vh",
       background: "#0f172a",
       overflow: "hidden",
       position: "fixed",
       top: 0, left: 0, right: 0, bottom: 0,
       fontFamily: "'Montserrat',sans-serif",
     }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}html,body{overflow:hidden;width:100%;height:100%;max-width:100vw;max-height:100vh}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}html,body{overflow:hidden;margin:0;padding:0}`}</style>
 
       {/* SLIDE ATUAL */}
       <div style={{
