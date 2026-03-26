@@ -110,14 +110,14 @@ function SlideAniversarioMes({ servidores }) {
       {/* Esquerda */}
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         gap:14, padding:"28px 24px", position:"relative", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ fontSize:56, lineHeight:1, filter:"drop-shadow(0 4px 12px rgba(232,115,10,0.4))" }}>🎂</div>
+        <div style={{ fontSize:84, lineHeight:1, filter:"drop-shadow(0 4px 12px rgba(232,115,10,0.4))" }}>🎂</div>
         <div style={{ textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Parabéns a todos de</div>
-          <div style={{ color:"#E8730A", fontSize:40, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{MESES[mesAtual]}</div>
-          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:13, marginTop:4 }}>{hoje.getFullYear()}</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:15, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Parabéns a todos de</div>
+          <div style={{ color:"#E8730A", fontSize:60, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{MESES[mesAtual]}</div>
+          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:20, marginTop:4 }}>{hoje.getFullYear()}</div>
         </div>
         <div style={{ background:"rgba(232,115,10,0.15)", border:"1px solid rgba(232,115,10,0.3)", borderRadius:20, padding:"4px 16px" }}>
-          <span style={{ color:"#E8730A", fontSize:12, fontWeight:700 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
+          <span style={{ color:"#E8730A", fontSize:18, fontWeight:700 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
         </div>
       </div>
 
@@ -137,20 +137,20 @@ function SlideAniversarioMes({ servidores }) {
               position:"relative", overflow:"hidden" }}>
               {hoje_ && (
                 <div style={{ position:"absolute", top:-1, right:8, background:"#E8730A", borderRadius:"0 0 8px 8px",
-                  padding:"2px 8px", fontSize:9, color:"#fff", fontWeight:700, letterSpacing:1 }}>HOJE 🎉</div>
+                  padding:"2px 8px", fontSize:14, color:"#fff", fontWeight:700, letterSpacing:1 }}>HOJE 🎉</div>
               )}
-              <div style={{ width:48, height:48, borderRadius:"50%", overflow:"hidden", marginBottom:8, flexShrink:0,
+              <div style={{ width:72, height:72, borderRadius:"50%", overflow:"hidden", marginBottom:8, flexShrink:0,
                 border: hoje_ ? "2px solid #E8730A" : "2px solid rgba(255,255,255,0.1)",
                 background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center" }}>
                 {foto
                   ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                  : <span style={{ color:"#fff", fontSize:16, fontWeight:700 }}>{initials(s.nome)}</span>}
+                  : <span style={{ color:"#fff", fontSize:24, fontWeight:700 }}>{initials(s.nome)}</span>}
               </div>
-              <div style={{ color: hoje_ ? "#FAC775" : "rgba(255,255,255,0.85)", fontSize:13, fontWeight:700,
+              <div style={{ color: hoje_ ? "#FAC775" : "rgba(255,255,255,0.85)", fontSize:20, fontWeight:700,
                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                 {nomeExibir(s)}
               </div>
-              <div style={{ color: hoje_ ? "rgba(250,199,117,0.6)" : "rgba(255,255,255,0.3)", fontSize:10, marginTop:2 }}>
+              <div style={{ color: hoje_ ? "rgba(250,199,117,0.6)" : "rgba(255,255,255,0.3)", fontSize:15, marginTop:2 }}>
                 dia {parseInt(dia)}
               </div>
             </div>
@@ -206,25 +206,25 @@ function SlideAniversario({ servidores }) {
           <rect x="730" y="200" width="9" height="9" rx="2" fill="#E8730A" transform="rotate(20 734 204)"/>
           <rect x="65" y="260" width="7" height="7" rx="2" fill="#fbbf24" transform="rotate(-15 68 263)"/>
         </svg>
-        <div style={{ color:"rgba(255,255,255,0.45)", fontSize:14, letterSpacing:3, textTransform:"uppercase" }}>{tagTexto}</div>
+        <div style={{ color:"rgba(255,255,255,0.45)", fontSize:21, letterSpacing:3, textTransform:"uppercase" }}>{tagTexto}</div>
         <div style={{ display:"flex", gap:32, justifyContent:"center", flexWrap:"wrap", zIndex:1 }}>
           {lista.map(s => {
             const foto = s.foto && s.foto.startsWith("http") ? s.foto : null;
             return (
               <div key={s.id} style={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-                <div style={{ width:100, height:100, borderRadius:"50%", overflow:"hidden", border:"3px solid #E8730A",
+                <div style={{ width:150, height:150, borderRadius:"50%", overflow:"hidden", border:"3px solid #E8730A",
                   background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center",
                   boxShadow:"0 0 24px rgba(232,115,10,0.35)" }}>
                   {foto ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                    : <span style={{ color:"#fff", fontWeight:900, fontSize:32 }}>{initials(s.nome)}</span>}
+                    : <span style={{ color:"#fff", fontWeight:900, fontSize:48 }}>{initials(s.nome)}</span>}
                 </div>
-                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24, lineHeight:1 }}>{nomeExibir(s)}</div>
-                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:13 }}>{s.cargo||s.setor||""}</div>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:36, lineHeight:1 }}>{nomeExibir(s)}</div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:20 }}>{s.cargo||s.setor||""}</div>
               </div>
             );
           })}
         </div>
-        <div style={{ color:"#FAC775", fontSize:18, fontWeight:700, zIndex:1 }}>{isFDS?"Antecipamos os parabéns! 🎂":"Toda a equipe IPC deseja um dia incrível! 🎉"}</div>
+        <div style={{ color:"#FAC775", fontSize:27, fontWeight:700, zIndex:1 }}>{isFDS?"Antecipamos os parabéns! 🎂":"Toda a equipe IPC deseja um dia incrível! 🎉"}</div>
       </div>
     );
   }
@@ -252,17 +252,17 @@ function SlideAniversario({ servidores }) {
       {/* Esquerda: foto */}
       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         gap:16, padding:32, position:"relative" }}>
-        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.15)" }}/>
-        <div style={{ position:"absolute", width:280, height:280, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.08)" }}/>
-        <div style={{ width:150, height:150, borderRadius:"50%", overflow:"hidden", border:"4px solid #E8730A",
+        <div style={{ position:"absolute", width:330, height:330, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.15)" }}/>
+        <div style={{ position:"absolute", width:420, height:420, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.08)" }}/>
+        <div style={{ width:225, height:225, borderRadius:"50%", overflow:"hidden", border:"4px solid #E8730A",
           background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center",
           boxShadow:"0 0 40px rgba(232,115,10,0.35)", position:"relative", zIndex:1 }}>
           {foto ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-            : <span style={{ color:"#fff", fontWeight:900, fontSize:52 }}>{initials(s.nome)}</span>}
+            : <span style={{ color:"#fff", fontWeight:900, fontSize:78 }}>{initials(s.nome)}</span>}
         </div>
         <div style={{ textAlign:"center", position:"relative", zIndex:1 }}>
-          <div style={{ color:"#fff", fontSize:30, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{nomeExibir(s)}</div>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, marginTop:5 }}>{s.cargo||s.setor||""}</div>
+          <div style={{ color:"#fff", fontSize:45, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{nomeExibir(s)}</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:21, marginTop:5 }}>{s.cargo||s.setor||""}</div>
         </div>
       </div>
 
@@ -270,19 +270,19 @@ function SlideAniversario({ servidores }) {
       <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center",
         padding:"40px 44px 40px 28px", gap:20, borderLeft:"1px solid rgba(255,255,255,0.06)", position:"relative", zIndex:1 }}>
         <div>
-          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:12, letterSpacing:3, textTransform:"uppercase", marginBottom:10 }}>{tagTexto}</div>
-          <div style={{ color:"#E8730A", fontSize:52, fontWeight:900, lineHeight:1, letterSpacing:-2 }}>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, letterSpacing:3, textTransform:"uppercase", marginBottom:10 }}>{tagTexto}</div>
+          <div style={{ color:"#E8730A", fontSize:78, fontWeight:900, lineHeight:1, letterSpacing:-2 }}>
             Parabéns,<br/>{nomeExibir(s)}!
           </div>
         </div>
-        <div style={{ width:40, height:3, background:"#E8730A", borderRadius:2 }}/>
-        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, lineHeight:1.6, fontStyle:"italic" }}>
+        <div style={{ width:60, height:3, background:"#E8730A", borderRadius:2 }}/>
+        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:24, lineHeight:1.6, fontStyle:"italic" }}>
           "{msgTexto}"
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(232,115,10,0.12)",
           border:"1px solid rgba(232,115,10,0.25)", borderRadius:14, padding:"10px 18px" }}>
-          <span style={{ fontSize:20 }}>🎂</span>
-          <span style={{ color:"#FAC775", fontSize:13, fontWeight:700 }}>Toda a equipe IPC deseja um dia incrível!</span>
+          <span style={{ fontSize:30 }}>🎂</span>
+          <span style={{ color:"#FAC775", fontSize:20, fontWeight:700 }}>Toda a equipe IPC deseja um dia incrível!</span>
         </div>
       </div>
     </div>
