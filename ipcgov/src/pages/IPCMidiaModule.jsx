@@ -1394,7 +1394,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
       {/* MODAL EVENTO */}
       {modal==="evento" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
-          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:460, padding:32 }} onClick={e => e.stopPropagation()}>
+          <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:460, padding:32, maxHeight:"90vh", overflowY:"auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:20 }}>{form.id ? "✏️ Editar Evento" : "📋 Novo Evento na Agenda"}</div>
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               <div>
@@ -1463,7 +1463,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                 )}
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
-                  <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", aspectRatio:"8/9", background:"#f0f4ff", maxHeight:160 }}>
+                  <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:100, background:"#f0f4ff" }}>
                     <img src={normDriveUrl(form.fotoUrl)} alt="preview"
                       style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
                       onError={e => { e.target.parentElement.style.display="none"; }}/>
