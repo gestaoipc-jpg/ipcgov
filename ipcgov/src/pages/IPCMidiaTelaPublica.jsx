@@ -871,13 +871,50 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   };
 
   // Recarrega playlist ao final de cada ciclo
-  const recarregarPlaylist = async (playlistId) => {
-    if (!playlistId) return;
+  const recarregarTudo = async (playlistId) => {
     try {
-      const plDoc = await getDoc(doc(db, "midia_playlists", playlistId));
-      if (plDoc.exists()) setPlaylist({ id: plDoc.id, ...plDoc.data() });
-    } catch(e) { console.warn("Erro ao recarregar playlist:", e); }
+      // Recarrega playlist
+      if (playlistId) {
+        const plDoc = await getDoc(doc(db, "midia_playlists", playlistId));
+        if (plDoc.exists()) setPlaylist({ id: plDoc.id, ...plDoc.data() });
+      }
+      // Recarrega todos os dados dinâmicos
+      const [cSnap, sSnap, eSnap, oSnap, vSnap] = await Promise.all([
+        getDocs(collection(db, "midia_conteudos")),
+        getDocs(collection(db, "ipc_servidores")),
+        getDocs(collection(db, "tceduc_eventos")),
+        getDocs(collection(db, "olimpiadas_escolas")),
+        getDocs(collection(db, "tceduc_viagens")),
+      ]);
+      setConteudos(cSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setServidores(sSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setEventosTC(eSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setEscolas(oSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setViagens(vSnap.docs.map(d => ({ id:d.id, ...d.data() })));
+    } catch(e) { console.warn("Erro ao recarregar:", e); }
   };
+
+  // Wake Lock — impede o computador de entrar em descanso de tela
+  useEffect(() => {
+    let wakeLock = null;
+    const requestWakeLock = async () => {
+      try {
+        if ("wakeLock" in navigator) {
+          wakeLock = await navigator.wakeLock.request("screen");
+        }
+      } catch(e) { console.warn("Wake Lock não disponível:", e); }
+    };
+    requestWakeLock();
+    // Reativa quando a aba volta ao foco
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") requestWakeLock();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
+  }, []);
 
   // Ping a cada 30s
   useEffect(() => {
@@ -954,7 +991,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       timerRef.current = setTimeout(() => {
         setCurrentIdx(prev => {
           const next = (prev + 1) % itens.length;
-          if (next === 0 && playlist?.id) recarregarPlaylist(playlist.id);
+          if (next === 0 && playlist?.id) recarregarTudo(playlist?.id);
           return next;
         });
       }, 50);
@@ -969,7 +1006,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
         timerRef.current = setTimeout(() => {
           setCurrentIdx(prev => {
             const next = (prev + 1) % itens.length;
-            if (next === 0 && playlist?.id) recarregarPlaylist(playlist.id);
+            if (next === 0 && playlist?.id) recarregarTudo(playlist?.id);
             return next;
           });
         }, tempo);
@@ -982,7 +1019,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
           // Ao voltar para o início, recarrega a playlist
           if (next === 0) {
             cicloRef.current += 1;
-            if (playlist?.id) recarregarPlaylist(playlist.id);
+            if (playlist?.id) recarregarTudo(playlist?.id);
           }
           return next;
         });
