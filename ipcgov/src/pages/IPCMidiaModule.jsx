@@ -1463,10 +1463,10 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                 )}
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
-                  <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:80, background:"#f0f4ff" }}>
+                  <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", aspectRatio:"8/9", background:"#f0f4ff", maxHeight:160 }}>
                     <img src={normDriveUrl(form.fotoUrl)} alt="preview"
-                      style={{ width:"100%", height:"100%", objectFit:"cover" }}
-                      onError={e => { e.target.style.display="none"; }}/>
+                      style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}
+                      onError={e => { e.target.parentElement.style.display="none"; }}/>
                   </div>
                 )}
               </div>
