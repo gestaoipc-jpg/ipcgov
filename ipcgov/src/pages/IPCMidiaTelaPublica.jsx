@@ -596,6 +596,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const [erro, setErro] = useState(null);
   const timerRef = useRef(null);
   const pingRef = useRef(null);
+  const cicloRef = useRef(0); // conta quantos ciclos completos já rodaram
 
   useEffect(() => {
     loadTela();
@@ -630,6 +631,15 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       setErro("Erro ao carregar tela: " + e.message);
     }
     setLoading(false);
+  };
+
+  // Recarrega playlist ao final de cada ciclo
+  const recarregarPlaylist = async (playlistId) => {
+    if (!playlistId) return;
+    try {
+      const plDoc = await getDoc(doc(db, "midia_playlists", playlistId));
+      if (plDoc.exists()) setPlaylist({ id: plDoc.id, ...plDoc.data() });
+    } catch(e) { console.warn("Erro ao recarregar playlist:", e); }
   };
 
   // Ping a cada 30s
@@ -703,7 +713,11 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     // Pula imediatamente se não tem conteúdo
     if (!itemTemConteudo(item)) {
       timerRef.current = setTimeout(() => {
-        setCurrentIdx(prev => (prev + 1) % itens.length);
+        setCurrentIdx(prev => {
+          const next = (prev + 1) % itens.length;
+          if (next === 0 && playlist?.id) recarregarPlaylist(playlist.id);
+          return next;
+        });
       }, 50);
       return () => clearTimeout(timerRef.current);
     }
@@ -714,13 +728,25 @@ export default function IPCMidiaTelaPublica({ telaId }) {
         setShowingCapa(false);
         const tempo = (item?.tempo || 10) * 1000;
         timerRef.current = setTimeout(() => {
-          setCurrentIdx(prev => (prev + 1) % itens.length);
+          setCurrentIdx(prev => {
+            const next = (prev + 1) % itens.length;
+            if (next === 0 && playlist?.id) recarregarPlaylist(playlist.id);
+            return next;
+          });
         }, tempo);
       }, 4000);
     } else {
       const tempo = (item?.tempo || 10) * 1000;
       timerRef.current = setTimeout(() => {
-        setCurrentIdx(prev => (prev + 1) % itens.length);
+        setCurrentIdx(prev => {
+          const next = (prev + 1) % itens.length;
+          // Ao voltar para o início, recarrega a playlist
+          if (next === 0) {
+            cicloRef.current += 1;
+            if (playlist?.id) recarregarPlaylist(playlist.id);
+          }
+          return next;
+        });
       }, tempo);
     }
     return () => clearTimeout(timerRef.current);
