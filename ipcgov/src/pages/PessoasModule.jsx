@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, query, where } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase/config";
 import emailjs from "@emailjs/browser";
 
@@ -22,7 +21,6 @@ const MODULOS = [
   { id:"almoxarifado", nome:"Almoxarifado", icon:"🗃️" },
   { id:"pessoas", nome:"IPC Pessoas", icon:"👥" },
 ];
-const SENHA_PADRAO = "Tce1234567890!@#";
 
 function initials(nome) { if(!nome)return"?"; return nome.split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase(); }
 function corAvatar(nome) { const cores=["#1B3F7A","#7c3aed","#059669","#E8730A","#0891b2","#dc2626"]; let h=0; for(let c of (nome||""))h+=c.charCodeAt(0); return cores[h%cores.length]; }
@@ -221,7 +219,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
       const corpo = (template?.corpo || "")
         .replace("{{nome}}", servidor.nome)
         .replace("{{email}}", servidor.email)
-        .replace("{{senha}}", "Tce1234567890!@#")
+        .replace("{{senha}}", "(senha padrão enviada pelo administrador)")
         .replace("{{modulos}}", modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado");
 
       const saudacao = (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome);
@@ -308,18 +306,27 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
 
       if (form.criarAcesso && form.email && !form.uid) {
         try {
-          const cred = await createUserWithEmailAndPassword(auth, form.email, SENHA_PADRAO);
-          uid = cred.user.uid;
-          await setDoc(doc(db, "usuarios", cred.user.uid), {
-            email: form.email, nome: form.nome, cargo: form.cargo||"", cargoId: form.cargoId||"",
-            setor: form.setor||"", setorId: form.setorId||"", perfil: form.isAdmin?"admin":"usuario",
-            modulos: form.isAdmin ? MODULOS.map(m=>m.id) : (form.modulosAcesso||[]),
-            ativo: true, servidorId: selected?.id||null,
-            criadoEm: new Date().toISOString()
+          const resp = await fetch("/api/criar-usuario", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: form.email,
+              nome: form.nome,
+              cargo: form.cargo || "",
+              setor: form.setor || "",
+              perfil: form.isAdmin ? "admin" : "usuario",
+              modulos: form.isAdmin ? MODULOS.map(m => m.id) : (form.modulosAcesso || []),
+              servidorId: selected?.id || null,
+            }),
           });
-          uid = cred.user.uid;
+          const dados = await resp.json();
+          if (!dados.sucesso) {
+            setErroLogin(dados.erro || "Erro ao criar acesso.");
+            setSalvando(false); return;
+          }
+          uid = dados.uid;
         } catch(e) {
-          setErroLogin(e.code==="auth/email-already-in-use"?"E-mail já cadastrado no sistema.":`Erro ao criar acesso: ${e.message}`);
+          setErroLogin(`Erro ao criar acesso: ${e.message}`);
           setSalvando(false); return;
         }
       }
@@ -812,7 +819,7 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                     </div>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14, color:"#1B3F7A" }}>🔑 Criar acesso ao sistema</div>
-                      <div style={{ fontSize:11, color:"#888" }}>Senha padrão: <strong>{SENHA_PADRAO}</strong></div>
+                      <div style={{ fontSize:11, color:"#888" }}>Senha padrão enviada pelo administrador. O usuário deverá trocá-la no primeiro acesso.</div>
                     </div>
                   </div>
                   {form.criarAcesso && (
