@@ -748,76 +748,72 @@ function RodapeBar({ tela, itens, currentIdx, online }) {
     return () => clearInterval(t);
   }, []);
 
+  const COR = "rgba(255,255,255,0.38)";
+  const SEP = <span style={{ color:"rgba(255,255,255,0.15)", fontSize:11, margin:"0 10px" }}>|</span>;
+
   return (
     <div style={{
       position:"absolute", bottom:0, left:0, right:0, zIndex:5, pointerEvents:"none",
-      background:"linear-gradient(transparent, rgba(0,0,0,0.72))",
-      padding:"40px 22px 14px",
-      display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16,
+      background:"linear-gradient(transparent, rgba(0,0,0,0.68))",
+      padding:"36px 22px 12px",
+      display:"flex", alignItems:"flex-end", justifyContent:"space-between",
     }}>
-      {/* Esquerda: status + nome da tela */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <div style={{ width:9, height:9, borderRadius:"50%", background:online?"#22c55e":"#ef4444",
-            boxShadow:online?"0 0 6px rgba(34,197,94,0.6)":"0 0 6px rgba(239,68,68,0.6)" }}/>
-          <span style={{ color:"rgba(255,255,255,0.4)", fontSize:10, letterSpacing:1 }}>
-            {online ? "Online" : "Offline"}
-          </span>
-        </div>
-        <div style={{ width:1, height:12, background:"rgba(255,255,255,0.1)" }}/>
-        <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, letterSpacing:2, textTransform:"uppercase" }}>
-          TCE-CE · IPC · {tela?.nome}
-        </span>
-        {!online && (
-          <span style={{ color:"rgba(239,68,68,0.7)", fontSize:10, fontStyle:"italic" }}>
-            · sem conexão com o servidor
-          </span>
-        )}
-      </div>
-
-      {/* Centro: indicadores de slide + clima */}
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-        {/* Dots */}
+      {/* Dots à esquerda */}
+      <div style={{ flexShrink:0 }}>
         {itens.length > 1 && (
-          <div style={{ display:"flex", gap:4 }}>
+          <div style={{ display:"flex", gap:4, marginBottom:6 }}>
             {itens.map((_,i) => (
-              <div key={i} style={{ width:i===currentIdx?20:6, height:4, borderRadius:2,
-                background:i===currentIdx?"#fff":"rgba(255,255,255,0.3)", transition:"width 0.3s" }}/>
+              <div key={i} style={{ width:i===currentIdx?16:5, height:3, borderRadius:2,
+                background:i===currentIdx?"rgba(255,255,255,0.6)":"rgba(255,255,255,0.2)", transition:"width 0.3s" }}/>
             ))}
           </div>
         )}
-        {/* Clima */}
-        {clima && (
-          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={{ fontSize:18 }}>{clima.iconAtual}</span>
-              <div>
-                <div style={{ color:"#fbbf24", fontSize:18, fontWeight:700, lineHeight:1 }}>{clima.tempAtual}°</div>
-                <div style={{ color:"rgba(255,255,255,0.35)", fontSize:9 }}>Fortaleza</div>
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:10 }}>
-              {clima.proximos.map((p,i) => (
-                <div key={i} style={{ textAlign:"center" }}>
-                  <div style={{ color:"rgba(255,255,255,0.4)", fontSize:9, marginBottom:2, textTransform:"capitalize" }}>{p.dia}</div>
-                  <span style={{ fontSize:13 }}>{p.icon}</span>
-                  <div style={{ color:"rgba(255,255,255,0.7)", fontSize:11, fontWeight:700, marginTop:1 }}>{p.temp}°</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Direita: relógio */}
-      <div style={{ textAlign:"right", flexShrink:0 }}>
-        <div style={{ color:"rgba(255,255,255,0.95)", fontWeight:700, fontSize:28, lineHeight:1 }}>
+      {/* Linha única central com todas as infos */}
+      <div style={{ display:"flex", alignItems:"center", fontSize:11, color:COR, flexWrap:"nowrap" }}>
+
+        {/* Status */}
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <div style={{ width:7, height:7, borderRadius:"50%", background:online?"#22c55e":"#ef4444",
+            boxShadow:online?"0 0 5px rgba(34,197,94,0.7)":"0 0 5px rgba(239,68,68,0.7)", flexShrink:0 }}/>
+          <span style={{ color:COR, letterSpacing:0.5 }}>{online?"Online":"Offline"}</span>
+        </div>
+
+        {SEP}
+
+        {/* Nome da tela */}
+        <span style={{ color:COR, letterSpacing:1, textTransform:"uppercase", fontSize:10 }}>
+          TCE-CE · IPC · {tela?.nome}
+        </span>
+
+        {/* Clima */}
+        {clima && (<>
+          {SEP}
+          <span style={{ color:COR }}>{clima.iconAtual} {clima.tempAtual}° Fortaleza</span>
+          {clima.proximos.map((p,i) => (
+            <span key={i} style={{ color:COR }}>
+              {SEP}
+              <span style={{ textTransform:"capitalize" }}>{p.dia}</span> {p.icon} {p.temp}°
+            </span>
+          ))}
+        </>)}
+
+        {SEP}
+
+        {/* Relógio + data */}
+        <span style={{ color:COR }}>
           {hora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })}
-        </div>
-        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, textTransform:"capitalize", marginTop:2 }}>
-          {hora.toLocaleDateString("pt-BR", { weekday:"long", day:"2-digit", month:"long" })}
-        </div>
+          <span style={{ color:"rgba(255,255,255,0.22)", margin:"0 6px" }}>·</span>
+          <span style={{ textTransform:"capitalize" }}>
+            {hora.toLocaleDateString("pt-BR", { weekday:"long", day:"2-digit", month:"long" })}
+          </span>
+        </span>
+
       </div>
+
+      {/* Espaço direito para balancear */}
+      <div style={{ flexShrink:0, width:40 }}/>
     </div>
   );
 }
