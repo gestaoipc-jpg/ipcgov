@@ -970,6 +970,63 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ nome:"", tipo:"evento_manual", dataInicio:"", dataFim:"", descricao:"", fotoUrl:"", local:"", horario:"", categoria:"" });
   const [salvando, setSalvando] = useState(false);
+  const [imagensApoio, setImagensApoio] = useState([]);
+  const [uploadandoApoio, setUploadandoApoio] = useState(false);
+  const [mostrarGaleria, setMostrarGaleria] = useState(false);
+
+  // Carrega imagens de apoio do Firestore
+  useEffect(() => {
+    getDoc(doc(db, "midia_config", "imagens_apoio"))
+      .then(snap => { if (snap.exists()) setImagensApoio(snap.data().lista || []); })
+      .catch(() => {});
+  }, []);
+
+  const salvarImagensApoio = async (lista) => {
+    await setDoc(doc(db, "midia_config", "imagens_apoio"), { lista });
+    setImagensApoio(lista);
+  };
+
+  const handleUploadApoio = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (imagensApoio.length >= 10) { alert("Máximo de 10 imagens de apoio."); return; }
+    setUploadandoApoio(true);
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const resposta = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nomeArquivo: file.name,
+          tipoArquivo: file.type,
+          tamanho: file.size,
+          modulo: "ipcmidiaindoor",
+          publico: true,
+          conteudoBase64: base64,
+        }),
+      });
+      const texto = await resposta.text();
+      const dados = JSON.parse(texto);
+      if (!dados.sucesso) throw new Error(dados.erro);
+      const novaLista = [...imagensApoio, { url: dados.linkDireto, fileId: dados.fileId, nome: file.name }];
+      await salvarImagensApoio(novaLista);
+    } catch(err) {
+      alert("Erro ao enviar: " + err.message);
+    }
+    setUploadandoApoio(false);
+    e.target.value = "";
+  };
+
+  const removerImagemApoio = async (idx) => {
+    if (!window.confirm("Remover esta imagem de apoio?")) return;
+    const novaLista = imagensApoio.filter((_,i) => i !== idx);
+    await salvarImagensApoio(novaLista);
+  };
 
   const hoje = new Date();
   const hojeStr = hoje.toISOString().split("T")[0];
@@ -1113,6 +1170,41 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
         </div>
       </div>
 
+      {/* IMAGENS DE APOIO */}
+      {isMidiaAdm && (
+        <div style={{ background:"#fff", borderRadius:18, padding:"18px 20px", boxShadow:"0 2px 12px rgba(0,0,0,0.06)", marginTop:16 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>🖼️ Imagens de apoio</div>
+              <div style={{ fontSize:11, color:"#888", marginTop:2 }}>Até 10 imagens disponíveis para usar nos eventos · {imagensApoio.length}/10</div>
+            </div>
+            {imagensApoio.length < 10 && (
+              <label style={{ background:"#1B3F7A", borderRadius:10, padding:"8px 16px", color:"#fff", fontSize:12, fontWeight:700, cursor:uploadandoApoio?"not-allowed":"pointer", opacity:uploadandoApoio?0.6:1, display:"inline-block" }}>
+                {uploadandoApoio ? "⏳ Enviando..." : "📤 Adicionar imagem"}
+                <input type="file" accept="image/*" style={{ display:"none" }} onChange={handleUploadApoio} disabled={uploadandoApoio}/>
+              </label>
+            )}
+          </div>
+          {imagensApoio.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"24px", color:"#aaa", fontSize:13, background:"#f8f9fb", borderRadius:12 }}>
+              Nenhuma imagem de apoio cadastrada. Adicione até 10 imagens para usar nos eventos.
+            </div>
+          ) : (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))", gap:10 }}>
+              {imagensApoio.map((img, i) => (
+                <div key={i} style={{ position:"relative", borderRadius:12, overflow:"hidden", aspectRatio:"16/9", background:"#f0f4ff" }}>
+                  <img src={normDriveUrl(img.url)} alt={img.nome}
+                    style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                    onError={e => { e.target.style.display="none"; }}/>
+                  <div onClick={() => removerImagemApoio(i)}
+                    style={{ position:"absolute", top:4, right:4, width:20, height:20, background:"rgba(220,38,38,0.85)", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:11, color:"#fff", fontWeight:700 }}>✕</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* MODAL EVENTO */}
       {modal==="evento" && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }} onClick={() => setModal(null)}>
@@ -1155,6 +1247,26 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                   label="Enviar foto do evento"
                   onUpload={(link, dados) => setForm(Object.assign({},form,{fotoUrl:link, driveFileId:dados.fileId}))}/>
                 <input value={form.fotoUrl||""} onChange={e => setForm(Object.assign({},form,{fotoUrl:e.target.value}))} placeholder="ou cole a URL aqui (Google Drive ou outra)" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", marginTop:8 }}/>
+                {imagensApoio.length > 0 && (
+                  <div style={{ marginTop:8 }}>
+                    <div onClick={() => setMostrarGaleria(g => !g)}
+                      style={{ fontSize:12, color:"#1B3F7A", fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6, padding:"4px 0" }}>
+                      🖼️ {mostrarGaleria ? "▲ Ocultar galeria" : "▼ Escolher das imagens de apoio"} ({imagensApoio.length})
+                    </div>
+                    {mostrarGaleria && (
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6, marginTop:6 }}>
+                        {imagensApoio.map((img, i) => (
+                          <div key={i} onClick={() => { setForm(Object.assign({},form,{fotoUrl:img.url})); setMostrarGaleria(false); }}
+                            style={{ borderRadius:8, overflow:"hidden", height:56, cursor:"pointer",
+                              border:form.fotoUrl===img.url?"2px solid #1B3F7A":"2px solid #e8edf2",
+                              outline:form.fotoUrl===img.url?"none":"none" }}>
+                            <img src={normDriveUrl(img.url)} alt={img.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
                   <div style={{ marginTop:8, borderRadius:10, overflow:"hidden", height:80, background:"#f0f4ff" }}>
