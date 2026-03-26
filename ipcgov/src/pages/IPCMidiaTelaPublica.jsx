@@ -122,8 +122,8 @@ function SlideAniversarioMes({ servidores }) {
       {/* Direita: grid de cards */}
       <div style={{ padding:"18px 20px", display:"grid",
         gridTemplateColumns:`repeat(${Math.min(doMes.length,3)},1fr)`,
-        gridTemplateRows: doMes.length > 3 ? "1fr 1fr" : "1fr",
-        gap:10, alignContent:"center" }}>
+        gridAutoRows:"minmax(0,auto)",
+        gap:10, alignContent:"center", alignItems:"start" }}>
         {doMes.slice(0,6).map(s => {
           const hoje_ = isHoje(s);
           const [,,dia] = s.dataAniversario.split("-");
