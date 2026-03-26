@@ -704,7 +704,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     if (!itemTemConteudo(item)) {
       timerRef.current = setTimeout(() => {
         setCurrentIdx(prev => (prev + 1) % itens.length);
-      }, 100);
+      }, 50);
       return () => clearTimeout(timerRef.current);
     }
 
@@ -725,6 +725,22 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     }
     return () => clearTimeout(timerRef.current);
   }, [currentIdx, itens.length]);
+
+  // Segurança extra: se o slide atual renderizar null, avança após 200ms
+  useEffect(() => {
+    if (itens.length === 0) return;
+    const item = itens[currentIdx] || itens[0];
+    if (!item) return;
+    // Tipos que podem retornar null
+    const podeSerNull = item.tipo === "aniversario" || item.id === "aniv_mes";
+    if (!podeSerNull) return;
+    if (!itemTemConteudo(item)) {
+      const t = setTimeout(() => {
+        setCurrentIdx(prev => (prev + 1) % itens.length);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [currentIdx]);
 
   if (loading) {
     return (
@@ -766,11 +782,13 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
     // Aniversariantes do mês
     if (item.id === "aniv_mes") {
-      return <SlideAniversarioMes servidores={servidores}/>;
+      const slide = <SlideAniversarioMes servidores={servidores}/>;
+      if (slide) return slide;
     }
     // Aniversariante do dia / fim de semana
     if (item.tipo === "aniversario") {
-      return <SlideAniversario servidores={servidores}/>;
+      const slide = <SlideAniversario servidores={servidores}/>;
+      if (slide) return slide;
     }
 
     // Eventos TCEduc — mostra capa 4s antes se configurada
