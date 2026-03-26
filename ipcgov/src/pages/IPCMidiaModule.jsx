@@ -190,6 +190,182 @@ export default function IPCMidiaModule({ user, userInfo, onBack }) {
 }
 
 
+
+// ═══════════════════════════════════════════════
+// EDITOR DE CROP — para foto do evento
+// Proporção 8:9 (metade esquerda do slide 16:9)
+// ═══════════════════════════════════════════════
+function CropEditorEvento({ urlOriginal, onConfirm, onCancelar }) {
+  const LARGURA = 280;
+  const ALTURA = Math.round(LARGURA * 9 / 8); // 315px
+  const [escala, setEscala] = useState(1);
+  const [pos, setPos] = useState({ x:0, y:0 });
+  const [arrastando, setArrastando] = useState(false);
+  const [startDrag, setStartDrag] = useState({ x:0, y:0 });
+  const [imgSize, setImgSize] = useState({ w:0, h:0 });
+  const [enviando, setEnviando] = useState(false);
+  const canvasRef = useRef(null);
+  const imgRef = useRef(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setImgSize({ w: img.width, h: img.height });
+      // Escala inicial para preencher o espaço
+      const escIni = Math.max(LARGURA / img.width, ALTURA / img.height);
+      setEscala(escIni);
+      setPos({ x:0, y:0 });
+    };
+    img.src = urlOriginal;
+  }, [urlOriginal]);
+
+  useEffect(() => {
+    desenhar();
+  }, [escala, pos, imgSize]);
+
+  const desenhar = () => {
+    const canvas = canvasRef.current;
+    const img = imgRef.current;
+    if (!canvas || !img || !img.complete || imgSize.w === 0) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, LARGURA, ALTURA);
+    const escW = imgSize.w * escala;
+    const escH = imgSize.h * escala;
+    const x = (LARGURA - escW) / 2 + pos.x;
+    const y = (ALTURA - escH) / 2 + pos.y;
+    ctx.drawImage(img, x, y, escW, escH);
+    // Overlay com grade
+    ctx.strokeStyle = "rgba(255,255,255,0.15)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(LARGURA/3, 0); ctx.lineTo(LARGURA/3, ALTURA);
+    ctx.moveTo(LARGURA*2/3, 0); ctx.lineTo(LARGURA*2/3, ALTURA);
+    ctx.moveTo(0, ALTURA/3); ctx.lineTo(LARGURA, ALTURA/3);
+    ctx.moveTo(0, ALTURA*2/3); ctx.lineTo(LARGURA, ALTURA*2/3);
+    ctx.stroke();
+    // Borda
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, LARGURA, ALTURA);
+  };
+
+  const onMouseDown = (e) => {
+    setArrastando(true);
+    setStartDrag({ x: e.clientX - pos.x, y: e.clientY - pos.y });
+  };
+  const onMouseMove = (e) => {
+    if (!arrastando) return;
+    setPos({ x: e.clientX - startDrag.x, y: e.clientY - startDrag.y });
+  };
+  const onMouseUp = () => setArrastando(false);
+
+  // Touch support
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    setArrastando(true);
+    setStartDrag({ x: t.clientX - pos.x, y: t.clientY - pos.y });
+  };
+  const onTouchMove = (e) => {
+    if (!arrastando) return;
+    const t = e.touches[0];
+    setPos({ x: t.clientX - startDrag.x, y: t.clientY - startDrag.y });
+  };
+
+  const confirmar = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Regerar em alta resolução (960x1080)
+    const hd = document.createElement("canvas");
+    hd.width = 960; hd.height = 1080;
+    const ctx = hd.getContext("2d");
+    const img = imgRef.current;
+    const fator = 960 / LARGURA;
+    const escW = imgSize.w * escala * fator;
+    const escH = imgSize.h * escala * fator;
+    const x = (960 - escW) / 2 + pos.x * fator;
+    const y = (1080 - escH) / 2 + pos.y * fator;
+    ctx.drawImage(img, x, y, escW, escH);
+
+    setEnviando(true);
+    hd.toBlob(async (blob) => {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const resposta = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nomeArquivo: "evento_crop_" + Date.now() + ".jpg",
+            tipoArquivo: "image/jpeg",
+            tamanho: blob.size,
+            modulo: "ipcmidiaindoor",
+            publico: true,
+            conteudoBase64: base64,
+          }),
+        });
+        const dados = JSON.parse(await resposta.text());
+        if (!dados.sucesso) throw new Error(dados.erro);
+        onConfirm(dados.linkDireto, dados.fileId);
+      } catch(err) {
+        alert("Erro ao salvar: " + err.message);
+      }
+      setEnviando(false);
+    }, "image/jpeg", 0.92);
+  };
+
+  return (
+    <div style={{ background:"#f8f9fb", borderRadius:16, padding:16, marginTop:8 }}>
+      <div style={{ fontWeight:700, fontSize:12, color:"#1B3F7A", marginBottom:8 }}>
+        ✂️ Ajustar recorte — arraste para reposicionar
+        <span style={{ fontWeight:400, color:"#888", fontSize:11 }}> · proporção do slide na TV</span>
+      </div>
+      <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+        {/* Canvas */}
+        <div style={{ flexShrink:0 }}>
+          <canvas ref={canvasRef} width={LARGURA} height={ALTURA}
+            style={{ display:"block", cursor:arrastando?"grabbing":"grab", borderRadius:8, border:"1px solid #e8edf2" }}
+            onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onMouseUp}/>
+          <img ref={imgRef} src={urlOriginal} crossOrigin="anonymous"
+            onLoad={desenhar} style={{ display:"none" }} alt=""/>
+        </div>
+        {/* Controles */}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", gap:12 }}>
+          <div>
+            <label style={{ fontSize:11, color:"#888", fontWeight:700, display:"block", marginBottom:4 }}>ZOOM</label>
+            <input type="range" min="0.3" max="4" step="0.05" value={escala}
+              onChange={e => setEscala(parseFloat(e.target.value))}
+              style={{ width:"100%" }}/>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#aaa", marginTop:2 }}>
+              <span>− afastar</span><span>+ aproximar</span>
+            </div>
+          </div>
+          <div style={{ background:"#e8f4ff", borderRadius:10, padding:"8px 10px", fontSize:10, color:"#1B3F7A", lineHeight:1.5 }}>
+            💡 Arraste a imagem para centralizar o conteúdo principal. Use o zoom para ajustar o tamanho.
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6, marginTop:"auto" }}>
+            <div onClick={confirmar}
+              style={{ background:enviando?"#ccc":"#1B3F7A", borderRadius:10, padding:"10px", textAlign:"center",
+                fontWeight:700, fontSize:12, color:"#fff", cursor:enviando?"not-allowed":"pointer" }}>
+              {enviando ? "⏳ Salvando..." : "✅ Confirmar recorte"}
+            </div>
+            <div onClick={onCancelar}
+              style={{ background:"#f0f4ff", borderRadius:10, padding:"8px", textAlign:"center",
+                fontWeight:700, fontSize:12, color:"#1B3F7A", cursor:"pointer" }}>
+              Cancelar
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════
 // COMPONENTE DE UPLOAD — reutilizável
 // ═══════════════════════════════════════════════
@@ -973,6 +1149,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
   const [imagensApoio, setImagensApoio] = useState([]);
   const [uploadandoApoio, setUploadandoApoio] = useState(false);
   const [mostrarGaleria, setMostrarGaleria] = useState(false);
+  const [cropUrl, setCropUrl] = useState(null);
 
   // Carrega imagens de apoio do Firestore
   useEffect(() => {
@@ -1245,7 +1422,7 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                   modulo="ipcmidiaindoor"
                   aceitar="image/*"
                   label="Enviar foto do evento"
-                  onUpload={(link, dados) => setForm(Object.assign({},form,{fotoUrl:link, driveFileId:dados.fileId}))}/>
+                  onUpload={(link) => { setCropUrl(link); setMostrarGaleria(false); }}/>
                 <input value={form.fotoUrl||""} onChange={e => setForm(Object.assign({},form,{fotoUrl:e.target.value}))} placeholder="ou cole a URL aqui (Google Drive ou outra)" style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 12px", fontSize:13, color:"#1B3F7A", outline:"none", marginTop:8 }}/>
                 {imagensApoio.length > 0 && (
                   <div style={{ marginTop:8 }}>
@@ -1256,16 +1433,24 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
                     {mostrarGaleria && (
                       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6, marginTop:6 }}>
                         {imagensApoio.map((img, i) => (
-                          <div key={i} onClick={() => { setForm(Object.assign({},form,{fotoUrl:img.url})); setMostrarGaleria(false); }}
+                          <div key={i} onClick={() => { setCropUrl(img.url); setMostrarGaleria(false); }}
                             style={{ borderRadius:8, overflow:"hidden", height:56, cursor:"pointer",
-                              border:form.fotoUrl===img.url?"2px solid #1B3F7A":"2px solid #e8edf2",
-                              outline:form.fotoUrl===img.url?"none":"none" }}>
+                              border:"2px solid #e8edf2" }}>
                             <img src={normDriveUrl(img.url)} alt={img.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
+                )}
+                {cropUrl && (
+                  <CropEditorEvento
+                    urlOriginal={cropUrl}
+                    onConfirm={(link, fileId) => {
+                      setForm(Object.assign({},form,{fotoUrl:link, driveFileId:fileId}));
+                      setCropUrl(null);
+                    }}
+                    onCancelar={() => setCropUrl(null)}/>
                 )}
                 <div style={{ fontSize:10, color:"#aaa", marginTop:4 }}>Se não informar, será exibida uma arte automática no slide</div>
                 {form.fotoUrl && (
