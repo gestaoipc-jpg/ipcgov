@@ -1108,7 +1108,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
   if (loading) {
     return (
-      <div style={{ width:"100vw", height:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ width:"100vw", height:"100vh", maxWidth:"100vw", maxHeight:"100vh", background:"#0f172a", overflow:"hidden", position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
         <div style={{ color:"rgba(255,255,255,0.4)", fontSize:18, fontWeight:700 }}>Carregando...</div>
       </div>
     );
@@ -1116,7 +1116,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
   if (erro) {
     return (
-      <div style={{ width:"100vw", height:"100vh", background:"#0f172a", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ width:"100vw", height:"100vh", maxWidth:"100vw", maxHeight:"100vh", background:"#0f172a", overflow:"hidden", position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
         <div style={{ textAlign:"center" }}>
           <div style={{ fontSize:48, marginBottom:16 }}>📺</div>
           <div style={{ color:"rgba(255,255,255,0.5)", fontSize:18 }}>{erro}</div>
@@ -1209,12 +1209,14 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   return (
     <div style={{
       width: "100vw", height: "100vh",
+      maxWidth: "100vw", maxHeight: "100vh",
       background: "#0f172a",
       overflow: "hidden",
-      position: "relative",
+      position: "fixed",
+      top: 0, left: 0, right: 0, bottom: 0,
       fontFamily: "'Montserrat',sans-serif",
     }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{overflow:hidden}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}html,body{overflow:hidden;width:100%;height:100%;max-width:100vw;max-height:100vh}`}</style>
 
       {/* SLIDE ATUAL */}
       <div style={{
