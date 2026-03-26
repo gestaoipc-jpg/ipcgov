@@ -12,7 +12,8 @@
     "jspdf-autotable": "^3.8.1",
     "qrcode": "^1.5.3",
     "@emailjs/browser": "^4.3.3",
-    "googleapis": "^144.0.0"
+    "googleapis": "^144.0.0",
+    "firebase-admin": "^12.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
