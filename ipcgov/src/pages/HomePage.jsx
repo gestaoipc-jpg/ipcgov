@@ -60,7 +60,7 @@ function BottomNav({ tab, setTab }) {
   );
 }
 
-export default function HomePage({ user, onOpenModule }) {
+export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas }) {
   const [userData, setUserData] = useState(null);
   const [tab, setTab] = useState("home");
   const [alertas, setAlertas] = useState([]);
@@ -323,6 +323,17 @@ export default function HomePage({ user, onOpenModule }) {
                   <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Criar, editar e gerenciar acessos</div>
                 </div>
                 <div style={{ marginLeft: "auto", fontSize: 24, color: "#ccc" }}>›</div>
+              </div>
+              <div onClick={onForcarTrocaSenhas}
+                style={{ background:"#fff", borderRadius:20, padding:"16px 24px",
+                  display:"flex", alignItems:"center", gap:16,
+                  boxShadow:"0 2px 12px rgba(27,63,122,0.08)",
+                  cursor:"pointer", border:"2px solid rgba(220,38,38,0.15)" }}>
+                <div style={{ width:52, height:52, borderRadius:16, background:"rgba(220,38,38,0.08)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🔐</div>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Forçar troca de senhas</div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Obriga todos os usuários a redefinir no próximo login</div>
+                </div>
               </div>
               <div onClick={() => onOpenModule("gestao_emails")} style={{
                 background: "#fff", borderRadius: 20, padding: "20px 24px",
