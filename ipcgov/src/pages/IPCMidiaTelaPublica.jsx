@@ -675,6 +675,52 @@ function SlideAgendaManual({ evento, fallbackIdx }) {
   );
 }
 
+function useClima() {
+  const [clima, setClima] = useState(null);
+  useEffect(() => {
+    // Open-Meteo API — Fortaleza (gratuita, sem chave)
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=-3.7319&longitude=-38.5267&current=temperature_2m,weathercode&daily=temperature_2m_max,weathercode&timezone=America%2FFortaleza&forecast_days=4";
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        const wmoIcon = (code) => {
+          if (code === 0) return "☀️";
+          if (code <= 3) return "⛅";
+          if (code <= 48) return "☁️";
+          if (code <= 67) return "🌧️";
+          if (code <= 77) return "❄️";
+          if (code <= 82) return "🌦️";
+          return "⛈️";
+        };
+        setClima({
+          tempAtual: Math.round(d.current.temperature_2m),
+          iconAtual: wmoIcon(d.current.weathercode),
+          proximos: d.daily.time.slice(1,4).map((dt, i) => ({
+            dia: new Date(dt+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".",""),
+            temp: Math.round(d.daily.temperature_2m_max[i+1]),
+            icon: wmoIcon(d.daily.weathercode[i+1]),
+          })),
+        });
+      })
+      .catch(() => {});
+    const t = setInterval(() => {
+      fetch(url).then(r=>r.json()).then(d => {
+        const wmoIcon = (code) => {
+          if (code === 0) return "☀️";
+          if (code <= 3) return "⛅";
+          if (code <= 48) return "☁️";
+          if (code <= 67) return "🌧️";
+          if (code <= 82) return "🌦️";
+          return "⛈️";
+        };
+        setClima(prev => prev ? { ...prev, tempAtual: Math.round(d.current.temperature_2m), iconAtual: wmoIcon(d.current.weathercode) } : prev);
+      }).catch(()=>{});
+    }, 15 * 60 * 1000); // atualiza a cada 15min
+    return () => clearInterval(t);
+  }, []);
+  return clima;
+}
+
 function Relogio() {
   const [hora, setHora] = useState(new Date());
   useEffect(() => {
@@ -682,12 +728,95 @@ function Relogio() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div style={{ position:"absolute", bottom:20, right:24, textAlign:"right", zIndex:10 }}>
-      <div style={{ color:"rgba(255,255,255,0.9)", fontWeight:900, fontSize:28, lineHeight:1, textShadow:"0 2px 8px rgba(0,0,0,0.5)" }}>
+    <div style={{ textAlign:"right", flexShrink:0 }}>
+      <div style={{ color:"rgba(255,255,255,0.95)", fontWeight:700, fontSize:28, lineHeight:1 }}>
         {hora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })}
       </div>
-      <div style={{ color:"rgba(255,255,255,0.6)", fontSize:12, textTransform:"capitalize", textShadow:"0 1px 4px rgba(0,0,0,0.5)" }}>
+      <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, textTransform:"capitalize", marginTop:2 }}>
         {hora.toLocaleDateString("pt-BR", { weekday:"long", day:"2-digit", month:"long" })}
+      </div>
+    </div>
+  );
+}
+
+
+function RodapeBar({ tela, itens, currentIdx, online }) {
+  const clima = useClima();
+  const [hora, setHora] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setHora(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div style={{
+      position:"absolute", bottom:0, left:0, right:0, zIndex:5, pointerEvents:"none",
+      background:"linear-gradient(transparent, rgba(0,0,0,0.72))",
+      padding:"40px 22px 14px",
+      display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16,
+    }}>
+      {/* Esquerda: status + nome da tela */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <div style={{ width:9, height:9, borderRadius:"50%", background:online?"#22c55e":"#ef4444",
+            boxShadow:online?"0 0 6px rgba(34,197,94,0.6)":"0 0 6px rgba(239,68,68,0.6)" }}/>
+          <span style={{ color:"rgba(255,255,255,0.4)", fontSize:10, letterSpacing:1 }}>
+            {online ? "Online" : "Offline"}
+          </span>
+        </div>
+        <div style={{ width:1, height:12, background:"rgba(255,255,255,0.1)" }}/>
+        <span style={{ color:"rgba(255,255,255,0.3)", fontSize:10, letterSpacing:2, textTransform:"uppercase" }}>
+          TCE-CE · IPC · {tela?.nome}
+        </span>
+        {!online && (
+          <span style={{ color:"rgba(239,68,68,0.7)", fontSize:10, fontStyle:"italic" }}>
+            · sem conexão com o servidor
+          </span>
+        )}
+      </div>
+
+      {/* Centro: indicadores de slide + clima */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
+        {/* Dots */}
+        {itens.length > 1 && (
+          <div style={{ display:"flex", gap:4 }}>
+            {itens.map((_,i) => (
+              <div key={i} style={{ width:i===currentIdx?20:6, height:4, borderRadius:2,
+                background:i===currentIdx?"#fff":"rgba(255,255,255,0.3)", transition:"width 0.3s" }}/>
+            ))}
+          </div>
+        )}
+        {/* Clima */}
+        {clima && (
+          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontSize:18 }}>{clima.iconAtual}</span>
+              <div>
+                <div style={{ color:"#fbbf24", fontSize:18, fontWeight:700, lineHeight:1 }}>{clima.tempAtual}°</div>
+                <div style={{ color:"rgba(255,255,255,0.35)", fontSize:9 }}>Fortaleza</div>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              {clima.proximos.map((p,i) => (
+                <div key={i} style={{ textAlign:"center" }}>
+                  <div style={{ color:"rgba(255,255,255,0.4)", fontSize:9, marginBottom:2, textTransform:"capitalize" }}>{p.dia}</div>
+                  <span style={{ fontSize:13 }}>{p.icon}</span>
+                  <div style={{ color:"rgba(255,255,255,0.7)", fontSize:11, fontWeight:700, marginTop:1 }}>{p.temp}°</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Direita: relógio */}
+      <div style={{ textAlign:"right", flexShrink:0 }}>
+        <div style={{ color:"rgba(255,255,255,0.95)", fontWeight:700, fontSize:28, lineHeight:1 }}>
+          {hora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" })}
+        </div>
+        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, textTransform:"capitalize", marginTop:2 }}>
+          {hora.toLocaleDateString("pt-BR", { weekday:"long", day:"2-digit", month:"long" })}
+        </div>
       </div>
     </div>
   );
@@ -703,6 +832,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   const [viagens, setViagens] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showingCapa, setShowingCapa] = useState(false);
+  const [online, setOnline] = useState(true);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const timerRef = useRef(null);
@@ -756,7 +886,9 @@ export default function IPCMidiaTelaPublica({ telaId }) {
   // Ping a cada 30s
   useEffect(() => {
     if (!telaId) return;
-    const doPing = () => updateDoc(doc(db,"midia_telas",telaId), { ultimoPing: new Date().toISOString() }).catch(()=>{});
+    const doPing = () => updateDoc(doc(db,"midia_telas",telaId), { ultimoPing: new Date().toISOString() })
+      .then(() => setOnline(true))
+      .catch(() => setOnline(false));
     doPing();
     pingRef.current = setInterval(doPing, 30000);
     return () => clearInterval(pingRef.current);
@@ -985,33 +1117,8 @@ export default function IPCMidiaTelaPublica({ telaId }) {
         {renderSlide()}
       </div>
 
-      {/* Barra inferior com logo + nome tela */}
-      <div style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: "linear-gradient(transparent, rgba(0,0,0,0.7))",
-        padding: "40px 24px 16px",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        zIndex: 5,
-        pointerEvents: "none",
-      }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11, fontWeight:700, letterSpacing:2, textTransform:"uppercase" }}>
-          TCE-CE · IPC · {tela?.nome}
-        </div>
-        {itens.length > 1 && (
-          <div style={{ display:"flex", gap:4 }}>
-            {itens.map((_,i) => (
-              <div key={i} style={{ width: i===currentIdx?20:6, height:4, borderRadius:2, background: i===currentIdx?"#fff":"rgba(255,255,255,0.3)", transition:"width 0.3s" }}/>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Relogio/>
+      {/* Barra inferior completa */}
+      <RodapeBar tela={tela} itens={itens} currentIdx={currentIdx} online={online}/>
     </div>
   );
 }
