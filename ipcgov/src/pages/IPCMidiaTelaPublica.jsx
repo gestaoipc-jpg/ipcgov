@@ -35,7 +35,7 @@ function SlideImagem({ url }) {
     );
   }
   return (
-    <img src={url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+    <img src={url} alt="" style={{ position:"absolute", top:0, left:0, width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
   );
 }
 
@@ -1211,17 +1211,19 @@ export default function IPCMidiaTelaPublica({ telaId }) {
       background: "#0f172a",
       overflow: "hidden",
       position: "fixed",
-      top: 0, left: 0, right: 0, bottom: 0,
+      top: 0, left: 0,
+      width: "100vw",
+      height: "100vh",
       fontFamily: "'Montserrat',sans-serif",
     }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}html,body{overflow:hidden;margin:0;padding:0}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0}html,body{overflow:hidden;margin:0;padding:0;width:100vw;height:100vh}`}</style>
 
       {/* SLIDE ATUAL */}
       <div style={{
-        width: "100%",
-        height: "100%",
         position: "absolute",
-        inset: 0,
+        top: 0, left: 0,
+        width: "100vw",
+        height: "100vh",
       }}>
         {renderSlide()}
       </div>
