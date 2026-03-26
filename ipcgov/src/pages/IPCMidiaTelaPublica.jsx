@@ -84,46 +84,72 @@ function SlideAniversarioMes({ servidores }) {
 
   if (doMes.length === 0) return <div style={{ width:"100%", height:"100%", background:"#0f172a" }}/>;
 
+  const isHoje = (s) => {
+    const [,,d] = s.dataAniversario.split("-");
+    return parseInt(d) === hoje.getDate();
+  };
+
   return (
-    <div style={{ width:"100%", height:"100%", background:"#1B3F7A", display:"grid", gridTemplateColumns:"1fr 1.5fr",
-      fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
-      {/* Arte esquerda */}
-      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", alignItems:"center",
-        justifyContent:"center", padding:"32px 28px", gap:16, position:"relative", overflow:"hidden" }}>
-        <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.07 }} viewBox="0 0 300 450">
-          <circle cx="150" cy="225" r="200" fill="none" stroke="#E8730A" strokeWidth="1"/>
-          <circle cx="150" cy="225" r="140" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
-          <circle cx="150" cy="225" r="80" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
-        </svg>
-        <div style={{ fontSize:72, position:"relative", zIndex:1 }}>🎂</div>
-        <div style={{ position:"relative", zIndex:1, textAlign:"center" }}>
-          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>IPC · TCE-CE</div>
-          <div style={{ color:"#fff", fontWeight:900, fontSize:30, lineHeight:1.1 }}>Aniversariantes</div>
-          <div style={{ color:"#E8730A", fontWeight:900, fontSize:30, lineHeight:1.1 }}>de {MESES[mesAtual]}</div>
+    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"1fr 2fr",
+      fontFamily:"'Montserrat',sans-serif", overflow:"hidden", position:"relative" }}>
+
+      {/* Decoração fundo */}
+      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0.07, pointerEvents:"none" }} viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice">
+        <circle cx="200" cy="225" r="300" fill="none" stroke="#E8730A" strokeWidth="1"/>
+        <circle cx="200" cy="225" r="200" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
+        <circle cx="200" cy="225" r="100" fill="none" stroke="#E8730A" strokeWidth="0.5"/>
+        <circle cx="650" cy="80" r="8" fill="#E8730A"/>
+        <circle cx="720" cy="380" r="5" fill="#E8730A"/>
+        <circle cx="560" cy="40" r="4" fill="#E8730A"/>
+        <rect x="580" y="300" width="8" height="8" rx="2" fill="#E8730A" transform="rotate(25 584 304)"/>
+        <rect x="480" y="400" width="6" height="6" rx="1" fill="#E8730A" transform="rotate(-15 483 403)"/>
+      </svg>
+
+      {/* Esquerda */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+        gap:14, padding:"28px 24px", position:"relative", borderRight:"1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ fontSize:56, lineHeight:1, filter:"drop-shadow(0 4px 12px rgba(232,115,10,0.4))" }}>🎂</div>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:10, letterSpacing:3, textTransform:"uppercase", marginBottom:6 }}>Parabéns a todos de</div>
+          <div style={{ color:"#E8730A", fontSize:40, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{MESES[mesAtual]}</div>
+          <div style={{ color:"rgba(255,255,255,0.3)", fontSize:13, marginTop:4 }}>{hoje.getFullYear()}</div>
         </div>
-        <div style={{ position:"relative", zIndex:1, background:"rgba(232,115,10,0.2)", border:"1px solid rgba(232,115,10,0.4)",
-          borderRadius:20, padding:"4px 18px" }}>
-          <span style={{ color:"#E8730A", fontSize:13, fontWeight:700, letterSpacing:1 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
+        <div style={{ background:"rgba(232,115,10,0.15)", border:"1px solid rgba(232,115,10,0.3)", borderRadius:20, padding:"4px 16px" }}>
+          <span style={{ color:"#E8730A", fontSize:12, fontWeight:700 }}>{doMes.length} aniversariante{doMes.length>1?"s":""}</span>
         </div>
       </div>
-      {/* Lista direita */}
-      <div style={{ padding:"24px 28px", display:"flex", flexDirection:"column", gap:8, overflowY:"hidden" }}>
-        <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:4 }}>Este mês celebramos</div>
-        {doMes.slice(0,7).map(s => {
+
+      {/* Direita: grid de cards */}
+      <div style={{ padding:"18px 20px", display:"grid",
+        gridTemplateColumns:`repeat(${Math.min(doMes.length,3)},1fr)`,
+        gridTemplateRows: doMes.length > 3 ? "1fr 1fr" : "1fr",
+        gap:10, alignContent:"center" }}>
+        {doMes.slice(0,6).map(s => {
+          const hoje_ = isHoje(s);
           const [,,dia] = s.dataAniversario.split("-");
-          const isHoje = parseInt(dia) === hoje.getDate();
+          const foto = s.foto && s.foto.startsWith("http") ? s.foto : null;
           return (
-            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:12, background:isHoje?"rgba(232,115,10,0.2)":"rgba(255,255,255,0.06)",
-              borderRadius:12, padding:"10px 14px", border:isHoje?"1px solid rgba(232,115,10,0.4)":"none" }}>
-              <FotoCircular servidor={s} tamanho={40}/>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ color:"#fff", fontWeight:700, fontSize:15, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {nomeExibir(s)}
-                </div>
-                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:11 }}>{s.cargo||s.setor||""}</div>
+            <div key={s.id} style={{
+              background: hoje_ ? "linear-gradient(135deg,rgba(232,115,10,0.25),rgba(232,115,10,0.1))" : "rgba(255,255,255,0.05)",
+              borderRadius:14, padding:"12px 12px", border: hoje_ ? "1px solid rgba(232,115,10,0.4)" : "1px solid rgba(255,255,255,0.06)",
+              position:"relative", overflow:"hidden" }}>
+              {hoje_ && (
+                <div style={{ position:"absolute", top:-1, right:8, background:"#E8730A", borderRadius:"0 0 8px 8px",
+                  padding:"2px 8px", fontSize:9, color:"#fff", fontWeight:700, letterSpacing:1 }}>HOJE 🎉</div>
+              )}
+              <div style={{ width:48, height:48, borderRadius:"50%", overflow:"hidden", marginBottom:8, flexShrink:0,
+                border: hoje_ ? "2px solid #E8730A" : "2px solid rgba(255,255,255,0.1)",
+                background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {foto
+                  ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                  : <span style={{ color:"#fff", fontSize:16, fontWeight:700 }}>{initials(s.nome)}</span>}
               </div>
-              <div style={{ background:isHoje?"rgba(232,115,10,0.3)":"rgba(255,255,255,0.1)", borderRadius:10, padding:"4px 12px", flexShrink:0 }}>
-                <span style={{ color:isHoje?"#E8730A":"rgba(255,255,255,0.6)", fontWeight:700, fontSize:13 }}>dia {parseInt(dia)}</span>
+              <div style={{ color: hoje_ ? "#FAC775" : "rgba(255,255,255,0.85)", fontSize:13, fontWeight:700,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {nomeExibir(s)}
+              </div>
+              <div style={{ color: hoje_ ? "rgba(250,199,117,0.6)" : "rgba(255,255,255,0.3)", fontSize:10, marginTop:2 }}>
+                dia {parseInt(dia)}
               </div>
             </div>
           );
@@ -133,84 +159,134 @@ function SlideAniversarioMes({ servidores }) {
   );
 }
 
-// Slide 2: Aniversariante do Dia / Fim de Semana
 function SlideAniversario({ servidores }) {
   const hoje = new Date();
-  const diaSemana = hoje.getDay(); // 0=dom, 6=sab
+  const diaSemana = hoje.getDay();
 
-  // Verifica aniversariantes hoje
   const anivHoje = servidores.filter(s => {
     if (!s.dataAniversario) return false;
     const [,m,d] = s.dataAniversario.split("-");
     return parseInt(m)-1 === hoje.getMonth() && parseInt(d) === hoje.getDate();
   });
 
-  // Verifica próximo dia útil se hoje é sexta (5)
   const anivFimDeSemana = diaSemana === 5 ? servidores.filter(s => {
     if (!s.dataAniversario) return false;
     const [,m,d] = s.dataAniversario.split("-");
-    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
-    const domingo = new Date(hoje); domingo.setDate(hoje.getDate()+2);
-    const isSab = parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
-    const isDom = parseInt(m)-1===domingo.getMonth() && parseInt(d)===domingo.getDate();
-    return isSab || isDom;
+    const sab = new Date(hoje); sab.setDate(hoje.getDate()+1);
+    const dom = new Date(hoje); dom.setDate(hoje.getDate()+2);
+    return (parseInt(m)-1===sab.getMonth()&&parseInt(d)===sab.getDate()) ||
+           (parseInt(m)-1===dom.getMonth()&&parseInt(d)===dom.getDate());
   }) : [];
 
   const lista = anivHoje.length > 0 ? anivHoje : anivFimDeSemana;
   if (lista.length === 0) return <div style={{ width:"100%", height:"100%", background:"#0f172a" }}/>;
 
-  const isFimDeSemana = anivHoje.length === 0 && anivFimDeSemana.length > 0;
-  const isSabado = isFimDeSemana && (() => {
-    const sabado = new Date(hoje); sabado.setDate(hoje.getDate()+1);
+  const isFDS = anivHoje.length === 0;
+  const isSab = isFDS && (() => {
+    const sab = new Date(hoje); sab.setDate(hoje.getDate()+1);
     const [,m,d] = lista[0].dataAniversario.split("-");
-    return parseInt(m)-1===sabado.getMonth() && parseInt(d)===sabado.getDate();
+    return parseInt(m)-1===sab.getMonth() && parseInt(d)===sab.getDate();
   })();
 
-  const bgGrad = isFimDeSemana
-    ? "linear-gradient(135deg,#1B3F7A 0%,#7c3aed 100%)"
-    : "linear-gradient(135deg,#042C53 0%,#1B3F7A 60%,#0891b2 100%)";
+  const tagTexto = isFDS ? `🗓️ ${isSab?"Sábado":"Domingo"} é dia de comemorar!` : "🎉 Hoje é dia de comemorar!";
+  const msgTexto = isFDS ? "Antecipamos os parabéns! 🎂" : "Que este novo ciclo seja repleto de conquistas, saúde e alegria!";
 
-  const tagTexto = isFimDeSemana
-    ? `🗓️ ${isSabado?"Sábado":"Domingo"} é o aniversário de`
-    : "🎉 Hoje é o aniversário de";
+  // Se múltiplos aniversariantes — layout em lista
+  if (lista.length > 1) {
+    return (
+      <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center", gap:24, padding:"40px 60px",
+        fontFamily:"'Montserrat',sans-serif", position:"relative", overflow:"hidden" }}>
+        <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none", opacity:0.5 }} viewBox="0 0 800 450">
+          <circle cx="60" cy="40" r="6" fill="#E8730A"/><circle cx="740" cy="60" r="5" fill="#fbbf24"/>
+          <circle cx="100" cy="410" r="4" fill="#E8730A"/><circle cx="700" cy="390" r="6" fill="#fbbf24"/>
+          <circle cx="400" cy="20" r="5" fill="#E8730A"/>
+          <rect x="730" y="200" width="9" height="9" rx="2" fill="#E8730A" transform="rotate(20 734 204)"/>
+          <rect x="65" y="260" width="7" height="7" rx="2" fill="#fbbf24" transform="rotate(-15 68 263)"/>
+        </svg>
+        <div style={{ color:"rgba(255,255,255,0.45)", fontSize:14, letterSpacing:3, textTransform:"uppercase" }}>{tagTexto}</div>
+        <div style={{ display:"flex", gap:32, justifyContent:"center", flexWrap:"wrap", zIndex:1 }}>
+          {lista.map(s => {
+            const foto = s.foto && s.foto.startsWith("http") ? s.foto : null;
+            return (
+              <div key={s.id} style={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+                <div style={{ width:100, height:100, borderRadius:"50%", overflow:"hidden", border:"3px solid #E8730A",
+                  background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow:"0 0 24px rgba(232,115,10,0.35)" }}>
+                  {foto ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                    : <span style={{ color:"#fff", fontWeight:900, fontSize:32 }}>{initials(s.nome)}</span>}
+                </div>
+                <div style={{ color:"#E8730A", fontWeight:900, fontSize:24, lineHeight:1 }}>{nomeExibir(s)}</div>
+                <div style={{ color:"rgba(255,255,255,0.4)", fontSize:13 }}>{s.cargo||s.setor||""}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ color:"#FAC775", fontSize:18, fontWeight:700, zIndex:1 }}>{isFDS?"Antecipamos os parabéns! 🎂":"Toda a equipe IPC deseja um dia incrível! 🎉"}</div>
+      </div>
+    );
+  }
 
-  const msgTexto = isFimDeSemana
-    ? "Antecipamos os parabéns! 🎂"
-    : `Parabéns${lista.length===1?" "+nomeExibir(lista[0]):""}! Que seu dia seja incrível ✨`;
+  // Um único aniversariante — layout 50/50
+  const s = lista[0];
+  const foto = s.foto && s.foto.startsWith("http") ? s.foto : null;
 
   return (
-    <div style={{ width:"100%", height:"100%", background:bgGrad, display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center", gap:20, fontFamily:"'Montserrat',sans-serif",
-      position:"relative", overflow:"hidden" }}>
-      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }} viewBox="0 0 800 450">
-        <circle cx="80" cy="60" r="8" fill="#E8730A" opacity="0.5"/>
-        <circle cx="720" cy="80" r="6" fill="#fbbf24" opacity="0.4"/>
-        <circle cx="150" cy="380" r="5" fill="#E8730A" opacity="0.3"/>
-        <circle cx="650" cy="360" r="7" fill="#fbbf24" opacity="0.4"/>
-        <circle cx="400" cy="30" r="4" fill="#E8730A" opacity="0.5"/>
-        <rect x="700" y="200" width="8" height="8" rx="2" fill="#E8730A" opacity="0.3" transform="rotate(20 700 200)"/>
-        <rect x="100" y="200" width="6" height="6" rx="1" fill="#fbbf24" opacity="0.3" transform="rotate(-15 100 200)"/>
+    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"1fr 1fr",
+      fontFamily:"'Montserrat',sans-serif", overflow:"hidden", position:"relative" }}>
+      {/* Confetes SVG */}
+      <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none", opacity:0.7 }} viewBox="0 0 800 450">
+        <circle cx="60" cy="40" r="7" fill="#E8730A"/><circle cx="740" cy="60" r="6" fill="#fbbf24"/>
+        <circle cx="100" cy="410" r="5" fill="#E8730A"/><circle cx="700" cy="390" r="7" fill="#fbbf24"/>
+        <circle cx="400" cy="18" r="5" fill="#E8730A"/><circle cx="200" cy="80" r="4" fill="#fbbf24"/>
+        <circle cx="600" cy="420" r="4" fill="#E8730A"/>
+        <rect x="730" y="190" width="10" height="10" rx="2" fill="#E8730A" transform="rotate(20 735 195)"/>
+        <rect x="65" y="265" width="8" height="8" rx="2" fill="#fbbf24" transform="rotate(-15 69 269)"/>
+        <rect x="500" y="28" width="7" height="7" rx="1" fill="#fbbf24" transform="rotate(30 503 31)"/>
+        <line x1="760" y1="130" x2="770" y2="158" stroke="#fbbf24" strokeWidth="2" opacity="0.6" strokeLinecap="round"/>
+        <line x1="38" y1="318" x2="48" y2="346" stroke="#E8730A" strokeWidth="2" opacity="0.6" strokeLinecap="round"/>
       </svg>
-      <div style={{ background:"rgba(255,255,255,0.15)", borderRadius:24, padding:"6px 24px", zIndex:1 }}>
-        <span style={{ color:"#fff", fontSize:16, fontWeight:700, letterSpacing:1 }}>{tagTexto}</span>
+
+      {/* Esquerda: foto */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+        gap:16, padding:32, position:"relative" }}>
+        <div style={{ position:"absolute", width:220, height:220, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.15)" }}/>
+        <div style={{ position:"absolute", width:280, height:280, borderRadius:"50%", border:"1px solid rgba(232,115,10,0.08)" }}/>
+        <div style={{ width:150, height:150, borderRadius:"50%", overflow:"hidden", border:"4px solid #E8730A",
+          background:foto?"transparent":corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:"0 0 40px rgba(232,115,10,0.35)", position:"relative", zIndex:1 }}>
+          {foto ? <img src={foto} alt={s.nome} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            : <span style={{ color:"#fff", fontWeight:900, fontSize:52 }}>{initials(s.nome)}</span>}
+        </div>
+        <div style={{ textAlign:"center", position:"relative", zIndex:1 }}>
+          <div style={{ color:"#fff", fontSize:30, fontWeight:900, lineHeight:1, letterSpacing:-1 }}>{nomeExibir(s)}</div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:14, marginTop:5 }}>{s.cargo||s.setor||""}</div>
+        </div>
       </div>
-      <div style={{ display:"flex", gap:32, justifyContent:"center", flexWrap:"wrap", zIndex:1 }}>
-        {lista.map(s => (
-          <div key={s.id} style={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:12 }}>
-            <FotoCircular servidor={s} tamanho={lista.length===1?140:100}/>
-            <div>
-              <div style={{ color:"#fff", fontWeight:900, fontSize:lista.length===1?52:36, lineHeight:1, letterSpacing:-1 }}>
-                {nomeExibir(s)}
-              </div>
-              <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, marginTop:4 }}>{s.cargo||s.setor||""}</div>
-            </div>
+
+      {/* Direita: mensagem */}
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center",
+        padding:"40px 44px 40px 28px", gap:20, borderLeft:"1px solid rgba(255,255,255,0.06)", position:"relative", zIndex:1 }}>
+        <div>
+          <div style={{ color:"rgba(255,255,255,0.4)", fontSize:12, letterSpacing:3, textTransform:"uppercase", marginBottom:10 }}>{tagTexto}</div>
+          <div style={{ color:"#E8730A", fontSize:52, fontWeight:900, lineHeight:1, letterSpacing:-2 }}>
+            Parabéns,<br/>{nomeExibir(s)}!
           </div>
-        ))}
+        </div>
+        <div style={{ width:40, height:3, background:"#E8730A", borderRadius:2 }}/>
+        <div style={{ color:"rgba(255,255,255,0.5)", fontSize:16, lineHeight:1.6, fontStyle:"italic" }}>
+          "{msgTexto}"
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(232,115,10,0.12)",
+          border:"1px solid rgba(232,115,10,0.25)", borderRadius:14, padding:"10px 18px" }}>
+          <span style={{ fontSize:20 }}>🎂</span>
+          <span style={{ color:"#FAC775", fontSize:13, fontWeight:700 }}>Toda a equipe IPC deseja um dia incrível!</span>
+        </div>
       </div>
-      <div style={{ color:"#E8730A", fontSize:22, fontWeight:700, zIndex:1 }}>{msgTexto}</div>
     </div>
   );
 }
+
 
 function SlideEventos({ eventosTC, viagens }) {
   const hoje = new Date();
