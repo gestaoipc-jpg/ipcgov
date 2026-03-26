@@ -285,6 +285,25 @@ export default function App() {
     />
   );
 
+  // Função para forçar troca de senha em todos os usuários
+  const forcarTrocaSenhasTodos = async (excluirAdmins = true) => {
+    const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
+    if (!window.confirm("Isso vai forçar a troca de senha no próximo login de todos os usuários" + (excluirAdmins ? " (exceto administradores)" : "") + ". Confirma?")) return;
+    try {
+      const snap = await getDocs(collection(db, "usuarios"));
+      let count = 0;
+      for (const d of snap.docs) {
+        const dados = d.data();
+        if (excluirAdmins && ADMINS.includes(dados.email)) continue;
+        await updateDoc(doc(db, "usuarios", d.id), { senhaAtualizada: false });
+        count++;
+      }
+      alert(`✅ ${count} usuário(s) marcado(s) para troca de senha no próximo login.`);
+    } catch(e) {
+      alert("Erro: " + e.message);
+    }
+  };
+
   if (currentModule === "tceduc") return <TCEducModule user={user} onBack={() => setCurrentModule(null)} onCadastros={() => setCurrentModule("cadastros")} onAlertas={() => setCurrentModule("alertas")} onDashboard={() => setCurrentModule("dashboard")} onOcorrencias={() => setCurrentModule("tceduc_ocorrencias")} onPlanos={() => setCurrentModule("tceduc_planos")} onRelatorio={(id) => { setRelatorioEventoId(id||null); setCurrentModule("relatorio"); }} onSeed={() => setCurrentModule("tceduc_2026_seed")} />;
   if (currentModule === "tceduc_ocorrencias") return <OcorrenciasPage user={user} onBack={() => setCurrentModule("tceduc")} />;
   if (currentModule === "tceduc_planos") return <PlanoAcaoPage user={user} onBack={() => setCurrentModule("tceduc")} />;
@@ -334,5 +353,5 @@ export default function App() {
   if (currentModule === "gestao_emails") return <GestaoEmailsPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "calendario") return <CalendarioPage onBack={() => setCurrentModule(null)} user={user} />;
 
-  return <HomePage user={user} onOpenModule={setCurrentModule} />;
+  return <HomePage user={user} onOpenModule={setCurrentModule} onForcarTrocaSenhas={() => forcarTrocaSenhasTodos(true)} />;
 }
