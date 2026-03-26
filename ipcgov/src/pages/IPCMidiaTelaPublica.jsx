@@ -215,158 +215,135 @@ function SlideAniversario({ servidores }) {
 function SlideEventos({ eventosTC, viagens }) {
   const hoje = new Date();
   hoje.setHours(0,0,0,0);
+  const MESES_EXT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const DIAS_SEMANA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
-  const DIAS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  const MESES_NOME = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  const MESES_CURTO = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  const menos30 = new Date(hoje); menos30.setDate(hoje.getDate() - 30);
+  const mais30 = new Date(hoje); mais30.setDate(hoje.getDate() + 30);
 
-  // Monta lista unificada de eventos do mês atual e próximos 45 dias
-  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  const fimJanela = new Date(hoje); fimJanela.setDate(hoje.getDate() + 45);
+  const fmtData = (d) => `${d.getDate()} de ${MESES_EXT[d.getMonth()]}`;
 
-  const eventos = [];
+  const isEstaSemana = (d) => {
+    const seg = new Date(hoje); seg.setDate(hoje.getDate() - hoje.getDay() + 1);
+    const sex = new Date(seg); sex.setDate(seg.getDate() + 4);
+    return d >= seg && d <= sex;
+  };
 
-  // De tceduc_eventos
-  (eventosTC||[]).forEach(e => {
-    if (!e.data) return;
-    const d = new Date(e.data+"T00:00:00");
-    if (d < inicioMes || d > fimJanela) return;
-    eventos.push({
-      id: e.id,
-      data: e.data,
-      dataObj: d,
-      municipio: e.municipio || e.regiao || "Evento",
-      tipo: e.tipo || "Municipal",
-      status: e.status || "",
-      fonte: "evento",
-    });
-  });
+  const getStatus = (d, statusStr) => {
+    if (statusStr === "Realizado" || statusStr === "Concluída") return "realizado";
+    if (d < hoje) return "realizado";
+    if (isEstaSemana(d)) return "semana";
+    return "programado";
+  };
 
-  // De tceduc_viagens — expande por dataInicio
+  // ── MUNICIPAIS — via tceduc_viagens modalidade Municipal ──
+  const municipais = [];
   (viagens||[]).forEach(v => {
+    if ((v.modalidade||"Municipal") !== "Municipal") return;
     if (!v.dataInicio) return;
     const d = new Date(v.dataInicio+"T00:00:00");
-    if (d < inicioMes || d > fimJanela) return;
-    const modalidade = v.modalidade || "Municipal";
-    // Municipais: usa municipiosAtendidos ou titulo
-    if (modalidade === "Municipal") {
-      const munis = v.municipiosAtendidos && v.municipiosAtendidos.length > 0
-        ? v.municipiosAtendidos
-        : [v.titulo || "Municipal"];
-      munis.forEach(m => {
-        eventos.push({
-          id: v.id+"_"+m,
-          data: v.dataInicio,
-          dataObj: d,
-          municipio: typeof m === "string" ? m : (m.nome || m),
-          tipo: "Municipal",
-          status: v.status || "",
-          fonte: "viagem",
-        });
+    if (d < menos30 || d > mais30) return;
+    // Pega municípios dos eventos vinculados
+    const evVinc = (eventosTC||[]).filter(e => (v.municipiosIds||[]).includes(e.id));
+    if (evVinc.length > 0) {
+      evVinc.forEach(ev => {
+        if (ev.municipio) {
+          municipais.push({
+            id: v.id+"_"+ev.id,
+            nome: ev.municipio,
+            dataObj: d,
+            status: getStatus(d, v.status || ev.status || ""),
+          });
+        }
       });
-    } else {
-      // Regional: usa municipiosAtendidos como regiões
-      const regioes = v.municipiosAtendidos && v.municipiosAtendidos.length > 0
-        ? v.municipiosAtendidos
-        : [v.titulo || "Regional"];
-      regioes.forEach(r => {
-        eventos.push({
-          id: v.id+"_r_"+r,
-          data: v.dataInicio,
-          dataObj: d,
-          municipio: typeof r === "string" ? r : (r.nome || r),
-          tipo: "Regional",
-          status: v.status || "",
-          fonte: "viagem",
-        });
+    } else if (v.titulo) {
+      // Fallback: usa título da viagem
+      municipais.push({
+        id: v.id,
+        nome: v.titulo,
+        dataObj: d,
+        status: getStatus(d, v.status || ""),
       });
     }
   });
+  // Deduplicar por nome+data
+  const vistosMun = new Set();
+  const municipaisUnicos = municipais.filter(e => {
+    const k = e.nome+"_"+e.dataObj.toISOString().split("T")[0];
+    if (vistosMun.has(k)) return false;
+    vistosMun.add(k); return true;
+  }).sort((a,b) => a.dataObj - b.dataObj);
 
-  // Deduplicar por municipio+data
-  const vistos = new Set();
-  const evUnicos = eventos.filter(e => {
-    const k = e.municipio+"_"+e.data;
-    if (vistos.has(k)) return false;
-    vistos.add(k); return true;
+  // ── REGIONAIS — via tceduc_eventos tipo Regional ──
+  const regionais = [];
+  (eventosTC||[]).forEach(e => {
+    if (e.tipo !== "Regional") return;
+    if (!e.data) return;
+    const d = new Date(e.data+"T00:00:00");
+    if (d < menos30 || d > mais30) return;
+    regionais.push({
+      id: e.id,
+      nome: e.regiao || e.municipio || "Regional",
+      dataObj: d,
+      status: getStatus(d, e.status || ""),
+    });
   });
+  regionais.sort((a,b) => a.dataObj - b.dataObj);
 
-  // Ordena por data
-  evUnicos.sort((a,b) => a.data.localeCompare(b.data));
-
-  const isRealizado = (e) => {
-    if (e.status === "Realizado" || e.status === "Concluída") return true;
-    return e.dataObj < hoje;
+  const corCard = {
+    realizado: { bg:"rgba(15,110,86,0.3)", border:"rgba(29,158,117,0.3)", dot:"#0F6E56", label:"Realizado", labelCor:"#5DCAA5", nome:"#9FE1CB", data:"#5DCAA5" },
+    semana:    { bg:"rgba(133,79,11,0.4)", border:"rgba(239,159,39,0.4)", dot:"#854F0B", label:"Esta semana", labelCor:"#FAC775", nome:"#FAC775", data:"#EF9F27" },
+    programado:{ bg:"rgba(24,95,165,0.25)", border:"rgba(55,138,221,0.2)", dot:"#185FA5", label:"Programado", labelCor:"#85B7EB", nome:"#B5D4F4", data:"#85B7EB" },
   };
 
-  const isEstaSemana = (e) => {
-    const seg = new Date(hoje);
-    seg.setDate(hoje.getDate() - hoje.getDay() + 1);
-    const sex = new Date(seg); sex.setDate(seg.getDate() + 4);
-    return e.dataObj >= seg && e.dataObj <= sex;
-  };
-
-  const municipiais = evUnicos.filter(e => e.tipo === "Municipal");
-  const regionais = evUnicos.filter(e => e.tipo === "Regional");
-
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
-
-  const renderCard = (e) => {
-    const realizado = isRealizado(e);
-    const semana = isEstaSemana(e);
-    const cor = realizado ? "#0F6E56" : semana ? "#854F0B" : "#185FA5";
-    const corBg = realizado ? "rgba(15,110,86,0.3)" : semana ? "rgba(133,79,11,0.4)" : "rgba(24,95,165,0.25)";
-    const corBorder = realizado ? "rgba(29,158,117,0.3)" : semana ? "rgba(239,159,39,0.4)" : "rgba(55,138,221,0.2)";
-    const corNome = realizado ? "#9FE1CB" : semana ? "#FAC775" : "#B5D4F4";
-    const corDia = realizado ? "#9FE1CB" : semana ? "#FAC775" : "#85B7EB";
-    const diaSemana = DIAS[e.dataObj.getDay()];
-    const diaNum = e.dataObj.getDate().toString().padStart(2,"0");
-
+  const renderCard = (ev) => {
+    const s = corCard[ev.status] || corCard.programado;
     return (
-      <div key={e.id} style={{ background:corBg, borderRadius:10, padding:"8px 10px", border:"1px solid "+corBorder }}>
-        <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:4 }}>
-          <div style={{ width:14, height:14, borderRadius:4, background:cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            {realizado && (
-              <svg width="8" height="8" viewBox="0 0 10 10">
+      <div key={ev.id} style={{ background:s.bg, borderRadius:12, padding:"12px 12px", border:"1px solid "+s.border }}>
+        <div style={{ display:"flex", alignItems:"center", gap:5, marginBottom:8 }}>
+          <div style={{ width:16, height:16, borderRadius:4, background:s.dot, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            {ev.status === "realizado" && (
+              <svg width="9" height="9" viewBox="0 0 10 10">
                 <polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="2" fill="none" strokeLinecap="round"/>
               </svg>
             )}
           </div>
-          <span style={{ color:corDia, fontSize:9, fontWeight:700 }}>{diaSemana} {diaNum}</span>
+          <span style={{ color:s.labelCor, fontSize:9, fontWeight:700, letterSpacing:0.5 }}>{s.label}</span>
         </div>
-        <div style={{ color:corNome, fontSize:11, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{e.municipio}</div>
+        <div style={{ color:s.nome, fontSize:14, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.nome}</div>
+        <div style={{ color:s.data, fontSize:11, marginTop:5 }}>{fmtData(ev.dataObj)}</div>
       </div>
     );
   };
 
   return (
-    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"180px 1fr",
+    <div style={{ width:"100%", height:"100%", background:"#0f172a", display:"grid", gridTemplateColumns:"160px 1fr",
       fontFamily:"'Montserrat',sans-serif", overflow:"hidden" }}>
 
       {/* Coluna esquerda */}
-      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", padding:"22px 18px", gap:14,
+      <div style={{ background:"#042C53", display:"flex", flexDirection:"column", padding:"22px 16px", gap:12,
         borderRight:"1px solid rgba(255,255,255,0.08)" }}>
         <div>
           <div style={{ color:"#85B7EB", fontSize:9, letterSpacing:3, textTransform:"uppercase", marginBottom:4 }}>TCEduc · IPC</div>
-          <div style={{ color:"#fff", fontWeight:700, fontSize:17, lineHeight:1.2 }}>Agenda<br/>TCEduc</div>
+          <div style={{ color:"#fff", fontWeight:700, fontSize:16, lineHeight:1.25 }}>Agenda<br/>TCEduc</div>
         </div>
-        <div style={{ width:28, height:2, background:"#E8730A", borderRadius:1 }}/>
-        <div style={{ background:"#185FA5", borderRadius:10, padding:"10px 12px", textAlign:"center" }}>
-          <div style={{ color:"#E6F1FB", fontSize:20, fontWeight:700, lineHeight:1 }}>{MESES_CURTO[mesAtual]}</div>
-          <div style={{ color:"#85B7EB", fontSize:10, letterSpacing:1, marginTop:2 }}>{anoAtual}</div>
+        <div style={{ width:24, height:2, background:"#E8730A", borderRadius:1 }}/>
+        <div style={{ background:"rgba(232,115,10,0.15)", border:"1px solid rgba(232,115,10,0.3)", borderRadius:8, padding:"8px 10px" }}>
+          <div style={{ color:"#E8730A", fontSize:9, letterSpacing:1, textTransform:"uppercase", marginBottom:3 }}>Período</div>
+          <div style={{ color:"#FAC775", fontSize:11, fontWeight:700 }}>Últ. 30 dias</div>
+          <div style={{ color:"#FAC775", fontSize:11, fontWeight:700 }}>Próx. 30 dias</div>
         </div>
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
           {[
-            { cor:"#0F6E56", label:"Realizado", check:true, textCor:"#5DCAA5" },
-            { cor:"#854F0B", label:"Esta semana", check:false, textCor:"#FAC775" },
-            { cor:"#185FA5", label:"Agendado", check:false, textCor:"#85B7EB" },
+            { cor:"#0F6E56", label:"Realizado", check:true, tc:"#5DCAA5" },
+            { cor:"#854F0B", label:"Esta semana", check:false, tc:"#FAC775" },
+            { cor:"#185FA5", label:"Programado", check:false, tc:"#85B7EB" },
           ].map(item => (
             <div key={item.label} style={{ display:"flex", alignItems:"center", gap:7 }}>
               <div style={{ width:12, height:12, borderRadius:3, background:item.cor, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 {item.check && <svg width="7" height="7" viewBox="0 0 10 10"><polyline points="1,5 4,8 9,2" stroke="#9FE1CB" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>}
               </div>
-              <span style={{ color:item.textCor, fontSize:10 }}>{item.label}</span>
+              <span style={{ color:item.tc, fontSize:10 }}>{item.label}</span>
             </div>
           ))}
         </div>
@@ -377,20 +354,20 @@ function SlideEventos({ eventosTC, viagens }) {
       <div style={{ padding:"16px 18px", display:"flex", flexDirection:"column", gap:10, overflowY:"hidden" }}>
 
         {/* Municipal */}
-        {municipiais.length > 0 && (
+        {municipaisUnicos.length > 0 && (
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
               <div style={{ width:3, height:14, background:"#E8730A", borderRadius:2 }}/>
               <span style={{ color:"#E8730A", fontSize:10, fontWeight:700, letterSpacing:2, textTransform:"uppercase" }}>Municipal</span>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))", gap:6 }}>
-              {municipiais.slice(0,12).map(e => renderCard(e))}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))", gap:8 }}>
+              {municipaisUnicos.map(e => renderCard(e))}
             </div>
           </div>
         )}
 
-        {municipiais.length > 0 && regionais.length > 0 && (
-          <div style={{ height:1, background:"rgba(255,255,255,0.06)" }}/>
+        {municipaisUnicos.length > 0 && regionais.length > 0 && (
+          <div style={{ height:1, background:"rgba(232,115,10,0.2)" }}/>
         )}
 
         {/* Regional */}
@@ -398,15 +375,15 @@ function SlideEventos({ eventosTC, viagens }) {
           <div>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
               <div style={{ width:3, height:14, background:"#E8730A", borderRadius:2 }}/>
-              <span style={{ color:"#E8730A", fontSize:10, fontWeight:700, letterSpacing:2, textTransform:"uppercase" }}>Regional</span>
+              <span style={{ color:"#E8730A", fontSize:10, fontWeight:700, letterSpacing:2, textTransform:"uppercase" }}>Regional — município sede</span>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))", gap:6 }}>
-              {regionais.slice(0,8).map(e => renderCard(e))}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))", gap:8 }}>
+              {regionais.map(e => renderCard(e))}
             </div>
           </div>
         )}
 
-        {municipiais.length === 0 && regionais.length === 0 && (
+        {municipaisUnicos.length === 0 && regionais.length === 0 && (
           <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
             <div style={{ color:"rgba(255,255,255,0.3)", fontSize:16 }}>Nenhum evento no período</div>
           </div>
