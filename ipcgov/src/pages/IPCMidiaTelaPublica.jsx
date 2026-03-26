@@ -82,7 +82,7 @@ function SlideAniversarioMes({ servidores }) {
     return parseInt(da) - parseInt(db);
   });
 
-  if (doMes.length === 0) return null;
+  if (doMes.length === 0) return <div style={{ width:"100%", height:"100%", background:"#0f172a" }}/>;
 
   return (
     <div style={{ width:"100%", height:"100%", background:"#1B3F7A", display:"grid", gridTemplateColumns:"1fr 1.5fr",
@@ -157,7 +157,7 @@ function SlideAniversario({ servidores }) {
   }) : [];
 
   const lista = anivHoje.length > 0 ? anivHoje : anivFimDeSemana;
-  if (lista.length === 0) return null;
+  if (lista.length === 0) return <div style={{ width:"100%", height:"100%", background:"#0f172a" }}/>;
 
   const isFimDeSemana = anivHoje.length === 0 && anivFimDeSemana.length > 0;
   const isSabado = isFimDeSemana && (() => {
@@ -726,21 +726,7 @@ export default function IPCMidiaTelaPublica({ telaId }) {
     return () => clearTimeout(timerRef.current);
   }, [currentIdx, itens.length]);
 
-  // Segurança extra: se o slide atual renderizar null, avança após 200ms
-  useEffect(() => {
-    if (itens.length === 0) return;
-    const item = itens[currentIdx] || itens[0];
-    if (!item) return;
-    // Tipos que podem retornar null
-    const podeSerNull = item.tipo === "aniversario" || item.id === "aniv_mes";
-    if (!podeSerNull) return;
-    if (!itemTemConteudo(item)) {
-      const t = setTimeout(() => {
-        setCurrentIdx(prev => (prev + 1) % itens.length);
-      }, 200);
-      return () => clearTimeout(t);
-    }
-  }, [currentIdx]);
+
 
   if (loading) {
     return (
@@ -782,13 +768,11 @@ export default function IPCMidiaTelaPublica({ telaId }) {
 
     // Aniversariantes do mês
     if (item.id === "aniv_mes") {
-      const slide = <SlideAniversarioMes servidores={servidores}/>;
-      if (slide) return slide;
+      return <SlideAniversarioMes servidores={servidores}/>;
     }
     // Aniversariante do dia / fim de semana
     if (item.tipo === "aniversario") {
-      const slide = <SlideAniversario servidores={servidores}/>;
-      if (slide) return slide;
+      return <SlideAniversario servidores={servidores}/>;
     }
 
     // Eventos TCEduc — mostra capa 4s antes se configurada
