@@ -2,6 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
+// Helper — busca ID Token do Firebase para autenticar APIs
+async function getAuthHeader() {
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
+}
+
+
 const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
 
 function fmtData(d) {
@@ -36,9 +48,10 @@ function normDriveUrl(url) {
 async function deletarDoDrive(driveFileId) {
   if (!driveFileId) return;
   try {
+    const authHdr = await getAuthHeader();
     await fetch("/api/delete", {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify({ fileId: driveFileId }),
     });
   } catch(e) {
@@ -296,9 +309,11 @@ function CropEditorEvento({ urlOriginal, onConfirm, onCancelar }) {
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
+        const authHdr = await getAuthHeader();
+
         const resposta = await fetch("/api/upload", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHdr },
           body: JSON.stringify({
             nomeArquivo: "evento_crop_" + Date.now() + ".jpg",
             tipoArquivo: "image/jpeg",
@@ -389,9 +404,12 @@ function UploadArquivo({ modulo, onUpload, aceitar, label }) {
         reader.readAsDataURL(arquivo);
       });
 
+      const authHdr = await getAuthHeader();
+
+
       const resposta = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({
           nomeArquivo: arquivo.name,
           tipoArquivo: arquivo.type,
@@ -1175,9 +1193,11 @@ function AbaAgenda({ conteudos, setConteudos, playlists, setPlaylists, isMidiaAd
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
+      const authHdr = await getAuthHeader();
+
       const resposta = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({
           nomeArquivo: file.name,
           tipoArquivo: file.type,
