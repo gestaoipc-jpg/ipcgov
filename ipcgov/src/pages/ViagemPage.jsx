@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import QRCode from "qrcode";
 import { db } from "../firebase/config";
 
 const MUNICIPIOS_CEARA = [
@@ -109,9 +110,28 @@ const btnDel = {
   cursor: "pointer", padding: "0 4px", lineHeight: 1, flexShrink: 0,
 };
 
+
+function QRCodeImg({ url, size = 100 }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    if (!url) return;
+    QRCode.toDataURL(url, { width: size * 2, margin: 1, color: { dark: "#1B3F7A", light: "#ffffff" } })
+      .then(setSrc)
+      .catch(() => {});
+  }, [url, size]);
+  if (!src) return null;
+  return (
+    <div style={{ textAlign: "center" }}>
+      <img src={src} alt="QR Code" style={{ width: size, height: size, borderRadius: 8, border: "1px solid #e8edf2" }} />
+      <div style={{ fontSize: 9, color: "#aaa", marginTop: 2 }}>QR Code</div>
+    </div>
+  );
+}
+
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], municipiosAtendidos: [], equipe: [] });
-  const [checklist, setChecklist] = useState({});
+  const [checklist,
+    materialDidatico, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
   const [novoEq, setNovoEq] = useState({ tipo: "", tombo: "", descricao: "", outro: "" });
@@ -132,6 +152,10 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   // Ocorrências
   const [ocorrencias, setOcorrencias] = useState([]);
   const [novaOc, setNovaOc] = useState({ tipo: "transporte", descricao: "" });
+  // Material Didático
+  const [materialDidatico, setMaterialDidatico] = useState({}); // { [eventoId_acaoIdx]: { url, fileId, nome } }
+  const [uploadandoMaterial, setUploadandoMaterial] = useState({}); // { [key]: bool }
+
   // Pós Viagem
   const [licoesAprendidas, setLicoesAprendidas] = useState("");
   const [autorizacaoInstrutoria, setAutorizacaoInstrutoria] = useState({ autorizado: false, observacao: "", autorizadoPor: "", autorizadoEm: "" });
@@ -183,6 +207,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
     if (viagem) {
       setForm({ titulo: viagem.titulo || "", dataInicio: viagem.dataInicio || "", dataFim: viagem.dataFim || "", modalidade: viagem.modalidade || "Municipal", municipiosIds: viagem.municipiosIds || [], municipiosAtendidos: viagem.municipiosAtendidos || [], equipe: viagem.equipe || [] });
       setChecklist(viagem.checklist || {});
+      setMaterialDidatico(viagem.materialDidatico || {});
       setItensCustom(viagem.itensCustom || []);
       setOcorrencias(viagem.ocorrencias || []);
       setHospedagens(viagem.hospedagens || []);
@@ -378,7 +403,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
   };
   const prog = progChecklist();
 
-  const todosOsDados = () => ({ checklist, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, autorizacaoInstrutoria, custoTransporte, custoInstrutoria, custoDiarias, atualizadoEm: new Date().toISOString() });
+  const todosOsDados = () => ({ checklist,
+    materialDidatico, itensCustom, ocorrencias, hospedagens, horarios, contatos, alimentacao, agenda, licoesAprendidas, planoAcaoViagem, equipamentos, equipeMunicipio, distancias, autorizacaoInstrutoria, custoTransporte, custoInstrutoria, custoDiarias, atualizadoEm: new Date().toISOString() });
 
   const salvarBloco = async () => {
     if (!viagem?.id) return;
@@ -692,6 +718,7 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
               {[
                 { id: "municipios", icon: "📍", label: "Municípios / Eventos", sub: `${eventosVinculados.length} vinculados`, color: "#059669" },
                 { id: "posviagem", icon: "✅", label: "Pós Viagem", sub: licoesAprendidas ? "Lições registradas" : "Sem registros", color: "#059669" },
+                { id: "material_didatico", icon: "📚", label: "Material Didático", sub: `${Object.keys(materialDidatico).length} apresentaç${Object.keys(materialDidatico).length !== 1 ? "ões" : "ão"}`, color: "#7c3aed" },
               ].map(b => (
                 <div key={b.id} onClick={() => setBlocoAtivo(blocoAtivo === b.id ? null : b.id)} style={{ background: blocoAtivo === b.id ? "#fff" : "#f8f9fb", borderRadius: 16, padding: 14, cursor: "pointer", border: `2px solid ${blocoAtivo === b.id ? b.color : "transparent"}`, transition: "all .15s" }}>
                   <div style={{ width: 38, height: 38, borderRadius: 11, background: b.color + "18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 7 }}>{b.icon}</div>
@@ -1714,6 +1741,122 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 })()}
 
                 <BtnSalvar />
+              </div>
+            )}
+
+
+            {/* MATERIAL DIDÁTICO */}
+            {blocoAtivo === "material_didatico" && (
+              <div style={{ background: "#fff", borderRadius: 20, padding: 24, marginBottom: 16, boxShadow: "0 2px 16px rgba(27,63,122,0.08)" }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: "#7c3aed", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 4, height: 18, background: "#7c3aed", borderRadius: 2 }} />📚 Material Didático
+                  <span style={{ fontWeight: 400, fontSize: 12, color: "#888", marginLeft: 8 }}>Apresentações por ação educacional</span>
+                </div>
+
+                {eventosVinculados.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: 32, color: "#aaa", fontSize: 13 }}>Nenhum município/evento vinculado a esta viagem.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {eventosVinculados.map(ev => {
+                      const nomeEv = ev.tipo === "Municipal" ? ev.municipio : ev.regiao;
+                      const acoes = ev.acoesEducacionais || [];
+                      return (
+                        <div key={ev.id} style={{ background: "#f8f9fb", borderRadius: 14, padding: 16, border: "1px solid #e8edf2" }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#1B3F7A", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                            📍 {nomeEv}
+                            <span style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>{acoes.length} ação{acoes.length !== 1 ? "ões" : ""} educacional{acoes.length !== 1 ? "is" : ""}</span>
+                          </div>
+
+                          {acoes.length === 0 ? (
+                            <div style={{ fontSize: 12, color: "#aaa", padding: "8px 0" }}>Nenhuma ação educacional cadastrada neste evento.</div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                              {acoes.map((acao, acaoIdx) => {
+                                const key = ev.id + "_" + acaoIdx;
+                                const mat = materialDidatico[key];
+                                const uploading = uploadandoMaterial[key];
+                                const nomePadrao = (viagem?.titulo||"viagem").replace(/\s+/g,"_") + "_" + (acao.acaoNome||acao.nome||"acao").replace(/\s+/g,"_") + "_" + nomeEv.replace(/\s+/g,"_");
+
+                                const handleUpload = async (file) => {
+                                  if (!file) return;
+                                  setUploadandoMaterial(p => Object.assign({}, p, { [key]: true }));
+                                  try {
+                                    const base64 = await new Promise((resolve, reject) => {
+                                      const reader = new FileReader();
+                                      reader.onload = () => resolve(reader.result.split(",")[1]);
+                                      reader.onerror = reject;
+                                      reader.readAsDataURL(file);
+                                    });
+                                    const ext = file.name.split(".").pop();
+                                    const resp = await fetch("/api/upload", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        nomeArquivo: nomePadrao + "." + ext,
+                                        tipoArquivo: file.type,
+                                        tamanho: file.size,
+                                        modulo: "ipctceduc_apresentacoes",
+                                        publico: true,
+                                        conteudoBase64: base64,
+                                      }),
+                                    });
+                                    const dados = JSON.parse(await resp.text());
+                                    if (!dados.sucesso) throw new Error(dados.erro);
+                                    const link = "https://drive.google.com/file/d/" + dados.fileId + "/view";
+                                    const novoMat = Object.assign({}, materialDidatico, {
+                                      [key]: { url: link, fileId: dados.fileId, nome: file.name, acaoNome: acao.acaoNome||acao.nome||"Ação", eventoNome: nomeEv, nomeArquivo: nomePadrao + "." + ext }
+                                    });
+                                    setMaterialDidatico(novoMat);
+                                    await updateDoc(doc(db, "tceduc_viagens", viagem.id), { materialDidatico: novoMat });
+                                  } catch(err) {
+                                    alert("Erro ao enviar: " + err.message);
+                                  }
+                                  setUploadandoMaterial(p => Object.assign({}, p, { [key]: false }));
+                                };
+
+                                return (
+                                  <div key={acaoIdx} style={{ background: "#fff", borderRadius: 12, padding: 14, border: "1px solid " + (mat ? "#7c3aed33" : "#e8edf2"), boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                                    <div style={{ fontWeight: 700, fontSize: 13, color: "#1B3F7A", marginBottom: 10 }}>
+                                      📖 {acao.acaoNome || acao.nome || "Ação " + (acaoIdx + 1)}
+                                    </div>
+
+                                    {mat ? (
+                                      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                                        {/* Info do arquivo */}
+                                        <div style={{ flex: 1 }}>
+                                          <div style={{ fontSize: 12, color: "#555", marginBottom: 6 }}>
+                                            📎 <span style={{ fontWeight: 600 }}>{mat.nomeArquivo || mat.nome}</span>
+                                          </div>
+                                          <a href={mat.url} target="_blank" rel="noreferrer"
+                                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#7c3aed", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 700, textDecoration: "none", marginBottom: 8 }}>
+                                            🔗 Abrir apresentação
+                                          </a>
+                                          <div style={{ marginTop: 4 }}>
+                                            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f3e8ff", color: "#7c3aed", borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: uploading ? "not-allowed" : "pointer" }}>
+                                              {uploading ? "⏳ Enviando..." : "🔄 Substituir arquivo"}
+                                              <input type="file" accept=".pdf,.ppt,.pptx,.key" style={{ display: "none" }} onChange={e => handleUpload(e.target.files[0])} disabled={uploading} />
+                                            </label>
+                                          </div>
+                                        </div>
+                                        {/* QR Code */}
+                                        <QRCodeImg url={mat.url} size={90} />
+                                      </div>
+                                    ) : (
+                                      <label style={{ display: "inline-flex", alignItems: "center", gap: 8, background: uploading ? "#e8edf2" : "#7c3aed", color: uploading ? "#888" : "#fff", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: uploading ? "not-allowed" : "pointer" }}>
+                                        {uploading ? "⏳ Enviando..." : "📤 Enviar apresentação"}
+                                        <input type="file" accept=".pdf,.ppt,.pptx,.key" style={{ display: "none" }} onChange={e => handleUpload(e.target.files[0])} disabled={uploading} />
+                                      </label>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
