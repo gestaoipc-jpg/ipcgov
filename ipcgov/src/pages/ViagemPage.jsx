@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import QRCode from "qrcode";
+import { jsPDF } from "jspdf";
 import { db } from "../firebase/config";
 
 const MUNICIPIOS_CEARA = [
@@ -209,6 +210,146 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
     });
     return JSON.parse(await resp.text());
   }
+}
+
+
+async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidatico) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, M = 16;
+  let y = 0;
+
+  // Cores
+  const AZUL = [27, 63, 122];
+  const ROXO = [124, 58, 237];
+  const CINZA = [100, 116, 139];
+  const BRANCO = [255, 255, 255];
+
+  // Cabeçalho
+  doc.setFillColor(...AZUL);
+  doc.rect(0, 0, W, 38, "F");
+  doc.setFillColor(232, 115, 10);
+  doc.rect(0, 36, W, 2, "F");
+
+  doc.setTextColor(...BRANCO);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text("TCE-CE · IPC · Material Didático", M, 12);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  const titulo = viagem.titulo || "Viagem";
+  doc.text(titulo, M, 24);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const dataStr = viagem.dataInicio
+    ? new Date(viagem.dataInicio + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    : "";
+  doc.text((viagem.modalidade || "") + (dataStr ? " · " + dataStr : ""), M, 32);
+
+  y = 50;
+
+  // Coleta todos os materiais
+  let temAlgum = false;
+  for (let ei = 0; ei < eventosVinculados.length; ei++) {
+    const ev = eventosVinculados[ei];
+    const nomeEv = ev.tipo === "Municipal" ? ev.municipio : ev.regiao;
+    const acoes = ev.acoesEducacionais || [];
+    const materiaisEv = acoes.map((acao, idx) => ({ acao, mat: (materialDidatico || {})[ev.id + "_" + idx] })).filter(x => x.mat);
+    if (materiaisEv.length === 0) continue;
+    temAlgum = true;
+
+    // Título do evento
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setFillColor(240, 244, 255);
+    doc.roundedRect(M, y, W - M * 2, 10, 2, 2, "F");
+    doc.setTextColor(...AZUL);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("📍 " + nomeEv, M + 4, y + 7);
+    y += 16;
+
+    for (let mi = 0; mi < materiaisEv.length; mi++) {
+      const { acao, mat } = materiaisEv[mi];
+      if (y > 240) { doc.addPage(); y = 20; }
+
+      // Card da ação
+      doc.setFillColor(250, 250, 255);
+      doc.setDrawColor(...ROXO);
+      doc.roundedRect(M, y, W - M * 2, 48, 3, 3, "FD");
+
+      // Barra lateral roxa
+      doc.setFillColor(...ROXO);
+      doc.roundedRect(M, y, 3, 48, 1.5, 1.5, "F");
+
+      // Nome da ação
+      doc.setTextColor(...ROXO);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("📖 " + (acao.acaoNome || acao.nome || "Ação " + (mi + 1)), M + 8, y + 10);
+
+      // Nome do arquivo
+      doc.setTextColor(...CINZA);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text("📎 " + (mat.nomeArquivo || mat.nome || "arquivo"), M + 8, y + 20);
+
+      // Link clicável
+      doc.setTextColor(37, 99, 235);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      const linkText = "🔗 Acessar apresentação no Google Drive";
+      doc.textWithLink(linkText, M + 8, y + 30, { url: mat.url });
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(37, 99, 235);
+      const linkW = doc.getTextWidth(linkText);
+      doc.line(M + 8, y + 31, M + 8 + linkW, y + 31);
+
+      // URL em texto menor
+      doc.setTextColor(...CINZA);
+      doc.setFontSize(7);
+      const urlCurta = mat.url.length > 65 ? mat.url.slice(0, 65) + "..." : mat.url;
+      doc.text(urlCurta, M + 8, y + 38);
+
+      // QR Code
+      try {
+        const qrDataUrl = await QRCode.toDataURL(mat.url, {
+          width: 256, margin: 1,
+          color: { dark: "#1B3F7A", light: "#ffffff" }
+        });
+        doc.addImage(qrDataUrl, "PNG", W - M - 36, y + 4, 32, 32);
+        doc.setTextColor(...CINZA);
+        doc.setFontSize(6.5);
+        doc.text("QR Code", W - M - 36 + 16, y + 38, { align: "center" });
+      } catch(e) { console.warn("QR erro:", e); }
+
+      y += 54;
+    }
+    y += 6;
+  }
+
+  if (!temAlgum) {
+    doc.setTextColor(...CINZA);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(11);
+    doc.text("Nenhuma apresentação cadastrada.", W / 2, y + 20, { align: "center" });
+  }
+
+  // Rodapé em todas as páginas
+  const totalPgs = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPgs; p++) {
+    doc.setPage(p);
+    doc.setFillColor(240, 244, 255);
+    doc.rect(0, 285, W, 12, "F");
+    doc.setTextColor(...CINZA);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("TCE-CE · IPC · Material Didático", M, 292);
+    doc.text("Página " + p + " de " + totalPgs, W - M, 292, { align: "right" });
+  }
+
+  const nomeArq = "material_didatico_" + (viagem.titulo || "viagem").replace(/\s+/g, "_").toLowerCase() + ".pdf";
+  doc.save(nomeArq);
 }
 
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
@@ -1833,6 +1974,13 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#7c3aed", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ width: 4, height: 18, background: "#7c3aed", borderRadius: 2 }} />📚 Material Didático
                   <span style={{ fontWeight: 400, fontSize: 12, color: "#888", marginLeft: 8 }}>Apresentações por ação educacional</span>
+                  {Object.keys(materialDidatico).length > 0 && (
+                    <div onClick={() => gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidatico)}
+                      style={{ marginLeft: "auto", background: "#7c3aed", color: "#fff", borderRadius: 10, padding: "6px 14px",
+                        fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                      📄 Gerar PDF
+                    </div>
+                  )}
                 </div>
 
                 {eventosVinculados.length === 0 ? (
