@@ -48,15 +48,6 @@ function normalizarNome(modulo, nomeOriginal) {
   return `${modulo}_${timestamp}_${nomeLimpo}`;
 }
 
-// Aumenta limite do body para 50MB (apresentações podem ser grandes)
-module.exports.config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "50mb",
-    },
-  },
-};
-
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ erro: "Método não permitido" });
@@ -117,4 +108,13 @@ module.exports = async function handler(req, res) {
     console.error("Erro no upload:", erro);
     return res.status(500).json({ erro: "Erro ao fazer upload: " + erro.message });
   }
+};
+
+// Config deve vir DEPOIS do module.exports para não ser sobrescrito
+module.exports.config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
 };
