@@ -131,47 +131,55 @@ function QRCodeImg({ url, size = 100 }) {
 
 // Helper de upload — usa FormData para arquivos >2MB, base64 para menores
 async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
-  const LIMITE_BASE64 = 4 * 1024 * 1024; // 4MB — abaixo disso usa base64
+  const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5MB por chunk (base64 infla ~33%, fica ~4.6MB)
   const tipoArquivo = file.type || "application/octet-stream";
   const nome = nomeArquivo || file.name;
 
-  if (file.size > LIMITE_BASE64) {
-    // Passo 1: servidor inicia sessão resumável com Google (server-to-server, sem CORS)
-    const initResp = await fetch("/api/upload-resumable", {
+  if (file.size > CHUNK_SIZE) {
+    // Passo 1: inicia sessão de upload no servidor
+    const initResp = await fetch("/api/upload-chunk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
+      body: JSON.stringify({ acao: "iniciar", modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
     });
     const initDados = await initResp.json();
     if (!initDados.sucesso) return initDados;
 
-    // Passo 2: frontend envia arquivo direto ao Google usando a session URL
-    // A URL de sessão resumável do Google não tem restrição de CORS
-    const uploadResp = await fetch(initDados.uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": tipoArquivo,
-        "Content-Length": String(file.size),
-      },
-      body: file,
-    });
-
+    // Passo 2: envia chunks um a um
+    const totalBytes = file.size;
+    let offset = 0;
     let fileId = null;
-    if (uploadResp.status === 200 || uploadResp.status === 201) {
-      const data = await uploadResp.json().catch(() => ({}));
-      fileId = data.id;
-    }
-    if (!fileId) {
-      const errText = await uploadResp.text().catch(() => "");
-      return { sucesso: false, erro: "Upload falhou (" + uploadResp.status + "): " + errText };
-    }
 
-    // Passo 3: torna público via servidor
-    if (publico) {
-      const pubResp = await fetch("/api/upload-resumable", {
+    while (offset < totalBytes) {
+      const fim = Math.min(offset + Math.floor(CHUNK_SIZE), totalBytes);
+      const slice = file.slice(offset, fim);
+      const chunkBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(slice);
+      });
+      const contentRange = "bytes " + offset + "-" + (fim - 1) + "/" + totalBytes;
+
+      const chunkResp = await fetch("/api/upload-chunk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "publicar", fileId }),
+        body: JSON.stringify({ acao: "chunk", uploadUrl: initDados.uploadUrl, chunkBase64, contentRange, tipoArquivo }),
+      });
+      const chunkDados = await chunkResp.json();
+      if (!chunkDados.sucesso) return chunkDados;
+      if (chunkDados.concluido) { fileId = chunkDados.fileId; break; }
+      offset = fim;
+    }
+
+    if (!fileId) return { sucesso: false, erro: "Upload concluído mas fileId não retornado" };
+
+    // Passo 3: torna público
+    if (publico) {
+      const pubResp = await fetch("/api/upload-chunk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao: "publicar", fileId }),
       });
       const pubDados = await pubResp.json();
       if (!pubDados.sucesso) return pubDados;
