@@ -1,4 +1,17 @@
 const { google } = require("googleapis");
+const { initializeApp: initAdminApp, cert, getApps } = require("firebase-admin/app");
+const { getAuth: getAdminAuth } = require("firebase-admin/auth");
+if (!getApps().length) {
+  initAdminApp({
+    credential: cert({
+      projectId:   process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+      privateKey:  process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, "\n"),
+    }),
+  });
+}
+const adminAuth = getAdminAuth();
+
 
 function autenticar() {
   const auth = new google.auth.GoogleAuth({
@@ -13,16 +26,18 @@ function autenticar() {
 
 
 // Verifica Firebase ID Token
+// Verifica Firebase ID Token (usa Firebase Admin já inicializado ou inicializa uma vez)
 async function verificarToken(req) {
   const header = req.headers["authorization"] || "";
   const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
+  if (!adminAuth) throw Object.assign(new Error("Configuração de autenticação ausente."), { status: 500 });
   try {
-    const decoded = await getAuth().verifyIdToken(token);
-    return decoded;
+    return await adminAuth.verifyIdToken(token);
   } catch(e) {
     throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
   }
+}
 }
 
 module.exports = async function handler(req, res) {
