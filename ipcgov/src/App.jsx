@@ -113,6 +113,137 @@ Em caso de desligamento da equipe, inativação do cadastro ou encerramento da n
 Ao prosseguir, o(a) usuário(a) declara estar ciente de que seus dados serão tratados para as finalidades informadas neste aviso, no âmbito interno do sistema institucional.`;
 
 
+
+function ModalResetarSenha({ user, onFechar }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [selecionado, setSelecionado] = useState(null);
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    getDocs(collection(db, "usuarios")).then(snap => {
+      const lista = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(u => u.email !== user.email && u.ativo !== false)
+        .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
+      setUsuarios(lista);
+      setCarregando(false);
+    });
+  }, []);
+
+  const handleReset = async () => {
+    if (!selecionado) return;
+    if (!window.confirm("Resetar a senha de " + selecionado.nome + "? Um e-mail será enviado automaticamente.")) return;
+    setProcessando(true);
+    try {
+      const resp = await fetch("/api/resetar-senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: selecionado.id,
+          nome: selecionado.nome,
+          email: selecionado.email,
+          adminEmail: user.email,
+        }),
+      });
+      const dados = await resp.json();
+      setResultado(dados);
+    } catch(e) {
+      setResultado({ sucesso: false, erro: e.message });
+    }
+    setProcessando(false);
+  };
+
+  const filtrados = usuarios.filter(u =>
+    (u.nome || "").toLowerCase().includes(busca.toLowerCase()) ||
+    (u.email || "").toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const estiloBase = { fontFamily:"'Montserrat',sans-serif" };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:20, ...estiloBase }}>
+      <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:480, maxHeight:"85vh", display:"flex", flexDirection:"column", boxShadow:"0 8px 40px rgba(0,0,0,0.2)" }}>
+        {/* Header */}
+        <div style={{ background:"#1B3F7A", borderRadius:"24px 24px 0 0", padding:"20px 24px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div>
+            <div style={{ color:"#fff", fontWeight:900, fontSize:16 }}>🔄 Resetar Senha</div>
+            <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, marginTop:2 }}>Selecione o usuário para redefinir a senha</div>
+          </div>
+          <div onClick={onFechar} style={{ width:32, height:32, background:"rgba(255,255,255,0.1)", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#fff", fontSize:16 }}>✕</div>
+        </div>
+
+        {resultado ? (
+          <div style={{ padding:32, textAlign:"center", display:"flex", flexDirection:"column", gap:16, alignItems:"center" }}>
+            <div style={{ fontSize:48 }}>{resultado.sucesso ? "✅" : "❌"}</div>
+            <div style={{ fontWeight:700, fontSize:16, color: resultado.sucesso ? "#059669" : "#dc2626" }}>
+              {resultado.sucesso ? "Senha resetada com sucesso!" : "Erro ao resetar"}
+            </div>
+            {resultado.sucesso && (
+              <div style={{ fontSize:13, color:"#555", lineHeight:1.6, textAlign:"center" }}>
+                {resultado.emailEnviado
+                  ? "✉️ E-mail enviado para " + selecionado.email
+                  : "⚠️ Senha resetada, mas o e-mail não foi enviado."}
+                <br/>O usuário deverá alterar a senha no próximo login.
+              </div>
+            )}
+            {!resultado.sucesso && (
+              <div style={{ fontSize:13, color:"#dc2626" }}>{resultado.erro}</div>
+            )}
+            <div onClick={onFechar}
+              style={{ background:"#1B3F7A", borderRadius:12, padding:"10px 32px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              Fechar
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding:"16px 24px", borderBottom:"1px solid #f0f0f0" }}>
+              <input value={busca} onChange={e => setBusca(e.target.value)}
+                placeholder="Buscar usuário por nome ou e-mail..."
+                style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"9px 14px", fontSize:13, color:"#1B3F7A", outline:"none", boxSizing:"border-box" }}/>
+            </div>
+            <div style={{ flex:1, overflowY:"auto", padding:"8px 12px" }}>
+              {carregando ? (
+                <div style={{ textAlign:"center", padding:32, color:"#aaa" }}>Carregando...</div>
+              ) : filtrados.length === 0 ? (
+                <div style={{ textAlign:"center", padding:32, color:"#aaa" }}>Nenhum usuário encontrado</div>
+              ) : filtrados.map(u => (
+                <div key={u.id} onClick={() => setSelecionado(u)}
+                  style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px", borderRadius:12, cursor:"pointer", marginBottom:4,
+                    background: selecionado?.id === u.id ? "#f0f4ff" : "transparent",
+                    border: selecionado?.id === u.id ? "1.5px solid #1B3F7A" : "1.5px solid transparent" }}>
+                  <div style={{ width:38, height:38, borderRadius:10, background:"#1B3F7A20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>
+                    {u.foto && u.foto.startsWith("http")
+                      ? <img src={u.foto} alt="" style={{ width:38, height:38, borderRadius:10, objectFit:"cover" }}/>
+                      : (u.nome||"?").split(" ").slice(0,2).map(n=>n[0]).join("").toUpperCase()}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.nome}</div>
+                    <div style={{ fontSize:11, color:"#888", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u.email}</div>
+                  </div>
+                  {selecionado?.id === u.id && <div style={{ color:"#1B3F7A", fontSize:16 }}>✓</div>}
+                </div>
+              ))}
+            </div>
+            <div style={{ padding:"16px 24px", borderTop:"1px solid #f0f0f0", display:"flex", gap:10 }}>
+              <div onClick={onFechar}
+                style={{ flex:1, background:"#f0f4ff", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>
+                Cancelar
+              </div>
+              <div onClick={handleReset}
+                style={{ flex:2, background:selecionado&&!processando?"#dc2626":"#ccc", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:selecionado&&!processando?"pointer":"not-allowed" }}>
+                {processando ? "Processando..." : selecionado ? "🔄 Resetar senha de " + selecionado.nome.split(" ")[0] : "Selecione um usuário"}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AlterarSenhaVoluntaria({ user, onFechar }) {
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
@@ -348,7 +479,8 @@ export default function App() {
   const [userInfo, setUserInfo] = useState(null);
   const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false);
   const [precisaAceitarLGPD, setPrecisaAceitarLGPD] = useState(false);
-  const [modalAlterarSenha, setModalAlterarSenha] = useState(false); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
+  const [modalAlterarSenha, setModalAlterarSenha] = useState(false);
+  const [modalResetarSenha, setModalResetarSenha] = useState(false); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
   const [pendAutorizacoes, setPendAutorizacoes] = useState([]); // solicitações esperando autorização deste user
   const [modalAutorizacao, setModalAutorizacao] = useState(null); // solicitação aberta para autorizar
   const [autJustificativa, setAutJustificativa] = useState("");
@@ -605,9 +737,13 @@ export default function App() {
       <HomePage user={user} onOpenModule={setCurrentModule}
         onForcarTrocaSenhas={() => forcarTrocaSenhasTodos(true)}
         onForcarLGPD={forcarLGPDTodos}
-        onAlterarSenha={() => setModalAlterarSenha(true)}/>
+        onAlterarSenha={() => setModalAlterarSenha(true)}
+        onResetarSenha={() => setModalResetarSenha(true)}/>
       {modalAlterarSenha && (
         <AlterarSenhaVoluntaria user={user} onFechar={() => setModalAlterarSenha(false)}/>
+      )}
+      {modalResetarSenha && (
+        <ModalResetarSenha user={user} onFechar={() => setModalResetarSenha(false)}/>
       )}
     </>
   );
