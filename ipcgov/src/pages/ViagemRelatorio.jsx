@@ -47,6 +47,37 @@ const tag = (bg, cor) => ({
   fontSize: 12, fontWeight: 700, color: cor, textDecoration: "none",
 });
 
+
+// Detecta CPF e e-mail no texto da descrição e aplica tarja preta
+function descricaoComTarja(texto) {
+  if (!texto) return "—";
+  const CPF_RE   = /(\d{3}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{2})/g;
+  const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+
+  const TARJA = (key) => (
+    <span key={key} style={{ display:"inline-block", background:"#111", borderRadius:2,
+      width:90, height:11, verticalAlign:"middle",
+      WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }}/>
+  );
+
+  // Divide o texto em partes usando CPF e e-mail como delimitadores
+  const RE_GERAL = /(\d{3}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{2}|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+  const partes = texto.split(RE_GERAL);
+
+  return (
+    <span>
+      {partes.map((parte, i) => {
+        if (CPF_RE.test(parte) || EMAIL_RE.test(parte)) {
+          CPF_RE.lastIndex = 0; EMAIL_RE.lastIndex = 0;
+          return TARJA(i);
+        }
+        CPF_RE.lastIndex = 0; EMAIL_RE.lastIndex = 0;
+        return <span key={i}>{parte}</span>;
+      })}
+    </span>
+  );
+}
+
 export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, usuarios, instrutores, motoristas }) {
   const [tipo, setTipo] = useState("resumido");
   const [solicitacoesViagem, setSolicitacoesViagem] = useState([]);
@@ -537,7 +568,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                                   {oc.tipo ? `${TIPO_OC[oc.tipo] || oc.tipo}` : "Ocorrência"}
                                   {oc.data ? <span style={{ fontWeight: 400, color: "#aaa", marginLeft: 6 }}>{new Date(oc.data).toLocaleString("pt-BR")}</span> : null}
                                 </div>
-                                <div style={{ color: "#333", marginTop: 2, lineHeight: 1.4 }}>{oc.descricao || oc.texto || "—"}</div>
+                                <div style={{ color: "#333", marginTop: 2, lineHeight: 1.4 }}>{descricaoComTarja(oc.descricao || oc.texto || "—")}</div>
                                 {oc.autorEmail && <div style={{ color: "#aaa", marginTop: 1, fontSize: 10 }}>Por: {oc.autorEmail}</div>}
                               </div>
                             ))}
@@ -971,7 +1002,7 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                                       {oc.email && <span>· <span style={{ display:"inline-block", background:"#111", borderRadius:2, width:130, height:12, verticalAlign:"middle", WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }} /></span>}
                                     </div>
                                   )}
-                                    <div style={{ fontSize:12,color:"#333" }}>{oc.descricao||oc.texto}</div>
+                                    <div style={{ fontSize:12,color:"#333" }}>{descricaoComTarja(oc.descricao||oc.texto)}</div>
                                   </div>
                                 ))}
                               </div>
