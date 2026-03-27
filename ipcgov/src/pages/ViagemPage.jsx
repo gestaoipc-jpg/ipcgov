@@ -5,6 +5,18 @@ import QRCode from "qrcode";
 import { jsPDF } from "jspdf";
 import { db } from "../firebase/config";
 
+// Helper — busca ID Token do Firebase para autenticar APIs
+async function getAuthHeader() {
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
+}
+
+
 const MUNICIPIOS_CEARA = [
   "ABAIARA","ACARAÚ","ACARAPE","ACOPIARA","AIUABA","ALCÂNTARAS","ALTANEIRA","ALTO SANTO",
   "AMONTADA","ANTONINA DO NORTE","APUIARÉS","AQUIRAZ","ARACATI","ARACOIABA","ARARENDÁ",
@@ -138,9 +150,11 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
 
   if (file.size > CHUNK_SIZE) {
     // Passo 1: inicia sessão de upload no servidor
+    const authHdr = await getAuthHeader();
+
     const initResp = await fetch("/api/upload-chunk", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify({ acao: "iniciar", modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
     });
     const initDados = await initResp.json();
@@ -162,9 +176,12 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
       });
       const contentRange = "bytes " + offset + "-" + (fim - 1) + "/" + totalBytes;
 
+      const authHdr = await getAuthHeader();
+
+
       const chunkResp = await fetch("/api/upload-chunk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({ acao: "chunk", uploadUrl: initDados.uploadUrl, chunkBase64, contentRange, tipoArquivo }),
       });
       const chunkDados = await chunkResp.json();
@@ -177,9 +194,11 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
 
     // Passo 3: torna público
     if (publico) {
+      const authHdr = await getAuthHeader();
+
       const pubResp = await fetch("/api/upload-chunk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({ acao: "publicar", fileId }),
       });
       const pubDados = await pubResp.json();
@@ -196,9 +215,11 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+    const authHdr = await getAuthHeader();
+
     const resp = await fetch("/api/upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHdr },
       body: JSON.stringify({
         nomeArquivo: nome,
         tipoArquivo,
