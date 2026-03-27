@@ -130,8 +130,7 @@ function QRCodeImg({ url, size = 100 }) {
 
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], municipiosAtendidos: [], equipe: [] });
-  const [checklist,
-    materialDidatico, setChecklist] = useState({});
+  const [checklist, setChecklist] = useState({});
   const [itensCustom, setItensCustom] = useState([]);
   const [novoItem, setNovoItem] = useState("");
   const [novoEq, setNovoEq] = useState({ tipo: "", tombo: "", descricao: "", outro: "" });
