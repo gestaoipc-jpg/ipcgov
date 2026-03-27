@@ -208,6 +208,14 @@ export default function OcorrenciaPublicaPage() {
             </div>
           )}
 
+          {/* Aviso LGPD */}
+          <div style={{ background:"#f0f4ff", borderRadius:10, padding:"10px 14px", border:"1px solid #dbe4ff", display:"flex", gap:10, alignItems:"flex-start" }}>
+            <span style={{ fontSize:14, flexShrink:0, marginTop:1 }}>🔒</span>
+            <p style={{ margin:0, fontSize:11, color:"#4a5568", lineHeight:1.6, fontFamily:"'Montserrat',sans-serif" }}>
+              Ao clicar em enviar, você declara estar ciente de que os dados coletados (CPF, nome e e-mail) serão utilizados exclusivamente para a resolução da ocorrência no sistema IPCeduc, com acesso restrito e em conformidade com a <strong>LGPD</strong>. Em relatórios, essas informações serão ocultadas sempre que possível.
+            </p>
+          </div>
+
           <button onClick={enviar}
             disabled={enviando || !form.nome.trim() || !form.cpf.trim() || !form.email.trim() || !form.descricao.trim()}
             style={{ width:"100%", background:enviando||!form.nome.trim()||!form.cpf.trim()||!form.email.trim()||!form.descricao.trim()?"#ccc":"linear-gradient(135deg,#1B3F7A,#2a5ba8)", border:"none", borderRadius:14, padding:16, color:"#fff", fontWeight:700, fontSize:16, cursor:enviando||!form.nome.trim()||!form.cpf.trim()||!form.email.trim()||!form.descricao.trim()?"not-allowed":"pointer", fontFamily:"'Montserrat',sans-serif" }}>
