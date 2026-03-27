@@ -57,16 +57,18 @@ export default function OcorrenciaPublicaPage() {
     if (!evento && !viagem) { setErro("Evento/Viagem não encontrado."); return; }
     setErro(""); setEnviando(true);
     try {
-      // Criptografa dados pessoais antes de salvar
+      // Criptografa dados pessoais antes de salvar (rota pública)
       let nomeCripto = form.nome.trim();
       let cpfCripto  = form.cpf.trim();
       let emailCripto = form.email.trim();
       try {
-        const crResp = await fetch("/api/cripto", {
+        const crResp = await fetch("/api/cripto-publico", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Key": process.env.REACT_APP_INTERNAL_API_KEY || "",
+          },
           body: JSON.stringify({
-            acao: "criptografar",
             campos: { nome: form.nome.trim(), cpf: form.cpf.trim(), email: form.email.trim() },
           }),
         });
