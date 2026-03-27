@@ -52,6 +52,12 @@ import PlanoAcaoPage from "./pages/PlanoAcaoPage";
 import FeriasPage from "./pages/FeriasPage";
 import OcorrenciaPublicaPage from "./pages/OcorrenciaPublicaPage";
 
+// Helper — chave interna para autenticar APIs
+async function getAuthHeader() {
+  return { "X-Internal-Key": process.env.REACT_APP_INTERNAL_API_KEY || "" };
+}
+
+
 
 
 const VERSAO_LGPD = "v1.0-2026-03";
@@ -138,9 +144,11 @@ function ModalResetarSenha({ user, onFechar }) {
     if (!window.confirm("Resetar a senha de " + selecionado.nome + "? Um e-mail será enviado automaticamente.")) return;
     setProcessando(true);
     try {
+      const authHdr = await getAuthHeader();
+
       const resp = await fetch("/api/resetar-senha", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({
           uid: selecionado.id,
           nome: selecionado.nome,
