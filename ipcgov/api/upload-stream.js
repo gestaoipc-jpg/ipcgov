@@ -1,17 +1,4 @@
 const { google } = require("googleapis");
-const { initializeApp: initAdminApp, cert, getApps } = require("firebase-admin/app");
-const { getAuth: getAdminAuth } = require("firebase-admin/auth");
-if (!getApps().length) {
-  initAdminApp({
-    credential: cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
-      privateKey:  process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, "\n"),
-    }),
-  });
-}
-const adminAuth = getAdminAuth();
-
 const { PassThrough } = require("stream");
 
 const PASTAS = {
@@ -48,10 +35,21 @@ async function verificarToken(req) {
   const header = req.headers["authorization"] || "";
   const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
-  if (!adminAuth) throw Object.assign(new Error("Configuração de autenticação ausente."), { status: 500 });
   try {
-    return await adminAuth.verifyIdToken(token);
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getAuth } = require("firebase-admin/auth");
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
+          projectId:   process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+          privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+        }),
+      });
+    }
+    return await getAuth().verifyIdToken(token);
   } catch(e) {
+    if (e.status === 401) throw e;
     throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
   }
 }
