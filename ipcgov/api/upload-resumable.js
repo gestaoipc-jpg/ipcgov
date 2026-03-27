@@ -17,17 +17,8 @@ function normalizarNome(modulo, nomeOriginal) {
   return `${modulo}_${timestamp}_${nomeLimpo}`;
 }
 
-// ── PASSO 1: Gera URL de upload resumável ──
-// Frontend chama POST /api/upload-resumable com { modulo, nomeArquivo, tipoArquivo }
-// Recebe { uploadUrl, fileId } e faz o upload direto para o Google
-// ── PASSO 2: Torna público ──
-// Frontend chama POST /api/upload-resumable com { action: "publicar", fileId }
-
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ erro: "Método não permitido" });
 
@@ -43,30 +34,38 @@ module.exports = async function handler(req, res) {
     });
 
     const client = await auth.getClient();
-    const token = await client.getAccessToken();
-    const accessToken = token.token;
+    const tokenObj = await client.getAccessToken();
+    const accessToken = tokenObj.token;
 
-    // ── Ação: tornar público após upload ──
+    // ── Ação: tornar público ──
     if (body.action === "publicar") {
       const { fileId } = body;
       if (!fileId) return res.status(400).json({ erro: "fileId obrigatório" });
 
-      const drive = google.drive({ version: "v3", auth });
-      await drive.permissions.create({
-        fileId,
-        supportsAllDrives: true,
-        requestBody: { role: "reader", type: "anyone" },
-      });
-
+      // Usa fetch com o token para criar permissão
+      const permResp = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role: "reader", type: "anyone" }),
+        }
+      );
+      if (!permResp.ok) {
+        const err = await permResp.text();
+        throw new Error("Erro ao publicar: " + err);
+      }
       return res.status(200).json({
-        sucesso: true,
-        fileId,
+        sucesso: true, fileId,
         linkVisualizacao: `https://drive.google.com/file/d/${fileId}/view`,
         linkDireto: `https://lh3.googleusercontent.com/d/${fileId}`,
       });
     }
 
-    // ── Ação: iniciar upload resumável ──
+    // ── Ação: preparar upload — retorna token + metadados ──
     const { modulo, nomeArquivo, tipoArquivo, tamanho } = body;
     if (!modulo || !nomeArquivo || !tipoArquivo) {
       return res.status(400).json({ erro: "modulo, nomeArquivo e tipoArquivo são obrigatórios" });
@@ -77,12 +76,7 @@ module.exports = async function handler(req, res) {
 
     const nomeFinal = normalizarNome(modulo, nomeArquivo);
 
-    // Inicia sessão de upload resumável no Google Drive
-    const metadata = {
-      name: nomeFinal,
-      parents: [pastaId],
-    };
-
+    // Inicia sessão de upload resumável no servidor (sem CORS problem pois é server-to-server)
     const initResp = await fetch(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true",
       {
@@ -93,18 +87,20 @@ module.exports = async function handler(req, res) {
           "X-Upload-Content-Type": tipoArquivo,
           ...(tamanho ? { "X-Upload-Content-Length": String(tamanho) } : {}),
         },
-        body: JSON.stringify(metadata),
+        body: JSON.stringify({ name: nomeFinal, parents: [pastaId] }),
       }
     );
 
     if (!initResp.ok) {
       const errText = await initResp.text();
-      throw new Error("Erro ao iniciar upload: " + errText);
+      throw new Error("Erro ao iniciar sessão: " + errText);
     }
 
     const uploadUrl = initResp.headers.get("location");
-    if (!uploadUrl) throw new Error("URL de upload não retornada pelo Google");
+    if (!uploadUrl) throw new Error("URL de upload não retornada");
 
+    // Devolve a uploadUrl para o frontend — o Google permite PUT na uploadUrl sem CORS
+    // pois a URL já contém o token embutido (upload session URL)
     return res.status(200).json({
       sucesso: true,
       uploadUrl,
