@@ -3,6 +3,18 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc,
 import { auth, db } from "../firebase/config";
 import emailjs from "@emailjs/browser";
 
+// Helper — busca ID Token do Firebase para autenticar APIs
+async function getAuthHeader() {
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
+}
+
+
 const EMAILJS_SERVICE = "service_m6wjek9";
 const EMAILJS_TEMPLATE = "template_lglpt37";
 const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
@@ -279,9 +291,11 @@ Instituto Plácido Castelo
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
+      const authHdr = await getAuthHeader();
+
       const resposta = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({
           nomeArquivo: `foto_${Date.now()}.jpg`,
           tipoArquivo: "image/jpeg",
@@ -317,9 +331,11 @@ Instituto Plácido Castelo
 
       if (form.criarAcesso && form.email && !form.uid) {
         try {
+          const authHdr = await getAuthHeader();
+
           const resp = await fetch("/api/criar-usuario", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHdr },
             body: JSON.stringify({
               email: form.email,
               nome: form.nome,
