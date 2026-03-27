@@ -128,6 +128,69 @@ function QRCodeImg({ url, size = 100 }) {
   );
 }
 
+
+// Helper de upload — usa FormData para arquivos >2MB, base64 para menores
+async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
+  const LIMITE_BASE64 = 4 * 1024 * 1024; // 4MB — abaixo disso usa base64
+  if (file.size > LIMITE_BASE64) {
+    // Upload resumável — envia direto para o Google Drive sem passar pelo servidor
+    const tipoArquivo = file.type || "application/octet-stream";
+
+    // Passo 1: obtém URL de upload resumável
+    const initResp = await fetch("/api/upload-resumable", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modulo, nomeArquivo: nomeArquivo || file.name, tipoArquivo, tamanho: file.size }),
+    });
+    const initDados = await initResp.json();
+    if (!initDados.sucesso) return initDados;
+
+    // Passo 2: envia arquivo direto ao Google
+    const uploadResp = await fetch(initDados.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": tipoArquivo },
+      body: file,
+    });
+    if (!uploadResp.ok) return { sucesso: false, erro: "Erro no upload: " + uploadResp.status };
+    const uploadData = await uploadResp.json();
+    const fileId = uploadData.id;
+    if (!fileId) return { sucesso: false, erro: "fileId não retornado" };
+
+    // Passo 3: torna público
+    if (publico) {
+      const pubResp = await fetch("/api/upload-resumable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "publicar", fileId }),
+      });
+      const pubDados = await pubResp.json();
+      if (!pubDados.sucesso) return pubDados;
+      return { sucesso: true, fileId, linkDireto: pubDados.linkDireto, linkVisualizacao: pubDados.linkVisualizacao, nome: initDados.nomeFinal };
+    }
+    return { sucesso: true, fileId, nome: initDados.nomeFinal };
+  } else {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const resp = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nomeArquivo: nomeArquivo || file.name,
+        tipoArquivo: file.type || "application/octet-stream",
+        tamanho: file.size,
+        modulo,
+        publico,
+        conteudoBase64: base64,
+      }),
+    });
+    return JSON.parse(await resp.text());
+  }
+}
+
 export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio, onVerEvento, eventos, usuarios, servidores, instrutores, motoristas, grupos, podeEditar }) {
   const [form, setForm] = useState({ titulo: "", dataInicio: "", dataFim: "", modalidade: "Municipal", municipiosIds: [], municipiosAtendidos: [], equipe: [] });
   const [checklist, setChecklist] = useState({});
@@ -1780,26 +1843,8 @@ export default function ViagemPage({ user, viagem, onBack, onSaved, onRelatorio,
                                   if (!file) return;
                                   setUploadandoMaterial(p => Object.assign({}, p, { [key]: true }));
                                   try {
-                                    const base64 = await new Promise((resolve, reject) => {
-                                      const reader = new FileReader();
-                                      reader.onload = () => resolve(reader.result.split(",")[1]);
-                                      reader.onerror = reject;
-                                      reader.readAsDataURL(file);
-                                    });
                                     const ext = file.name.split(".").pop();
-                                    const resp = await fetch("/api/upload", {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json" },
-                                      body: JSON.stringify({
-                                        nomeArquivo: nomePadrao + "." + ext,
-                                        tipoArquivo: file.type,
-                                        tamanho: file.size,
-                                        modulo: "ipctceduc_apresentacoes",
-                                        publico: true,
-                                        conteudoBase64: base64,
-                                      }),
-                                    });
-                                    const dados = JSON.parse(await resp.text());
+                                    const dados = await uploadParaDrive(file, "ipctceduc_apresentacoes", nomePadrao + "." + ext, true);
                                     if (!dados.sucesso) throw new Error(dados.erro);
                                     const link = "https://drive.google.com/file/d/" + dados.fileId + "/view";
                                     const novoMat = Object.assign({}, materialDidatico, {
