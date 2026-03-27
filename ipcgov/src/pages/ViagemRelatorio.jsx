@@ -1040,6 +1040,53 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               </div>
             )}
 
+            {/* MATERIAL DIDÁTICO */}
+            {Object.keys(viagem.materialDidatico || {}).length > 0 && (
+              <div style={card}>
+                <div style={sec("#7c3aed")}>📚 Material Didático — Apresentações por Ação Educacional</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:12, marginTop:8 }}>
+                  {eventosVinculados.map(ev => {
+                    const nomeEv = ev.tipo === "Municipal" ? ev.municipio : ev.regiao;
+                    const acoes = ev.acoesEducacionais || [];
+                    const materiaisEv = acoes.map((acao, idx) => ({ acao, mat: (viagem.materialDidatico||{})[ev.id+"_"+idx] })).filter(x => x.mat);
+                    if (materiaisEv.length === 0) return null;
+                    return (
+                      <div key={ev.id} style={{ background:"#f8f9fb", borderRadius:12, padding:"14px 16px", border:"1px solid #e8edf2" }}>
+                        <div style={{ fontWeight:700, fontSize:13, color:"#1B3F7A", marginBottom:10 }}>📍 {nomeEv}</div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                          {materiaisEv.map(({ acao, mat }, i) => (
+                            <div key={i} style={{ display:"flex", alignItems:"center", gap:16, background:"#fff", borderRadius:10, padding:"12px 14px", border:"1px solid #e8edf2" }}>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontWeight:700, fontSize:13, color:"#7c3aed", marginBottom:4 }}>
+                                  📖 {acao.acaoNome || acao.nome || "Ação " + (i+1)}
+                                </div>
+                                <div style={{ fontSize:12, color:"#555", marginBottom:6 }}>
+                                  📎 {mat.nomeArquivo || mat.nome}
+                                </div>
+                                <a href={mat.url} target="_blank" rel="noreferrer"
+                                  style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#7c3aed", color:"#fff", borderRadius:8, padding:"5px 12px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
+                                  🔗 Acessar apresentação
+                                </a>
+                              </div>
+                              {/* QR Code via API pública */}
+                              <div style={{ textAlign:"center", flexShrink:0 }}>
+                                <img
+                                  src={"https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=" + encodeURIComponent(mat.url)}
+                                  alt="QR Code"
+                                  style={{ width:80, height:80, borderRadius:8, border:"1px solid #e8edf2" }}
+                                />
+                                <div style={{ fontSize:9, color:"#aaa", marginTop:4 }}>QR Code</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* PLANO DE AÇÃO — detalhado completo */}
             {(viagem.planoAcaoViagem?.acoes || []).length > 0 && (() => {
               const acoes = viagem.planoAcaoViagem.acoes;
