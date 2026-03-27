@@ -74,6 +74,9 @@ module.exports = async function handler(req, res) {
     // 1. Redefine a senha via Firebase Admin
     await auth.updateUser(uid, { password: process.env.SENHA_PADRAO });
 
+    // 1b. Revoga todos os refresh tokens — força logout imediato
+    await auth.revokeRefreshTokens(uid);
+
     const agora = new Date();
 
     // 2. Atualiza flags no Firestore
