@@ -132,31 +132,34 @@ function QRCodeImg({ url, size = 100 }) {
 // Helper de upload — usa FormData para arquivos >2MB, base64 para menores
 async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
   const LIMITE_BASE64 = 4 * 1024 * 1024; // 4MB — abaixo disso usa base64
-  if (file.size > LIMITE_BASE64) {
-    // Upload resumável — envia direto para o Google Drive sem passar pelo servidor
-    const tipoArquivo = file.type || "application/octet-stream";
+  const tipoArquivo = file.type || "application/octet-stream";
+  const nome = nomeArquivo || file.name;
 
-    // Passo 1: obtém URL de upload resumável
+  if (file.size > LIMITE_BASE64) {
+    // Passo 1: obtém URL de upload resumável do Google
     const initResp = await fetch("/api/upload-resumable", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modulo, nomeArquivo: nomeArquivo || file.name, tipoArquivo, tamanho: file.size }),
+      body: JSON.stringify({ modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
     });
     const initDados = await initResp.json();
     if (!initDados.sucesso) return initDados;
 
-    // Passo 2: envia arquivo direto ao Google
+    // Passo 2: envia arquivo direto ao Google Drive (sem passar pela Vercel)
     const uploadResp = await fetch(initDados.uploadUrl, {
       method: "PUT",
       headers: { "Content-Type": tipoArquivo },
       body: file,
     });
-    if (!uploadResp.ok) return { sucesso: false, erro: "Erro no upload: " + uploadResp.status };
-    const uploadData = await uploadResp.json();
+    if (!uploadResp.ok) {
+      const errText = await uploadResp.text();
+      return { sucesso: false, erro: "Erro no upload Google: " + uploadResp.status + " " + errText };
+    }
+    const uploadData = await uploadResp.json().catch(() => ({}));
     const fileId = uploadData.id;
-    if (!fileId) return { sucesso: false, erro: "fileId não retornado" };
+    if (!fileId) return { sucesso: false, erro: "fileId não retornado pelo Google" };
 
-    // Passo 3: torna público
+    // Passo 3: torna público via API
     if (publico) {
       const pubResp = await fetch("/api/upload-resumable", {
         method: "POST",
@@ -168,7 +171,9 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
       return { sucesso: true, fileId, linkDireto: pubDados.linkDireto, linkVisualizacao: pubDados.linkVisualizacao, nome: initDados.nomeFinal };
     }
     return { sucesso: true, fileId, nome: initDados.nomeFinal };
+
   } else {
+    // Arquivo pequeno — base64 via /api/upload
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result.split(",")[1]);
@@ -179,8 +184,8 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nomeArquivo: nomeArquivo || file.name,
-        tipoArquivo: file.type || "application/octet-stream",
+        nomeArquivo: nome,
+        tipoArquivo,
         tamanho: file.size,
         modulo,
         publico,
