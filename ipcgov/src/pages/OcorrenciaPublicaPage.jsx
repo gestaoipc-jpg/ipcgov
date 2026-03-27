@@ -57,14 +57,35 @@ export default function OcorrenciaPublicaPage() {
     if (!evento && !viagem) { setErro("Evento/Viagem não encontrado."); return; }
     setErro(""); setEnviando(true);
     try {
+      // Criptografa dados pessoais antes de salvar
+      let nomeCripto = form.nome.trim();
+      let cpfCripto  = form.cpf.trim();
+      let emailCripto = form.email.trim();
+      try {
+        const crResp = await fetch("/api/cripto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            acao: "criptografar",
+            campos: { nome: form.nome.trim(), cpf: form.cpf.trim(), email: form.email.trim() },
+          }),
+        });
+        const crDados = await crResp.json();
+        if (crDados.sucesso) {
+          nomeCripto  = crDados.campos.nome;
+          cpfCripto   = crDados.campos.cpf;
+          emailCripto = crDados.campos.email;
+        }
+      } catch(e) { console.warn("Criptografia falhou, salvando sem criptografia:", e); }
+
       const novaOc = {
         id: Date.now(),
         tipo: "inscricao",
         acaoId:    acaoId || "",
         acaoNome:  acao?.acaoNome || acao?.nome || "",
-        nome:      form.nome.trim(),
-        cpf:       form.cpf.trim(),
-        email:     form.email.trim(),
+        nome:      nomeCripto,
+        cpf:       cpfCripto,
+        email:     emailCripto,
         descricao: form.descricao.trim(),
         destinoTipo:  "grupo",
         destinoId:    grupo?.id   || "",
