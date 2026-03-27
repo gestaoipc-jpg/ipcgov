@@ -214,6 +214,22 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
 
 
 async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidatico) {
+  // jsPDF helvetica nao suporta UTF-8 — converte caracteres especiais
+  const txt = (str) => {
+    if (!str) return "";
+    return String(str)
+      .replace(/[àáâãä]/g, "a").replace(/[ÀÁÂÃÄ]/g, "A")
+      .replace(/[èéêë]/g, "e").replace(/[ÈÉÊË]/g, "E")
+      .replace(/[ìíîï]/g, "i").replace(/[ÌÍÎÏ]/g, "I")
+      .replace(/[òóôõö]/g, "o").replace(/[ÒÓÔÕÖ]/g, "O")
+      .replace(/[ùúûü]/g, "u").replace(/[ÙÚÛÜ]/g, "U")
+      .replace(/[ç]/g, "c").replace(/[Ç]/g, "C")
+      .replace(/[ñ]/g, "n").replace(/[Ñ]/g, "N")
+      .replace(/[·•]/g, "-")
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'");
+  };
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210, M = 16;
   let y = 0;
@@ -233,23 +249,21 @@ async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidat
   doc.setTextColor(...BRANCO);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("TCE-CE · IPC · Material Didático", M, 12);
+  doc.text("TCE-CE - IPC - Material Didatico", M, 12);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  const titulo = viagem.titulo || "Viagem";
-  doc.text(titulo, M, 24);
+  doc.text(txt(viagem.titulo || "Viagem"), M, 24);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   const dataStr = viagem.dataInicio
     ? new Date(viagem.dataInicio + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
     : "";
-  doc.text((viagem.modalidade || "") + (dataStr ? " · " + dataStr : ""), M, 32);
+  doc.text(txt((viagem.modalidade || "") + (dataStr ? " - " + dataStr : "")), M, 32);
 
   y = 50;
 
-  // Coleta todos os materiais
   let temAlgum = false;
   for (let ei = 0; ei < eventosVinculados.length; ei++) {
     const ev = eventosVinculados[ei];
@@ -266,19 +280,17 @@ async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidat
     doc.setTextColor(...AZUL);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("📍 " + nomeEv, M + 4, y + 7);
+    doc.text(txt(nomeEv), M + 4, y + 7);
     y += 16;
 
     for (let mi = 0; mi < materiaisEv.length; mi++) {
       const { acao, mat } = materiaisEv[mi];
       if (y > 240) { doc.addPage(); y = 20; }
 
-      // Card da ação
+      // Card
       doc.setFillColor(250, 250, 255);
       doc.setDrawColor(...ROXO);
       doc.roundedRect(M, y, W - M * 2, 48, 3, 3, "FD");
-
-      // Barra lateral roxa
       doc.setFillColor(...ROXO);
       doc.roundedRect(M, y, 3, 48, 1.5, 1.5, "F");
 
@@ -286,26 +298,25 @@ async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidat
       doc.setTextColor(...ROXO);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
-      doc.text("📖 " + (acao.acaoNome || acao.nome || "Ação " + (mi + 1)), M + 8, y + 10);
+      doc.text(txt(acao.acaoNome || acao.nome || "Acao " + (mi + 1)), M + 8, y + 10);
 
       // Nome do arquivo
       doc.setTextColor(...CINZA);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      doc.text("📎 " + (mat.nomeArquivo || mat.nome || "arquivo"), M + 8, y + 20);
+      const nomeArqTexto = txt(mat.nomeArquivo || mat.nome || "arquivo");
+      doc.text("Arquivo: " + nomeArqTexto, M + 8, y + 20);
 
       // Link clicável
       doc.setTextColor(37, 99, 235);
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      const linkText = "🔗 Acessar apresentação no Google Drive";
+      const linkText = "Acessar apresentacao no Google Drive";
       doc.textWithLink(linkText, M + 8, y + 30, { url: mat.url });
       doc.setLineWidth(0.3);
       doc.setDrawColor(37, 99, 235);
-      const linkW = doc.getTextWidth(linkText);
-      doc.line(M + 8, y + 31, M + 8 + linkW, y + 31);
+      doc.line(M + 8, y + 31, M + 8 + doc.getTextWidth(linkText), y + 31);
 
-      // URL em texto menor
+      // URL
       doc.setTextColor(...CINZA);
       doc.setFontSize(7);
       const urlCurta = mat.url.length > 65 ? mat.url.slice(0, 65) + "..." : mat.url;
@@ -332,10 +343,10 @@ async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidat
     doc.setTextColor(...CINZA);
     doc.setFont("helvetica", "italic");
     doc.setFontSize(11);
-    doc.text("Nenhuma apresentação cadastrada.", W / 2, y + 20, { align: "center" });
+    doc.text("Nenhuma apresentacao cadastrada.", W / 2, y + 20, { align: "center" });
   }
 
-  // Rodapé em todas as páginas
+  // Rodapé
   const totalPgs = doc.getNumberOfPages();
   for (let p = 1; p <= totalPgs; p++) {
     doc.setPage(p);
@@ -344,11 +355,11 @@ async function gerarPDFMaterialDidatico(viagem, eventosVinculados, materialDidat
     doc.setTextColor(...CINZA);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text("TCE-CE · IPC · Material Didático", M, 292);
-    doc.text("Página " + p + " de " + totalPgs, W - M, 292, { align: "right" });
+    doc.text("TCE-CE - IPC - Material Didatico", M, 292);
+    doc.text("Pagina " + p + " de " + totalPgs, W - M, 292, { align: "right" });
   }
 
-  const nomeArq = "material_didatico_" + (viagem.titulo || "viagem").replace(/\s+/g, "_").toLowerCase() + ".pdf";
+  const nomeArq = "material_didatico_" + txt(viagem.titulo || "viagem").replace(/\s+/g, "_").toLowerCase() + ".pdf";
   doc.save(nomeArq);
 }
 
