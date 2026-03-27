@@ -48,30 +48,42 @@ const tag = (bg, cor) => ({
 });
 
 
-// Detecta CPF e e-mail no texto da descrição e aplica tarja preta
+// Detecta CPF, e-mail e telefone no texto da descrição e aplica tarja parcial
 function descricaoComTarja(texto) {
   if (!texto) return "—";
-  const CPF_RE   = /(\d{3}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{2})/g;
-  const EMAIL_RE = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
 
-  const TARJA = (key) => (
+  const TARJA = (key, w) => (
     <span key={key} style={{ display:"inline-block", background:"#111", borderRadius:2,
-      width:90, height:11, verticalAlign:"middle",
+      width:w||90, height:11, verticalAlign:"middle",
       WebkitPrintColorAdjust:"exact", printColorAdjust:"exact" }}/>
   );
 
-  // Divide o texto em partes usando CPF e e-mail como delimitadores
-  const RE_GERAL = /(\d{3}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-]?\d{2}|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+  // Regex: CPF | e-mail | telefone (mantém 2 primeiros e 2 últimos dígitos)
+  const RE_GERAL = /(\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2}|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}|\(?\d{2}\)?[\s.\-]?\d{4,5}[\s.\-]?\d{4})/g;
+
+  const CPF_RE   = /^\d{3}[.\-]?\d{3}[.\-]?\d{3}[.\-]?\d{2}$/;
+  const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+  const TEL_RE   = /^\(?\d{2}\)?[\s.\-]?\d{4,5}[\s.\-]?\d{4}$/;
+
   const partes = texto.split(RE_GERAL);
 
   return (
     <span>
       {partes.map((parte, i) => {
         if (CPF_RE.test(parte) || EMAIL_RE.test(parte)) {
-          CPF_RE.lastIndex = 0; EMAIL_RE.lastIndex = 0;
-          return TARJA(i);
+          return TARJA(i, 90);
         }
-        CPF_RE.lastIndex = 0; EMAIL_RE.lastIndex = 0;
+        if (TEL_RE.test(parte)) {
+          // Mantém DDD e últimos 2 dígitos, tarja o meio
+          const digits = parte.replace(/\D/g, "");
+          const ddd = digits.slice(0, 2);
+          const fim = digits.slice(-2);
+          return (
+            <span key={i}>
+              ({ddd}) {TARJA(i+"t", 70)} {fim}
+            </span>
+          );
+        }
         return <span key={i}>{parte}</span>;
       })}
     </span>
