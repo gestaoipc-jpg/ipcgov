@@ -4,8 +4,8 @@ const ALGORITMO = "aes-256-cbc";
 const PREFIXO   = "enc:";
 
 function getChave() {
-  const chave = process.env.CRIPTOGRAFIA_CHAVE || "";
-  // Deriva uma chave de 32 bytes a partir da string configurada
+  const chave = process.env.CRIPTOGRAFIA_CHAVE;
+  if (!chave) throw new Error("CRIPTOGRAFIA_CHAVE não configurada — operação abortada.");
   return crypto.createHash("sha256").update(chave).digest();
 }
 
