@@ -35,14 +35,11 @@ function descriptografar(texto) {
 
 // Verifica Firebase ID Token
 async function verificarToken(req) {
-  const header = req.headers["authorization"] || "";
-  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
-  try {
-    const decoded = await getAuth().verifyIdToken(token);
-    return decoded;
-  } catch(e) {
-    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
+  const chaveRecebida = req.headers["x-internal-key"] || "";
+  const chaveEsperada = process.env.INTERNAL_API_KEY || "";
+  if (!chaveEsperada) throw Object.assign(new Error("Configuração ausente."), { status: 500 });
+  if (!chaveRecebida || chaveRecebida !== chaveEsperada) {
+    throw Object.assign(new Error("Não autorizado."), { status: 401 });
   }
 }
 
