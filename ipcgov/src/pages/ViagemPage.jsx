@@ -136,21 +136,48 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
   const nome = nomeArquivo || file.name;
 
   if (file.size > LIMITE_BASE64) {
-    // Arquivo grande — stream direto via servidor sem carregar em memória
-    const resp = await fetch("/api/upload-stream", {
+    // Passo 1: servidor inicia sessão resumável com Google (server-to-server, sem CORS)
+    const initResp = await fetch("/api/upload-resumable", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
+    });
+    const initDados = await initResp.json();
+    if (!initDados.sucesso) return initDados;
+
+    // Passo 2: frontend envia arquivo direto ao Google usando a session URL
+    // A URL de sessão resumável do Google não tem restrição de CORS
+    const uploadResp = await fetch(initDados.uploadUrl, {
+      method: "PUT",
       headers: {
         "Content-Type": tipoArquivo,
-        "X-Nome-Arquivo": encodeURIComponent(nome),
-        "X-Tipo-Arquivo": tipoArquivo,
-        "X-Modulo": modulo,
-        "X-Publico": publico ? "true" : "false",
+        "Content-Length": String(file.size),
       },
       body: file,
     });
-    const texto = await resp.text();
-    try { return JSON.parse(texto); }
-    catch(e) { return { sucesso: false, erro: texto }; }
+
+    let fileId = null;
+    if (uploadResp.status === 200 || uploadResp.status === 201) {
+      const data = await uploadResp.json().catch(() => ({}));
+      fileId = data.id;
+    }
+    if (!fileId) {
+      const errText = await uploadResp.text().catch(() => "");
+      return { sucesso: false, erro: "Upload falhou (" + uploadResp.status + "): " + errText };
+    }
+
+    // Passo 3: torna público via servidor
+    if (publico) {
+      const pubResp = await fetch("/api/upload-resumable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "publicar", fileId }),
+      });
+      const pubDados = await pubResp.json();
+      if (!pubDados.sucesso) return pubDados;
+      return { sucesso: true, fileId, linkDireto: pubDados.linkDireto, linkVisualizacao: pubDados.linkVisualizacao, nome: initDados.nomeFinal };
+    }
+    return { sucesso: true, fileId, nome: initDados.nomeFinal };
 
   } else {
     // Arquivo pequeno — base64 via /api/upload
