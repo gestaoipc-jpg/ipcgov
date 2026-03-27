@@ -11,6 +11,10 @@ const PASTAS = {
 const TIPOS_PERMITIDOS = [
   "image/jpeg","image/png","image/gif","image/webp",
   "video/mp4","video/quicktime","application/pdf",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.apple.keynote",
+  "application/octet-stream", // fallback para arquivos sem tipo definido
 ];
 
 const TAMANHO_MAXIMO = 50 * 1024 * 1024;
@@ -43,6 +47,15 @@ function normalizarNome(modulo, nomeOriginal) {
     .toLowerCase();
   return `${modulo}_${timestamp}_${nomeLimpo}`;
 }
+
+// Aumenta limite do body para 50MB (apresentações podem ser grandes)
+module.exports.config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
+};
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
