@@ -2,6 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
+// Helper — busca ID Token do Firebase para autenticar APIs
+async function getAuthHeader() {
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
+}
+
+
 const inputStyle = { width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:"12px 14px", fontSize:14, color:"#1B3F7A", outline:"none", fontFamily:"'Montserrat',sans-serif" };
 const labelStyle = { display:"block", color:"#888", fontSize:11, letterSpacing:1, textTransform:"uppercase", marginBottom:6, fontWeight:600 };
 const STATUS_COR = { Pendente:"#E8730A", Ciente:"#0891b2", Resolvido:"#059669" };
@@ -337,9 +349,11 @@ export default function OcorrenciasPage({ onBack, user }) {
     );
     if (comCripto.length === 0) return ocs;
     try {
+      const authHdr = await getAuthHeader();
+
       const resp = await fetch("/api/cripto", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHdr },
         body: JSON.stringify({
           acao: "descriptografar",
           campos: comCripto.map(o => ({ nome: o.nome||"", cpf: o.cpf||"", email: o.email||"" })),
