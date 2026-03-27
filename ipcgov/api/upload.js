@@ -4,6 +4,8 @@ const { Readable } = require("stream");
 const PASTAS = {
   ipcmidiaindoor: "1tqsEA3unM4kEyV8bQy5DicoI7WU2l5SX",
   ipcpessoas: "15_35hi3Bn6Y4Do3TzKvXX6X8MtFTza9I",
+  ipctceduc: "1s-Vgn85xRgy7tGZLwHdDbQLUJYGN0BRV",
+  ipctceduc_apresentacoes: "1z5CUfR7lU6Bz5VO6YLmJTWn21Zc73C6u",
 };
 
 const TIPOS_PERMITIDOS = [
