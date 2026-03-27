@@ -131,7 +131,7 @@ function QRCodeImg({ url, size = 100 }) {
 
 // Helper de upload — usa FormData para arquivos >2MB, base64 para menores
 async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
-  const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5MB por chunk (base64 infla ~33%, fica ~4.6MB)
+  const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB por chunk (base64 infla ~33%, fica ~2.7MB — abaixo do limite Vercel 4.5MB)
   const tipoArquivo = file.type || "application/octet-stream";
   const nome = nomeArquivo || file.name;
 
