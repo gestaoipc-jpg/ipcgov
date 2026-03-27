@@ -487,7 +487,13 @@ export default function OcorrenciasPage({ onBack, user }) {
                 {oc.destinoNome && <span style={{ background:"#f0fdf4", borderRadius:8, padding:"3px 10px", fontSize:11, fontWeight:600, color:"#059669" }}>{oc.destinoTipo==="grupo"?"👥":"👤"} {oc.destinoNome}</span>}
               </div>
 
-              {(oc.nome||oc.cpf) && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}>👤 {oc.nome}{oc.cpf ? ` · CPF: ${oc.cpf}` : ""}</div>}
+              {(oc.nome||oc.cpf||oc.email) && (
+                <div style={{ fontSize:12, color:"#555", marginBottom:8, background:"#f0f4ff", borderRadius:8, padding:"6px 10px", display:"flex", flexWrap:"wrap", gap:12 }}>
+                  {oc.nome && <span>👤 <strong>{oc.nome}</strong></span>}
+                  {oc.cpf && <span>🪪 CPF: {oc.cpf}</span>}
+                  {oc.email && <span>✉️ <a href={"mailto:"+oc.email} style={{ color:"#1B3F7A", textDecoration:"none", fontWeight:600 }}>{oc.email}</a></span>}
+                </div>
+              )}
 
               <div style={{ fontSize:14, color:"#333", lineHeight:1.6, marginBottom:12, background:"#f8f9fb", borderRadius:10, padding:"10px 14px" }}>{oc.descricao}</div>
 
