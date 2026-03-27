@@ -705,14 +705,14 @@ export default function App() {
   if (currentModule === "ipc_cursos_dashboard") return <IPCCursosDashboard user={user} onBack={() => setCurrentModule("ipc_cursos")} onSeed={() => setCurrentModule("ipc_cursos_seed_2025")} />;
   if (currentModule === "olimpiadas") return <OlimpiadasModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("olimpiadas_dashboard")} onSeed={() => setCurrentModule("olimpiadas_seed")} />;
   if (currentModule === "ipc_midia") return <IPCMidiaModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)}/>;
-  if (currentModule === "olimpiadas_seed") return <OlimpiadasSeedPage onBack={() => setCurrentModule("olimpiadas")} />;
+  if (currentModule === "olimpiadas_seed") { if (!userInfo?.isAdminGlobal) return null; return <OlimpiadasSeedPage onBack={() => setCurrentModule("olimpiadas")} />; }
   if (currentModule === "olimpiadas_dashboard") return <OlimpiadasDashboard user={user} onBack={() => setCurrentModule("olimpiadas")} />;
-  if (currentModule === "ipc_cursos_seed_2025") return <IPCCursos2025SeedPage onBack={() => setCurrentModule("ipc_cursos_dashboard")} />;
+  if (currentModule === "ipc_cursos_seed_2025") { if (!userInfo?.isAdminGlobal) return null; return <IPCCursos2025SeedPage onBack={() => setCurrentModule("ipc_cursos_dashboard")} />; }
   if (currentModule === "ipc_cursos_instrutores") return <IPCCursosInstrutoresPage user={user} onBack={() => setCurrentModule("ipc_cursos")} />;
   if (currentModule === "ipc_indicadores") return <IPCIndicadoresModule user={user} userInfo={userInfo} onBack={() => setCurrentModule(null)} onDashboard={() => setCurrentModule("ipc_indicadores_dashboard")} onSeed={() => setCurrentModule("ipc_indicadores_seed")} />;
   if (currentModule === "ipc_indicadores_dashboard") return <IPCIndicadoresDashboard user={user} onBack={() => setCurrentModule("ipc_indicadores")} onIndicador={() => setCurrentModule("ipc_indicadores")} />;
-  if (currentModule === "ipc_indicadores_seed") return <IPCIndicadoresSeedPage onBack={() => setCurrentModule("ipc_indicadores")} />;
-  if (currentModule === "tceduc_2026_seed") return <TCEduc2026SeedPage onBack={() => setCurrentModule("tceduc")} />;
+  if (currentModule === "ipc_indicadores_seed") { if (!userInfo?.isAdminGlobal) return null; return <IPCIndicadoresSeedPage onBack={() => setCurrentModule("ipc_indicadores")} />; }
+  if (currentModule === "tceduc_2026_seed") { if (!userInfo?.isAdminGlobal) return null; return <TCEduc2026SeedPage onBack={() => setCurrentModule("tceduc")} />; }
   if (currentModule === "processos_kanban") return <ProcessosKanbanPage user={user} userInfo={userInfo} onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_filtros") return <ProcessosFiltrosPage onBack={() => setCurrentModule("processos")} />;
   if (currentModule === "processos_alertas") return <ProcessosAlertasPage onBack={() => setCurrentModule("processos")} />;
