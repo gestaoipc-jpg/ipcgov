@@ -328,6 +328,37 @@ export default function OcorrenciasPage({ onBack, user }) {
 
   useEffect(() => { loadAll(); }, []);
 
+  const descriptografarOcs = async (ocs) => {
+    // Filtra apenas as que têm campos criptografados
+    const comCripto = ocs.filter(o =>
+      String(o.nome||"").startsWith("enc:") ||
+      String(o.cpf||"").startsWith("enc:") ||
+      String(o.email||"").startsWith("enc:")
+    );
+    if (comCripto.length === 0) return ocs;
+    try {
+      const resp = await fetch("/api/cripto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          acao: "descriptografar",
+          campos: comCripto.map(o => ({ nome: o.nome||"", cpf: o.cpf||"", email: o.email||"" })),
+        }),
+      });
+      const dados = await resp.json();
+      if (!dados.sucesso) return ocs;
+      let idx = 0;
+      return ocs.map(o => {
+        if (!String(o.nome||"").startsWith("enc:") && !String(o.cpf||"").startsWith("enc:") && !String(o.email||"").startsWith("enc:")) return o;
+        const dec = dados.campos[idx++];
+        return { ...o, nome: dec.nome||o.nome, cpf: dec.cpf||o.cpf, email: dec.email||o.email };
+      });
+    } catch(e) {
+      console.warn("Erro ao descriptografar:", e);
+      return ocs;
+    }
+  };
+
   const loadAll = async () => {
     setLoading(true);
     try {
@@ -337,10 +368,27 @@ export default function OcorrenciasPage({ onBack, user }) {
         getDocs(collection(db,"ipc_grupos_trabalho")),
         getDocs(collection(db,"tceduc_viagens")),
       ]);
-      setEventos(evSnap.docs.map(d=>({id:d.id,...d.data()})));
+
+      // Descriptografa ocorrências de eventos
+      const evDocs = evSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const evDescriptografados = await Promise.all(evDocs.map(async ev => {
+        if (!(ev.ocorrencias||[]).some(o => String(o.nome||"").startsWith("enc:"))) return ev;
+        const ocsDesc = await descriptografarOcs(ev.ocorrencias||[]);
+        return { ...ev, ocorrencias: ocsDesc };
+      }));
+
+      // Descriptografa ocorrências de viagens
+      const vDocs = vSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const vDescriptografados = await Promise.all(vDocs.map(async v => {
+        if (!(v.ocorrencias||[]).some(o => String(o.nome||"").startsWith("enc:"))) return v;
+        const ocsDesc = await descriptografarOcs(v.ocorrencias||[]);
+        return { ...v, ocorrencias: ocsDesc };
+      }));
+
+      setEventos(evDescriptografados);
       setUsuarios(srvSnap.docs.map(d=>({id:d.id,...d.data()})));
       setGrupos(grSnap.docs.map(d=>({id:d.id,...d.data()})));
-      setViagens(vSnap.docs.map(d=>({id:d.id,...d.data()})));
+      setViagens(vDescriptografados);
     } catch(e){ console.error(e); }
     setLoading(false);
   };
@@ -492,10 +540,22 @@ export default function OcorrenciasPage({ onBack, user }) {
                   {oc.nome && <span>👤 <strong>{oc.nome}</strong></span>}
                   {oc.cpf && <span>🪪 CPF: {oc.cpf}</span>}
                   {oc.email && <span>✉️ <a href={"mailto:"+oc.email} style={{ color:"#1B3F7A", textDecoration:"none", fontWeight:600 }}>{oc.email}</a></span>}
+                  <style>{`@media print { .dados-pessoais { display:none!important; } .tarja-pessoais { display:flex!important; } .descricao-texto { display:none!important; } .tarja-descricao { display:flex!important; } }`}</style>
                 </div>
               )}
-
-              <div style={{ fontSize:14, color:"#333", lineHeight:1.6, marginBottom:12, background:"#f8f9fb", borderRadius:10, padding:"10px 14px" }}>{oc.descricao}</div>
+              {(oc.nome||oc.cpf||oc.email) && (
+                <div className="tarja-pessoais" style={{ display:"none", fontSize:11, color:"#555", marginBottom:8, background:"#f0f4ff", borderRadius:8, padding:"6px 10px", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={{ background:"#111", color:"#111", borderRadius:3, padding:"1px 8px" }}>████████████</span>
+                  <span style={{ background:"#111", color:"#111", borderRadius:3, padding:"1px 8px" }}>███████████████</span>
+                  <span style={{ background:"#111", color:"#111", borderRadius:3, padding:"1px 8px" }}>████████████████████</span>
+                  <span style={{ marginLeft:4, fontSize:9, color:"#888", fontStyle:"italic" }}>(dados pessoais ocultados — LGPD)</span>
+                </div>
+              )}
+              <div className="descricao-texto" style={{ fontSize:14, color:"#333", lineHeight:1.6, marginBottom:12, background:"#f8f9fb", borderRadius:10, padding:"10px 14px" }}>{oc.descricao}</div>
+              <div className="tarja-descricao" style={{ display:"none", fontSize:14, color:"#555", lineHeight:1.6, marginBottom:12, background:"#f8f9fb", borderRadius:10, padding:"10px 14px", alignItems:"center", gap:8 }}>
+                <span style={{ background:"#111", color:"#111", borderRadius:3, padding:"2px 8px" }}>{"█".repeat(40)}</span>
+                <span style={{ fontSize:9, color:"#888", fontStyle:"italic" }}>(conteúdo ocultado — LGPD)</span>
+              </div>
 
               {oc.resposta && (
                 <div style={{ background:"#e8f5e9", borderRadius:12, padding:"10px 14px", marginBottom:12, borderLeft:"3px solid #059669" }}>
