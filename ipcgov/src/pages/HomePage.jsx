@@ -60,7 +60,7 @@ function BottomNav({ tab, setTab }) {
   );
 }
 
-export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas, onForcarLGPD, onAlterarSenha }) {
+export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas, onForcarLGPD, onAlterarSenha, onResetarSenha }) {
   const [userData, setUserData] = useState(null);
   const [tab, setTab] = useState("home");
   const [alertas, setAlertas] = useState([]);
@@ -311,63 +311,45 @@ export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas, onFo
         {userData?.perfil === "admin" && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontWeight: 700, fontSize: 18, color: "#1B3F7A", marginBottom: 14 }}>Administração</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <div onClick={() => onOpenModule("usuarios")} style={{
-                background: "#fff", borderRadius: 20, padding: "20px 24px",
-                display: "flex", alignItems: "center", gap: 16,
-                boxShadow: "0 2px 12px rgba(27,63,122,0.08)",
-                cursor: "pointer", border: "2px solid #E8730A22",
-                transition: "transform .15s",
-              }}
-                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"}
-                onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
-              >
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: "#E8730A18", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>👥</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A" }}>Gestão de Usuários</div>
-                  <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Criar, editar e gerenciar acessos</div>
+            {/* Linha 1: módulos de gestão */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+              {[
+                { label:"Gestão de Usuários", sub:"Criar, editar e gerenciar acessos", icon:"👥", cor:"#E8730A", fn:() => onOpenModule("usuarios"), seta:true },
+                { label:"Gestão de E-mails",  sub:"Editar templates e configurar envios", icon:"✉️", cor:"#059669", fn:() => onOpenModule("gestao_emails"), seta:true },
+              ].map(btn => (
+                <div key={btn.label} onClick={btn.fn}
+                  style={{ background:"#fff", borderRadius:16, padding:"16px 18px", display:"flex", alignItems:"center", gap:14,
+                    boxShadow:"0 2px 8px rgba(27,63,122,0.07)", cursor:"pointer", border:"1.5px solid rgba(27,63,122,0.08)" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow="0 4px 16px rgba(27,63,122,0.14)"}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow="0 2px 8px rgba(27,63,122,0.07)"}>
+                  <div style={{ width:44, height:44, borderRadius:12, background:btn.cor+"18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>{btn.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:800, fontSize:14, color:"#1B3F7A" }}>{btn.label}</div>
+                    <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{btn.sub}</div>
+                  </div>
+                  {btn.seta && <div style={{ color:"#ccc", fontSize:20, flexShrink:0 }}>›</div>}
                 </div>
-                <div style={{ marginLeft: "auto", fontSize: 24, color: "#ccc" }}>›</div>
-              </div>
-              <div onClick={onForcarTrocaSenhas}
-                style={{ background:"#fff", borderRadius:20, padding:"16px 24px",
-                  display:"flex", alignItems:"center", gap:16,
-                  boxShadow:"0 2px 12px rgba(27,63,122,0.08)",
-                  cursor:"pointer", border:"2px solid rgba(220,38,38,0.15)" }}>
-                <div style={{ width:52, height:52, borderRadius:16, background:"rgba(220,38,38,0.08)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>🔐</div>
-                <div>
-                  <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Forçar troca de senhas</div>
-                  <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Obriga todos os usuários a redefinir no próximo login</div>
+              ))}
+            </div>
+            {/* Linha 2: ações de segurança */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              {[
+                { label:"Resetar Senha",        sub:"Redefinir senha de um usuário", icon:"🔄", cor:"#0891b2", fn:onResetarSenha },
+                { label:"Forçar troca de senhas", sub:"Todos redefinem no próximo login", icon:"🔐", cor:"#dc2626", fn:onForcarTrocaSenhas },
+                { label:"Forçar LGPD + senha",  sub:"Todos aceitam termos e redefinem", icon:"📋", cor:"#7c3aed", fn:onForcarLGPD },
+              ].map(btn => (
+                <div key={btn.label} onClick={btn.fn}
+                  style={{ background:"#fff", borderRadius:16, padding:"14px 16px", display:"flex", flexDirection:"column", gap:8,
+                    boxShadow:"0 2px 8px rgba(27,63,122,0.07)", cursor:"pointer", border:"1.5px solid "+btn.cor+"22" }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow="0 4px 16px rgba(27,63,122,0.14)"}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow="0 2px 8px rgba(27,63,122,0.07)"}>
+                  <div style={{ width:40, height:40, borderRadius:12, background:btn.cor+"15", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{btn.icon}</div>
+                  <div>
+                    <div style={{ fontWeight:800, fontSize:13, color:"#1B3F7A", lineHeight:1.3 }}>{btn.label}</div>
+                    <div style={{ fontSize:11, color:"#888", marginTop:3 }}>{btn.sub}</div>
+                  </div>
                 </div>
-              </div>
-              <div onClick={onForcarLGPD}
-                style={{ background:"#fff", borderRadius:20, padding:"16px 24px",
-                  display:"flex", alignItems:"center", gap:16,
-                  boxShadow:"0 2px 12px rgba(27,63,122,0.08)",
-                  cursor:"pointer", border:"2px solid rgba(27,63,122,0.15)" }}>
-                <div style={{ width:52, height:52, borderRadius:16, background:"rgba(27,63,122,0.08)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📋</div>
-                <div>
-                  <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Forçar aceite LGPD + senha</div>
-                  <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Exige LGPD e nova senha de todos no próximo login</div>
-                </div>
-              </div>
-              <div onClick={() => onOpenModule("gestao_emails")} style={{
-                background: "#fff", borderRadius: 20, padding: "20px 24px",
-                display: "flex", alignItems: "center", gap: 16,
-                boxShadow: "0 2px 12px rgba(27,63,122,0.08)",
-                cursor: "pointer", border: "2px solid #059669 22",
-                transition: "transform .15s",
-              }}
-                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"}
-                onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
-              >
-                <div style={{ width: 52, height: 52, borderRadius: 16, background: "#05966918", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>✉️</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: "#1B3F7A" }}>Gestão de E-mails</div>
-                  <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>Editar templates e configurar envios</div>
-                </div>
-                <div style={{ marginLeft: "auto", fontSize: 24, color: "#ccc" }}>›</div>
-              </div>
+              ))}
             </div>
           </div>
         )}
