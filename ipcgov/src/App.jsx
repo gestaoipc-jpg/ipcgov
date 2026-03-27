@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./firebase/config";
-import { collection, getDocs, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
+import { collection, getDoc, getDocs, addDoc, updateDoc, doc, query, where } from "firebase/firestore";
 import LoginPage from "./pages/LoginPage";
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import HomePage from "./pages/HomePage";
@@ -52,6 +52,214 @@ import PlanoAcaoPage from "./pages/PlanoAcaoPage";
 import FeriasPage from "./pages/FeriasPage";
 import OcorrenciaPublicaPage from "./pages/OcorrenciaPublicaPage";
 
+
+
+const VERSAO_LGPD = "v1.0-2026-03";
+const TEXTO_LGPD = `Aviso de Privacidade e Tratamento de Dados Pessoais (LGPD)
+
+Seja bem-vindo(a).
+
+Antes de prosseguir, informamos que os dados pessoais cadastrados neste sistema serão tratados em conformidade com a Lei Geral de Proteção de Dados Pessoais – LGPD (Lei nº 13.709/2018), observando os princípios da finalidade, necessidade, adequação, segurança e transparência.
+
+1. Finalidade do tratamento
+
+Os dados pessoais coletados serão utilizados exclusivamente para fins administrativos, operacionais e institucionais internos, relacionados a:
+• identificação do servidor(a) ou colaborador(a);
+• criação e gestão de acesso ao sistema;
+• organização funcional e administrativa;
+• utilização de módulos e funcionalidades internas;
+• registro de participação em programas, ações educacionais e atividades institucionais;
+• comunicação interna autorizada, quando aplicável.
+
+2. Dados que poderão ser tratados
+
+Este sistema poderá utilizar os seguintes dados:
+• foto de perfil;
+• nome completo;
+• nome pelo qual prefere ser chamado(a);
+• cargo;
+• setor;
+• chefia imediata;
+• e-mail institucional;
+• data de aniversário;
+• contato/telefone;
+• dados necessários à criação de acesso ao sistema;
+• indicação de atuação como instrutor(a) no TCEduc;
+• observações iniciais.
+
+3. Uso em comunicação interna
+
+Quando aplicável, a foto de perfil, o nome pelo qual prefere ser chamado(a) e a data de aniversário poderão ser utilizados em comunicações internas institucionais, como homenagens, avisos e exibição em telas corporativas internas (ex.: TV Cargo), restritas ao ambiente institucional.
+
+4. Compartilhamento de dados
+
+Os dados pessoais não serão compartilhados com terceiros, exceto:
+• nas hipóteses legalmente autorizadas;
+• por obrigação legal ou regulatória;
+• por determinação administrativa legítima;
+• ou por necessidade operacional devidamente justificada no âmbito institucional.
+
+5. Acesso e segurança
+
+O acesso aos dados será restrito a usuários autorizados e aos responsáveis pela administração do sistema, observadas as medidas de segurança compatíveis com o uso interno da plataforma.
+A senha inicial fornecida pelo administrador deverá ser alterada obrigatoriamente no primeiro acesso, visando maior segurança da conta.
+
+6. Retenção, bloqueio e exclusão
+
+Em caso de desligamento da equipe, inativação do cadastro ou encerramento da necessidade administrativa do tratamento, os dados pessoais poderão ser bloqueados, desativados ou eliminados, conforme a finalidade do cadastro e ressalvadas as hipóteses legais de guarda obrigatória, conservação de registros administrativos, auditoria, controle interno ou demais obrigações aplicáveis.
+
+7. Ciência do usuário
+
+Ao prosseguir, o(a) usuário(a) declara estar ciente de que seus dados serão tratados para as finalidades informadas neste aviso, no âmbito interno do sistema institucional.`;
+
+
+function AlterarSenhaVoluntaria({ user, onFechar }) {
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmar, setConfirmar] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [ok, setOk] = useState(false);
+
+  const handleTrocar = async () => {
+    setErro("");
+    if (novaSenha.length < 8) { setErro("A nova senha deve ter pelo menos 8 caracteres."); return; }
+    if (novaSenha !== confirmar) { setErro("As senhas não coincidem."); return; }
+    if (!senhaAtual) { setErro("Informe a senha atual."); return; }
+    setSalvando(true);
+    try {
+      const { getAuth, reauthenticateWithCredential, EmailAuthProvider, updatePassword } = await import("firebase/auth");
+      const auth = getAuth();
+      const credential = EmailAuthProvider.credential(user.email, senhaAtual);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, novaSenha);
+      setOk(true);
+      setTimeout(() => onFechar(), 2000);
+    } catch(e) {
+      if (e.code === "auth/wrong-password" || e.code === "auth/invalid-credential") {
+        setErro("Senha atual incorreta.");
+      } else {
+        setErro("Erro: " + e.message);
+      }
+    }
+    setSalvando(false);
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, fontFamily:"'Montserrat',sans-serif" }}>
+      <div style={{ background:"#fff", borderRadius:24, padding:36, width:"100%", maxWidth:400, boxShadow:"0 8px 40px rgba(0,0,0,0.2)" }}>
+        <div style={{ fontWeight:900, fontSize:18, color:"#1B3F7A", marginBottom:4 }}>🔑 Alterar senha</div>
+        <div style={{ fontSize:12, color:"#888", marginBottom:24 }}>{user.email}</div>
+        {ok ? (
+          <div style={{ textAlign:"center", padding:20, color:"#059669", fontWeight:700, fontSize:15 }}>✅ Senha alterada com sucesso!</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            {["Senha atual", "Nova senha", "Confirmar nova senha"].map((label, i) => (
+              <div key={i}>
+                <label style={{ fontSize:11, fontWeight:700, color:"#888", letterSpacing:1, textTransform:"uppercase", display:"block", marginBottom:4 }}>{label}</label>
+                <input type="password"
+                  value={i===0?senhaAtual:i===1?novaSenha:confirmar}
+                  onChange={e => i===0?setSenhaAtual(e.target.value):i===1?setNovaSenha(e.target.value):setConfirmar(e.target.value)}
+                  style={{ width:"100%", background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:10, padding:"10px 14px", fontSize:14, color:"#1B3F7A", outline:"none", boxSizing:"border-box" }}/>
+              </div>
+            ))}
+            {erro && <div style={{ background:"#fee2e2", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#dc2626" }}>{erro}</div>}
+            <div style={{ display:"flex", gap:10, marginTop:4 }}>
+              <div onClick={onFechar} style={{ flex:1, background:"#f0f4ff", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#1B3F7A", cursor:"pointer" }}>Cancelar</div>
+              <div onClick={handleTrocar} style={{ flex:2, background:salvando?"#ccc":"#1B3F7A", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:salvando?"not-allowed":"pointer" }}>
+                {salvando ? "Salvando..." : "Alterar senha"}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AvisoLGPD({ user, onAceitar, onRecusar }) {
+  const [aceito, setAceito] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+
+  const handleAceitar = async () => {
+    if (!aceito) return;
+    setSalvando(true);
+    try {
+      // Busca IP
+      let ip = "desconhecido";
+      try {
+        const r = await fetch("https://api.ipify.org?format=json");
+        const d = await r.json();
+        ip = d.ip || "desconhecido";
+      } catch(e) {}
+
+      const agora = new Date();
+      await updateDoc(doc(db, "usuarios", user.uid), {
+        aceite_lgpd: true,
+        data_aceite: agora.toISOString().split("T")[0],
+        hora_aceite: agora.toTimeString().slice(0,8),
+        ip_aceite: ip,
+        versao_termo: VERSAO_LGPD,
+        primeiro_login_concluido: true,
+      });
+
+      // Log de auditoria
+      await addDoc(collection(db, "lgpd_aceites"), {
+        usuario_id: user.uid,
+        email: user.email,
+        aceite_lgpd: true,
+        data_aceite: agora.toISOString().split("T")[0],
+        hora_aceite: agora.toTimeString().slice(0,8),
+        ip_aceite: ip,
+        versao_termo: VERSAO_LGPD,
+        criadoEm: agora.toISOString(),
+      });
+
+      onAceitar();
+    } catch(e) {
+      alert("Erro ao registrar aceite: " + e.message);
+    }
+    setSalvando(false);
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"#042C53", display:"flex", alignItems:"center", justifyContent:"center", padding:20, fontFamily:"'Montserrat',sans-serif" }}>
+      <div style={{ background:"#fff", borderRadius:24, width:"100%", maxWidth:680, maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 8px 40px rgba(0,0,0,0.3)" }}>
+        {/* Header */}
+        <div style={{ background:"#1B3F7A", borderRadius:"24px 24px 0 0", padding:"24px 32px" }}>
+          <div style={{ color:"rgba(255,255,255,0.6)", fontSize:11, letterSpacing:2, textTransform:"uppercase", marginBottom:6 }}>TCE-CE · IPC · Sistema IPCgov</div>
+          <div style={{ color:"#fff", fontWeight:900, fontSize:20 }}>Aviso de Privacidade e Tratamento de Dados Pessoais</div>
+          <div style={{ color:"rgba(255,255,255,0.5)", fontSize:12, marginTop:4 }}>LGPD — Lei nº 13.709/2018 · Versão {VERSAO_LGPD}</div>
+        </div>
+        {/* Texto rolável */}
+        <div style={{ flex:1, overflowY:"auto", padding:"24px 32px", fontSize:13, color:"#333", lineHeight:1.8, whiteSpace:"pre-wrap" }}>
+          {TEXTO_LGPD}
+        </div>
+        {/* Rodapé com checkbox */}
+        <div style={{ borderTop:"1px solid #e8edf2", padding:"20px 32px", display:"flex", flexDirection:"column", gap:16 }}>
+          <label style={{ display:"flex", alignItems:"flex-start", gap:12, cursor:"pointer" }}>
+            <input type="checkbox" checked={aceito} onChange={e => setAceito(e.target.checked)}
+              style={{ width:18, height:18, marginTop:2, cursor:"pointer", accentColor:"#1B3F7A" }}/>
+            <span style={{ fontSize:13, color:"#1B3F7A", fontWeight:600, lineHeight:1.5 }}>
+              Li e aceito os termos do Aviso de Privacidade e Tratamento de Dados Pessoais (LGPD).
+            </span>
+          </label>
+          <div style={{ display:"flex", gap:12 }}>
+            <div onClick={onRecusar}
+              style={{ flex:1, background:"#f8f9fb", border:"1px solid #e8edf2", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#888", cursor:"pointer" }}>
+              Não aceitar e sair
+            </div>
+            <div onClick={handleAceitar}
+              style={{ flex:2, background:aceito&&!salvando?"#1B3F7A":"#ccc", borderRadius:12, padding:12, textAlign:"center", fontWeight:700, fontSize:13, color:"#fff", cursor:aceito&&!salvando?"pointer":"not-allowed" }}>
+              {salvando ? "Registrando..." : "✅ Aceitar e continuar"}
+            </div>
+          </div>
+          <div style={{ textAlign:"center", fontSize:11, color:"#aaa" }}>{user.email}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TrocaSenhaObrigatoria({ user, onConcluido }) {
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -138,7 +346,9 @@ export default function App() {
   const [processoRelatorioId, setProcessoRelatorioId] = useState(null);
   const [projetoCursoSelected, setProjetoCursoSelected] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
-  const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
+  const [precisaTrocarSenha, setPrecisaTrocarSenha] = useState(false);
+  const [precisaAceitarLGPD, setPrecisaAceitarLGPD] = useState(false);
+  const [modalAlterarSenha, setModalAlterarSenha] = useState(false); // { grupos:[], cargoId, cargoNome, isAlmoxAdmin, isTCEducAdmin }
   const [pendAutorizacoes, setPendAutorizacoes] = useState([]); // solicitações esperando autorização deste user
   const [modalAutorizacao, setModalAutorizacao] = useState(null); // solicitação aberta para autorizar
   const [autJustificativa, setAutJustificativa] = useState("");
@@ -149,18 +359,20 @@ export default function App() {
       setUser(u);
       if (u) {
         await loadUserInfo(u);
-        // Verifica se precisa trocar senha
+        // Verifica LGPD e senha
         try {
-          const { getDoc, doc } = await import("firebase/firestore");
           const uSnap = await getDoc(doc(db, "usuarios", u.uid));
-          if (uSnap.exists() && uSnap.data().senhaAtualizada === false) {
-            setPrecisaTrocarSenha(true);
+          if (uSnap.exists()) {
+            const dados = uSnap.data();
+            if (!dados.aceite_lgpd) setPrecisaAceitarLGPD(true);
+            else if (dados.senhaAtualizada === false) setPrecisaTrocarSenha(true);
           }
-        } catch(e) { console.warn("Erro ao checar senha:", e); }
+        } catch(e) { console.warn("Erro ao checar status:", e); }
       } else {
         setUserInfo(null);
         setPendAutorizacoes([]);
         setPrecisaTrocarSenha(false);
+        setPrecisaAceitarLGPD(false);
       }
       setLoading(false);
     });
@@ -277,6 +489,25 @@ export default function App() {
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
+  // Tela obrigatória LGPD — antes de qualquer acesso
+  if (precisaAceitarLGPD) return (
+    <AvisoLGPD
+      user={user}
+      onAceitar={() => {
+        setPrecisaAceitarLGPD(false);
+        // Após aceitar LGPD, verifica se precisa trocar senha
+        getDoc(doc(db, "usuarios", user.uid)).then(snap => {
+          if (snap.exists() && snap.data().senhaAtualizada === false) {
+            setPrecisaTrocarSenha(true);
+          }
+        }).catch(() => {});
+      }}
+      onRecusar={() => {
+        import("firebase/auth").then(({ getAuth, signOut }) => signOut(getAuth()));
+      }}
+    />
+  );
+
   // Tela obrigatória de troca de senha no primeiro acesso
   if (precisaTrocarSenha) return (
     <TrocaSenhaObrigatoria
@@ -286,6 +517,22 @@ export default function App() {
   );
 
   // Função para forçar troca de senha em todos os usuários
+  const forcarLGPDTodos = async () => {
+    const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
+    if (!window.confirm("Isso vai exigir que todos os usuários aceitem a LGPD e troquem a senha no próximo login. Confirma?")) return;
+    try {
+      const snap = await getDocs(collection(db, "usuarios"));
+      let count = 0;
+      for (const d of snap.docs) {
+        const dados = d.data();
+        if (ADMINS.includes(dados.email)) continue;
+        await updateDoc(doc(db, "usuarios", d.id), { aceite_lgpd: false, senhaAtualizada: false });
+        count++;
+      }
+      alert("✅ " + count + " usuário(s) marcado(s) para aceitar LGPD e trocar senha.");
+    } catch(e) { alert("Erro: " + e.message); }
+  };
+
   const forcarTrocaSenhasTodos = async (excluirAdmins = true) => {
     const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
     if (!window.confirm("Isso vai forçar a troca de senha no próximo login de todos os usuários" + (excluirAdmins ? " (exceto administradores)" : "") + ". Confirma?")) return;
@@ -353,5 +600,15 @@ export default function App() {
   if (currentModule === "gestao_emails") return <GestaoEmailsPage onBack={() => setCurrentModule(null)} />;
   if (currentModule === "calendario") return <CalendarioPage onBack={() => setCurrentModule(null)} user={user} />;
 
-  return <HomePage user={user} onOpenModule={setCurrentModule} onForcarTrocaSenhas={() => forcarTrocaSenhasTodos(true)} />;
+  return (
+    <>
+      <HomePage user={user} onOpenModule={setCurrentModule}
+        onForcarTrocaSenhas={() => forcarTrocaSenhasTodos(true)}
+        onForcarLGPD={forcarLGPDTodos}
+        onAlterarSenha={() => setModalAlterarSenha(true)}/>
+      {modalAlterarSenha && (
+        <AlterarSenhaVoluntaria user={user} onFechar={() => setModalAlterarSenha(false)}/>
+      )}
+    </>
+  );
 }
