@@ -1011,35 +1011,6 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
               </div>
             )}
 
-            {/* CONSOLIDADO FINAL */}
-            <div style={{ background: "#1B3F7A", borderRadius: 20, padding: "24px 32px", marginBottom: 20 }}>
-              <div style={{ color: "#fff", fontWeight: 900, fontSize: 16, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 4, height: 20, background: "#E8730A", borderRadius: 2 }} />📊 Consolidado Geral
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                {[
-                  { label: "Municípios atendidos", value: eventosVinculados.length, cor: "#93c5fd" },
-                  { label: "Total inscritos", value: totalInscritos || "—", cor: "#93c5fd" },
-                  { label: "Total capacitados", value: totalParticipantes, cor: "#6ee7b7" },
-                  { label: "Ocorr. registradas", value: totalOcEventos + totalOcViagem, cor: "#fcd34d" },
-                  { label: "Logística checklist", value: `${checkFeitos}/${todosItensChecklist.length}`, cor: "#c4b5fd" },
-                ].map((s, i) => (
-                  <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 8px" }}>
-                    <div style={{ fontWeight: 900, fontSize: 26, color: s.cor }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: 600 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* LIÇÕES APRENDIDAS */}
-            {viagem.licoesAprendidas && (
-              <div style={card}>
-                <div style={sec("#059669")}>✅ Pós Viagem — Avaliação e Observações da Equipe</div>
-                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
-              </div>
-            )}
-
             {/* MATERIAL DIDÁTICO */}
             {Object.keys(viagem.materialDidatico || {}).length > 0 && (
               <div style={card}>
@@ -1086,6 +1057,36 @@ export default function ViagemRelatorio({ viagem, eventos, onBack, servidores, u
                 </div>
               </div>
             )}
+
+            {/* CONSOLIDADO FINAL */}
+            <div style={{ background: "#1B3F7A", borderRadius: 20, padding: "24px 32px", marginBottom: 20 }}>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 16, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 4, height: 20, background: "#E8730A", borderRadius: 2 }} />📊 Consolidado Geral
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                {[
+                  { label: "Municípios atendidos", value: eventosVinculados.length, cor: "#93c5fd" },
+                  { label: "Total inscritos", value: totalInscritos || "—", cor: "#93c5fd" },
+                  { label: "Total capacitados", value: totalParticipantes, cor: "#6ee7b7" },
+                  { label: "Ocorr. registradas", value: totalOcEventos + totalOcViagem, cor: "#fcd34d" },
+                  { label: "Logística checklist", value: `${checkFeitos}/${todosItensChecklist.length}`, cor: "#c4b5fd" },
+                ].map((s, i) => (
+                  <div key={i} style={{ textAlign: "center", background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "16px 8px" }}>
+                    <div style={{ fontWeight: 900, fontSize: 26, color: s.cor }}>{s.value}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: 600 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* LIÇÕES APRENDIDAS */}
+            {viagem.licoesAprendidas && (
+              <div style={card}>
+                <div style={sec("#059669")}>✅ Pós Viagem — Avaliação e Observações da Equipe</div>
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "16px 20px", fontSize: 13, color: "#333", lineHeight: 1.7, border: "1px solid #bbf7d0", whiteSpace: "pre-wrap" }}>{viagem.licoesAprendidas}</div>
+              </div>
+            )}
+
 
             {/* PLANO DE AÇÃO — detalhado completo */}
             {(viagem.planoAcaoViagem?.acoes || []).length > 0 && (() => {
