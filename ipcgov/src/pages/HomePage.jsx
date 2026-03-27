@@ -60,7 +60,7 @@ function BottomNav({ tab, setTab }) {
   );
 }
 
-export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas }) {
+export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas, onForcarLGPD, onAlterarSenha }) {
   const [userData, setUserData] = useState(null);
   const [tab, setTab] = useState("home");
   const [alertas, setAlertas] = useState([]);
@@ -182,6 +182,11 @@ export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas }) {
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 8, letterSpacing: 2, textTransform: "uppercase" }}>Meu Perfil</div>
           <div style={{ color: "#fff", fontWeight: 900, fontSize: 32 }}>{userData?.nome}</div>
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginTop: 4 }}>{user.email}</div>
+          <div onClick={onAlterarSenha}
+            style={{ display:"inline-block", marginTop:10, background:"rgba(255,255,255,0.12)", borderRadius:10,
+              padding:"6px 16px", fontSize:12, color:"rgba(255,255,255,0.8)", cursor:"pointer", fontWeight:600 }}>
+            🔑 Alterar senha
+          </div>
           <div style={{
             display: "inline-block", marginTop: 14,
             background: "rgba(232,115,10,0.3)", border: "1px solid rgba(232,115,10,0.5)",
@@ -333,6 +338,17 @@ export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas }) {
                 <div>
                   <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Forçar troca de senhas</div>
                   <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Obriga todos os usuários a redefinir no próximo login</div>
+                </div>
+              </div>
+              <div onClick={onForcarLGPD}
+                style={{ background:"#fff", borderRadius:20, padding:"16px 24px",
+                  display:"flex", alignItems:"center", gap:16,
+                  boxShadow:"0 2px 12px rgba(27,63,122,0.08)",
+                  cursor:"pointer", border:"2px solid rgba(27,63,122,0.15)" }}>
+                <div style={{ width:52, height:52, borderRadius:16, background:"rgba(27,63,122,0.08)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📋</div>
+                <div>
+                  <div style={{ fontWeight:800, fontSize:15, color:"#1B3F7A" }}>Forçar aceite LGPD + senha</div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:4 }}>Exige LGPD e nova senha de todos no próximo login</div>
                 </div>
               </div>
               <div onClick={() => onOpenModule("gestao_emails")} style={{
