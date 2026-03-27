@@ -15,25 +15,11 @@ function autenticar() {
 // Verifica Firebase ID Token
 // Verifica Firebase ID Token (usa Firebase Admin já inicializado ou inicializa uma vez)
 async function verificarToken(req) {
-  const header = req.headers["authorization"] || "";
-  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
-  try {
-    const { initializeApp, cert, getApps } = require("firebase-admin/app");
-    const { getAuth } = require("firebase-admin/auth");
-    if (!getApps().length) {
-      initializeApp({
-        credential: cert({
-          projectId:   process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
-          privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-        }),
-      });
-    }
-    return await getAuth().verifyIdToken(token);
-  } catch(e) {
-    if (e.status === 401) throw e;
-    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
+  const chaveRecebida = req.headers["x-internal-key"] || "";
+  const chaveEsperada = process.env.INTERNAL_API_KEY || "";
+  if (!chaveEsperada) throw Object.assign(new Error("Configuração ausente."), { status: 500 });
+  if (!chaveRecebida || chaveRecebida !== chaveEsperada) {
+    throw Object.assign(new Error("Não autorizado."), { status: 401 });
   }
 }
 }
