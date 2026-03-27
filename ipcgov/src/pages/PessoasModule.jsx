@@ -216,22 +216,33 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
         ? Object.values(MODULOS_NOMES).join("\n• ")
         : (servidor.modulosAcesso||[]).map(m => MODULOS_NOMES[m]||m).join("\n• ");
 
-      const corpo = (template?.corpo || "")
-        .replace("{{nome}}", servidor.nome)
-        .replace("{{email}}", servidor.email)
-        .replace("{{senha}}", "(senha padrão enviada pelo administrador)")
-        .replace("{{modulos}}", modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado");
+      const modulosLista = modulosTexto ? `• ${modulosTexto}` : "Nenhum módulo selecionado";
 
-      const saudacao = (template?.saudacao || "Olá, {{nome}}!").replace("{{nome}}", servidor.nome);
-      const rodape = template?.rodape || "Atenciosamente,\nEquipe IPCgov — Instituto Plácido Castelo";
+      const corpo_completo = `Prezado(a) ${servidor.nome},
 
-      // corpo_completo é a única variável no template do EmailJS
-      const corpo_completo = `${saudacao}\n\n${corpo}\n\n---\n${rodape}\n\n🔗 Acesse: https://ipcgov.vercel.app`;
+Segue abaixo seus dados de primeiro acesso ao sistema.
+
+E-mail: ${servidor.email}
+Módulos liberados:
+${modulosLista}
+
+Informamos que os dados pessoais cadastrados no sistema (como nome, cargo, setor, e-mail institucional, telefone, data de aniversário, foto de perfil e demais informações funcionais) serão utilizados exclusivamente para fins administrativos, operacionais e institucionais internos, relacionados à gestão de acesso, organização funcional e uso dos módulos do sistema.
+
+Essas informações não serão compartilhadas com terceiros, salvo nas hipóteses legalmente autorizadas ou por necessidade administrativa devidamente justificada.
+
+No primeiro acesso, será apresentada a Política de Privacidade / Aviso de Tratamento de Dados (LGPD), que deverá ser lida e confirmada pelo usuário.
+
+Importante: a senha inicial deverá ser alterada obrigatoriamente no primeiro acesso.
+
+Atenciosamente,
+Instituto Plácido Castelo
+
+🔗 Acesse: https://ipcgov.vercel.app`;
 
       const params = {
         to_name: servidor.nome,
         to_email: servidor.email,
-        subject: template?.assunto || "Bem-vindo(a) ao IPCgov — Seus dados de acesso",
+        subject: "Acesso ao Sistema – Dados de Primeiro Acesso",
         corpo_completo,
       };
 
@@ -792,24 +803,37 @@ export default function PessoasModule({ user, onBack, onOrganograma, onAniversar
                 </div>
                 <div>
                   <label style={labelStyle}>Data de Aniversário</label>
-                  <input type="date" value={form.dataAniversario||""} onChange={e=>setForm(f=>({...f,dataAniversario:e.target.value}))} style={inputStyle}/>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <select value={(form.dataAniversario||"").split("-")[1]||""} onChange={e => {
+                      const mes = e.target.value;
+                      const dia = (form.dataAniversario||"").split("-")[2]||"01";
+                      setForm(f=>({...f, dataAniversario: mes ? "2000-"+mes+"-"+dia : ""}));
+                    }} style={{ ...inputStyle, flex:1 }}>
+                      <option value="">Mês</option>
+                      {["01","02","03","04","05","06","07","08","09","10","11","12"].map((m,i) => (
+                        <option key={m} value={m}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][i]}</option>
+                      ))}
+                    </select>
+                    <select value={(form.dataAniversario||"").split("-")[2]||""} onChange={e => {
+                      const dia = e.target.value;
+                      const mes = (form.dataAniversario||"").split("-")[1]||"01";
+                      setForm(f=>({...f, dataAniversario: dia ? "2000-"+mes+"-"+dia : ""}));
+                    }} style={{ ...inputStyle, flex:1 }}>
+                      <option value="">Dia</option>
+                      {Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(d=>(
+                        <option key={d} value={d}>{parseInt(d)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ fontSize:10, color:"#aaa", marginTop:3 }}>Apenas dia e mês — ano não é informado</div>
                 </div>
-                <div>
-                  <label style={labelStyle}>Matrícula</label>
-                  <input value={form.matricula||""} onChange={e=>setForm(f=>({...f,matricula:e.target.value}))} placeholder="Nº de matrícula" style={inputStyle}/>
-                </div>
+
                 <div>
                   <label style={labelStyle}>Contato / Telefone</label>
                   <input value={form.contato||""} onChange={e=>setForm(f=>({...f,contato:e.target.value}))} placeholder="(85) 99999-9999" style={inputStyle}/>
                 </div>
-                <div>
-                  <label style={labelStyle}>Data de Ingresso</label>
-                  <input type="date" value={form.dataIngresso||""} onChange={e=>setForm(f=>({...f,dataIngresso:e.target.value}))} style={inputStyle}/>
-                </div>
-                <div>
-                  <label style={labelStyle}>CPF</label>
-                  <input value={form.cpf||""} onChange={e=>setForm(f=>({...f,cpf:e.target.value}))} placeholder="000.000.000-00" style={inputStyle}/>
-                </div>
+
+
 
                 {/* ACESSO AO SISTEMA */}
                 <div style={{ gridColumn:"1/-1", background:"#f0f4ff", borderRadius:16, padding:"18px" }}>
