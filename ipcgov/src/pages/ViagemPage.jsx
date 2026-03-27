@@ -136,41 +136,21 @@ async function uploadParaDrive(file, modulo, nomeArquivo, publico = true) {
   const nome = nomeArquivo || file.name;
 
   if (file.size > LIMITE_BASE64) {
-    // Passo 1: obtém URL de upload resumável do Google
-    const initResp = await fetch("/api/upload-resumable", {
+    // Arquivo grande — stream direto via servidor sem carregar em memória
+    const resp = await fetch("/api/upload-stream", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modulo, nomeArquivo: nome, tipoArquivo, tamanho: file.size }),
-    });
-    const initDados = await initResp.json();
-    if (!initDados.sucesso) return initDados;
-
-    // Passo 2: envia arquivo direto ao Google Drive (sem passar pela Vercel)
-    const uploadResp = await fetch(initDados.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": tipoArquivo },
+      headers: {
+        "Content-Type": tipoArquivo,
+        "X-Nome-Arquivo": encodeURIComponent(nome),
+        "X-Tipo-Arquivo": tipoArquivo,
+        "X-Modulo": modulo,
+        "X-Publico": publico ? "true" : "false",
+      },
       body: file,
     });
-    if (!uploadResp.ok) {
-      const errText = await uploadResp.text();
-      return { sucesso: false, erro: "Erro no upload Google: " + uploadResp.status + " " + errText };
-    }
-    const uploadData = await uploadResp.json().catch(() => ({}));
-    const fileId = uploadData.id;
-    if (!fileId) return { sucesso: false, erro: "fileId não retornado pelo Google" };
-
-    // Passo 3: torna público via API
-    if (publico) {
-      const pubResp = await fetch("/api/upload-resumable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "publicar", fileId }),
-      });
-      const pubDados = await pubResp.json();
-      if (!pubDados.sucesso) return pubDados;
-      return { sucesso: true, fileId, linkDireto: pubDados.linkDireto, linkVisualizacao: pubDados.linkVisualizacao, nome: initDados.nomeFinal };
-    }
-    return { sucesso: true, fileId, nome: initDados.nomeFinal };
+    const texto = await resp.text();
+    try { return JSON.parse(texto); }
+    catch(e) { return { sucesso: false, erro: texto }; }
 
   } else {
     // Arquivo pequeno — base64 via /api/upload
