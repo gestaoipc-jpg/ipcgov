@@ -5,15 +5,9 @@ import QRCode from "qrcode";
 import { jsPDF } from "jspdf";
 import { db } from "../firebase/config";
 
-// Helper — busca ID Token do Firebase para autenticar APIs
+// Helper — chave interna para autenticar APIs
 async function getAuthHeader() {
-  try {
-    const { getAuth } = await import("firebase/auth");
-    const user = getAuth().currentUser;
-    if (!user) return {};
-    const token = await user.getIdToken();
-    return { "Authorization": "Bearer " + token };
-  } catch(e) { return {}; }
+  return { "X-Internal-Key": process.env.REACT_APP_INTERNAL_API_KEY || "" };
 }
 
 
