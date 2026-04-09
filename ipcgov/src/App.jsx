@@ -52,9 +52,15 @@ import PlanoAcaoPage from "./pages/PlanoAcaoPage";
 import FeriasPage from "./pages/FeriasPage";
 import OcorrenciaPublicaPage from "./pages/OcorrenciaPublicaPage";
 
-// Helper — chave interna para autenticar APIs
+// Helper — busca ID Token do Firebase para autenticar APIs
 async function getAuthHeader() {
-  return { "X-Internal-Key": process.env.REACT_APP_INTERNAL_API_KEY || "" };
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
 }
 
 
@@ -497,24 +503,29 @@ export default function App() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) {
-        await loadUserInfo(u);
-        // Verifica LGPD e senha
-        try {
-          const uSnap = await getDoc(doc(db, "usuarios", u.uid));
-          if (uSnap.exists()) {
+      try {
+        if (u) {
+          // Carrega info do usuário — em paralelo com verificação LGPD/senha
+          const [, uSnap] = await Promise.all([
+            loadUserInfo(u).catch(e => console.warn("loadUserInfo:", e)),
+            getDoc(doc(db, "usuarios", u.uid)).catch(() => null),
+          ]);
+          if (uSnap && uSnap.exists()) {
             const dados = uSnap.data();
             if (!dados.aceite_lgpd) setPrecisaAceitarLGPD(true);
             else if (dados.senhaAtualizada === false) setPrecisaTrocarSenha(true);
           }
-        } catch(e) { console.warn("Erro ao checar status:", e); }
-      } else {
-        setUserInfo(null);
-        setPendAutorizacoes([]);
-        setPrecisaTrocarSenha(false);
-        setPrecisaAceitarLGPD(false);
+        } else {
+          setUserInfo(null);
+          setPendAutorizacoes([]);
+          setPrecisaTrocarSenha(false);
+          setPrecisaAceitarLGPD(false);
+        }
+      } catch(e) {
+        console.warn("onAuthStateChanged error:", e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return unsub;
   }, []);
