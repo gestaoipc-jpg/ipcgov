@@ -535,8 +535,9 @@ export default function App() {
 
   const loadUserInfo = async (u) => {
     try {
-      const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
-      const isAdminGlobal = ADMINS.includes(u.email);
+      // isAdminGlobal — lido do Firestore, não hardcoded
+      const uDocSnap = await getDoc(doc(db, "usuarios", u.uid)).catch(() => null);
+      const isAdminGlobal = uDocSnap?.exists() ? uDocSnap.data().perfil === "admin" : false;
 
       // Load grupos_trabalho
       const gruposSnap = await getDocs(collection(db, "ipc_grupos_trabalho"));
@@ -672,14 +673,13 @@ export default function App() {
 
   // Função para forçar troca de senha em todos os usuários
   const forcarLGPDTodos = async () => {
-    const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
     if (!window.confirm("Isso vai exigir que todos os usuários aceitem a LGPD e troquem a senha no próximo login. Confirma?")) return;
     try {
       const snap = await getDocs(collection(db, "usuarios"));
       let count = 0;
       for (const d of snap.docs) {
         const dados = d.data();
-        if (ADMINS.includes(dados.email)) continue;
+        if (dados.perfil === "admin") continue;
         await updateDoc(doc(db, "usuarios", d.id), { aceite_lgpd: false, senhaAtualizada: false });
         count++;
       }
@@ -688,14 +688,13 @@ export default function App() {
   };
 
   const forcarTrocaSenhasTodos = async (excluirAdmins = true) => {
-    const ADMINS = ["gestaoipc@tce.ce.gov.br","fabricio@tce.ce.gov.br"];
     if (!window.confirm("Isso vai forçar a troca de senha no próximo login de todos os usuários" + (excluirAdmins ? " (exceto administradores)" : "") + ". Confirma?")) return;
     try {
       const snap = await getDocs(collection(db, "usuarios"));
       let count = 0;
       for (const d of snap.docs) {
         const dados = d.data();
-        if (excluirAdmins && ADMINS.includes(dados.email)) continue;
+        if (excluirAdmins && dados.perfil === "admin") continue;
         await updateDoc(doc(db, "usuarios", d.id), { senhaAtualizada: false });
         count++;
       }
