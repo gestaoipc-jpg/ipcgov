@@ -12,9 +12,9 @@ if (!getApps().length) {
   });
 }
 
-const EMAILJS_SERVICE   = "service_m6wjek9";
-const EMAILJS_TEMPLATE  = "template_lglpt37";
-const EMAILJS_PUBLIC_KEY = "j--nV6wNKs8Pqyxlo";
+const EMAILJS_SERVICE    = process.env.EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE   = process.env.EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 
 async function enviarEmailReset(nomeUsuario, emailUsuario, adminEmail) {
   const corpo_completo =
@@ -60,11 +60,26 @@ Instituto Plácido Castelo
 
 // Verifica Firebase ID Token
 async function verificarToken(req) {
-  const chaveRecebida = req.headers["x-internal-key"] || "";
-  const chaveEsperada = process.env.INTERNAL_API_KEY || "";
-  if (!chaveEsperada) throw Object.assign(new Error("Configuração ausente."), { status: 500 });
-  if (!chaveRecebida || chaveRecebida !== chaveEsperada) {
-    throw Object.assign(new Error("Não autorizado."), { status: 401 });
+  const header = req.headers["authorization"] || "";
+  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
+  try {
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getAuth } = require("firebase-admin/auth");
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
+          projectId:   process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+          privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\n/g, "
+"),
+        }),
+      });
+    }
+    return await getAuth().verifyIdToken(token);
+  } catch(e) {
+    if (e.status === 401) throw e;
+    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
   }
 }
 
