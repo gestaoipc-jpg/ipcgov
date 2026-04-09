@@ -11,25 +11,10 @@ function autenticar() {
   return google.drive({ version: "v3", auth });
 }
 
-
-// Verifica Firebase ID Token
-// Verifica Firebase ID Token (usa Firebase Admin já inicializado ou inicializa uma vez)
-async function verificarToken(req) {
-  const chaveRecebida = req.headers["x-internal-key"] || "";
-  const chaveEsperada = process.env.INTERNAL_API_KEY || "";
-  if (!chaveEsperada) throw Object.assign(new Error("Configuração ausente."), { status: 500 });
-  if (!chaveRecebida || chaveRecebida !== chaveEsperada) {
-    throw Object.assign(new Error("Não autorizado."), { status: 401 });
-  }
-}
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== "DELETE") {
     return res.status(405).json({ erro: "Método não permitido" });
   }
-
-  try { await verificarToken(req); } catch(e) { return res.status(e.status||401).json({ erro: e.message }); }
 
   const { fileId } = req.body;
   if (!fileId) {
