@@ -78,8 +78,8 @@ export default function HomePage({ user, onOpenModule, onForcarTrocaSenhas, onFo
     if (snap.exists()) {
       setUserData(snap.data());
     } else {
-      const adminEmails = ["gestaoipc@tce.ce.gov.br", "fabricio@tce.ce.gov.br"];
-      const isAdmin = adminEmails.includes(user.email);
+      // isAdmin — lido do Firestore via userData, não hardcoded
+      const isAdmin = userData?.perfil === "admin";
       const newUser = {
         email: user.email,
         nome: user.email.split("@")[0],
