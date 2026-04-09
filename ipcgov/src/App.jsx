@@ -501,34 +501,37 @@ export default function App() {
   const [salvandoAut, setSalvandoAut] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      try {
-        if (u) {
-          // Carrega info do usuário — em paralelo com verificação LGPD/senha
-          const [, uSnap] = await Promise.all([
-            loadUserInfo(u).catch(e => console.warn("loadUserInfo:", e)),
-            getDoc(doc(db, "usuarios", u.uid)).catch(() => null),
-          ]);
-          if (uSnap && uSnap.exists()) {
-            const dados = uSnap.data();
-            if (!dados.aceite_lgpd) setPrecisaAceitarLGPD(true);
-            else if (dados.senhaAtualizada === false) setPrecisaTrocarSenha(true);
-          }
-        } else {
-          setUserInfo(null);
-          setPendAutorizacoes([]);
-          setPrecisaTrocarSenha(false);
-          setPrecisaAceitarLGPD(false);
-        }
-      } catch(e) {
-        console.warn("onAuthStateChanged error:", e);
-      } finally {
-        setLoading(false);
+      if (!u) {
+        setUserInfo(null);
+        setPendAutorizacoes([]);
+        setPrecisaTrocarSenha(false);
+        setPrecisaAceitarLGPD(false);
       }
+      setLoading(false);
     });
     return unsub;
   }, []);
+
+  // Carrega info do usuário APÓS login — separado do fluxo de auth
+  useEffect(() => {
+    if (!user) return;
+    const carregar = async () => {
+      try {
+        await loadUserInfo(user);
+      } catch(e) { console.warn("loadUserInfo:", e); }
+      try {
+        const uSnap = await getDoc(doc(db, "usuarios", user.uid));
+        if (uSnap.exists()) {
+          const dados = uSnap.data();
+          if (!dados.aceite_lgpd) setPrecisaAceitarLGPD(true);
+          else if (dados.senhaAtualizada === false) setPrecisaTrocarSenha(true);
+        }
+      } catch(e) { console.warn("checar LGPD/senha:", e); }
+    };
+    carregar();
+  }, [user]);
 
   const loadUserInfo = async (u) => {
     try {
@@ -638,7 +641,7 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <LoginPage onLogin={setUser} />;
+  if (!user) return <LoginPage onLogin={() => {}} />;
 
   // Tela obrigatória LGPD — antes de qualquer acesso
   if (precisaAceitarLGPD) return (
