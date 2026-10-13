@@ -8,6 +8,21 @@ const PASTAS = {
   ipctceduc_apresentacoes: "1z5CUfR7lU6Bz5VO6YLmJTWn21Zc73C6u",
 };
 
+const TAMANHO_MAXIMO = 100 * 1024 * 1024; // 100MB
+
+const TIPOS_PERMITIDOS = [
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+  "video/mp4", "video/quicktime", "video/webm",
+  "application/pdf",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/octet-stream",
+];
+
 function autenticar() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -32,11 +47,26 @@ function normalizarNome(modulo, nomeOriginal) {
 
 // Verifica Firebase ID Token (usa Firebase Admin já inicializado ou inicializa uma vez)
 async function verificarToken(req) {
-  const chaveRecebida = req.headers["x-internal-key"] || "";
-  const chaveEsperada = process.env.INTERNAL_API_KEY || "";
-  if (!chaveEsperada) throw Object.assign(new Error("Configuração ausente."), { status: 500 });
-  if (!chaveRecebida || chaveRecebida !== chaveEsperada) {
-    throw Object.assign(new Error("Não autorizado."), { status: 401 });
+  const header = req.headers["authorization"] || "";
+  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
+  try {
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getAuth } = require("firebase-admin/auth");
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
+          projectId:   process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+          privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\n/g, "
+"),
+        }),
+      });
+    }
+    return await getAuth().verifyIdToken(token);
+  } catch(e) {
+    if (e.status === 401) throw e;
+    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
   }
 }
 
@@ -57,6 +87,17 @@ module.exports = async function handler(req, res) {
 
     const pastaId = PASTAS[modulo];
     if (!pastaId) return res.status(400).json({ erro: "Módulo não reconhecido: " + modulo });
+
+    // Valida tipo MIME
+    if (!TIPOS_PERMITIDOS.includes(tipoArquivo)) {
+      return res.status(400).json({ erro: "Tipo de arquivo não permitido: " + tipoArquivo });
+    }
+
+    // Valida tamanho via Content-Length
+    const tamanho = parseInt(req.headers["content-length"] || "0", 10);
+    if (tamanho > TAMANHO_MAXIMO) {
+      return res.status(413).json({ erro: "Arquivo muito grande. Limite: 100MB." });
+    }
 
     const drive = autenticar();
     const nomeFinal = normalizarNome(modulo, nomeArquivo);
