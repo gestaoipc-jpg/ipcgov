@@ -58,9 +58,8 @@ export default function OcorrenciaPublicaPage() {
     setErro(""); setEnviando(true);
     try {
       // Criptografa dados pessoais antes de salvar (rota pública)
-      let nomeCripto = form.nome.trim();
-      let cpfCripto  = form.cpf.trim();
-      let emailCripto = form.email.trim();
+      // Se criptografia falhar, bloqueia o envio — nunca salva em texto puro
+      let nomeCripto, cpfCripto, emailCripto;
       try {
         const crResp = await fetch("/api/cripto-publico", {
           method: "POST",
@@ -73,12 +72,16 @@ export default function OcorrenciaPublicaPage() {
           }),
         });
         const crDados = await crResp.json();
-        if (crDados.sucesso) {
-          nomeCripto  = crDados.campos.nome;
-          cpfCripto   = crDados.campos.cpf;
-          emailCripto = crDados.campos.email;
-        }
-      } catch(e) { console.warn("Criptografia falhou, salvando sem criptografia:", e); }
+        if (!crDados.sucesso) throw new Error(crDados.erro || "Falha na criptografia");
+        nomeCripto  = crDados.campos.nome;
+        cpfCripto   = crDados.campos.cpf;
+        emailCripto = crDados.campos.email;
+      } catch(e) {
+        console.error("Erro na criptografia:", e);
+        setErro("Não foi possível processar os dados com segurança. Tente novamente em instantes.");
+        setEnviando(false);
+        return;
+      }
 
       const novaOc = {
         id: Date.now(),
