@@ -17,10 +17,34 @@ function normalizarNome(modulo, nomeOriginal) {
   return `${modulo}_${timestamp}_${nomeLimpo}`;
 }
 
+
+async function verificarToken(req) {
+  const header = req.headers["authorization"] || "";
+  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
+  try {
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getAuth } = require("firebase-admin/auth");
+    if (!getApps().length) {
+      initializeApp({ credential: cert({
+        projectId:   process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+        privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+      })});
+    }
+    return await getAuth().verifyIdToken(token);
+  } catch(e) {
+    if (e.status) throw e;
+    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ erro: "Método não permitido" });
+
+  try { await verificarToken(req); } catch(e) { return res.status(e.status||401).json({ erro: e.message }); }
 
   const body = req.body;
 
@@ -61,7 +85,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         sucesso: true, fileId,
         linkVisualizacao: `https://drive.google.com/file/d/${fileId}/view`,
-        linkDireto: `https://lh3.googleusercontent.com/d/${fileId}`,
+        linkDireto: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
       });
     }
 
