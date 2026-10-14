@@ -122,7 +122,7 @@ function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
   };
   const onMouseUp = () => setArrastando(false);
 
-  const fotoExibir = fotoAtual && (fotoAtual.startsWith("http") || fotoAtual.startsWith("blob:")) ? fotoAtual : null;
+  const fotoExibir = fotoAtual && (fotoAtual.startsWith("http") || fotoAtual.startsWith("blob:")) ? normalizarFotoUrl(fotoAtual) : null;
 
   if (editando) {
     return (
@@ -169,6 +169,18 @@ function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
   );
 }
 
+
+// Normaliza URL de foto do Drive para garantir carregamento imediato
+function normalizarFotoUrl(url) {
+  if (!url) return null;
+  // Converte lh3.googleusercontent.com/d/ID para thumbnail
+  const m = url.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w400`;
+  // Converte drive.google.com/file/d/ID/view para thumbnail
+  const m2 = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m2) return `https://drive.google.com/thumbnail?id=${m2[1]}&sz=w400`;
+  return url;
+}
 export default function PessoasModule({ user, onBack, onOrganograma, onAniversarios, onEstrutura, onFerias }) {
   const [servidores, setServidores] = useState([]);
   const [externos, setExternos] = useState([]);
@@ -635,7 +647,7 @@ Instituto Plácido Castelo
                       onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 2px 12px rgba(27,63,122,0.08)"}}>
                       <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:14 }}>
                         {s.foto ? (
-                          <img src={s.foto} alt={s.nome} style={{ width:52, height:52, borderRadius:16, objectFit:"cover", flexShrink:0 }}/>
+                          <img src={normalizarFotoUrl(s.foto)} alt={s.nome} style={{ width:52, height:52, borderRadius:16, objectFit:"cover", flexShrink:0 }}/>
                         ) : (
                           <div style={{ width:52, height:52, borderRadius:16, background:corAvatar(s.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0 }}>{initials(s.nome)}</div>
                         )}
@@ -997,7 +1009,7 @@ function PerfilModal({ servidor, onClose, onEditar, onDeletar, onAddRegistro, us
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
               {servidor.foto ? (
-                <img src={servidor.foto} alt={servidor.nome} style={{ width:64, height:64, borderRadius:18, objectFit:"cover", flexShrink:0, border:"3px solid rgba(255,255,255,0.3)" }}/>
+                <img src={normalizarFotoUrl(servidor.foto)} alt={servidor.nome} style={{ width:64, height:64, borderRadius:18, objectFit:"cover", flexShrink:0, border:"3px solid rgba(255,255,255,0.3)" }}/>
               ) : (
                 <div style={{ width:64, height:64, borderRadius:18, background:corAvatar(servidor.nome), display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:24, flexShrink:0 }}>{initials(servidor.nome)}</div>
               )}
