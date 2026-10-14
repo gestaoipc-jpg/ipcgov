@@ -59,6 +59,7 @@ Instituto Plácido Castelo
 
 
 // Verifica Firebase ID Token
+// Verifica Firebase ID Token
 async function verificarToken(req) {
   const header = req.headers["authorization"] || "";
   const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
