@@ -2,9 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-// Helper — chave interna para autenticar APIs
+// Helper — busca ID Token do Firebase para autenticar APIs
 async function getAuthHeader() {
-  return { "X-Internal-Key": process.env.REACT_APP_INTERNAL_API_KEY || "" };
+  try {
+    const { getAuth } = await import("firebase/auth");
+    const user = getAuth().currentUser;
+    if (!user) return {};
+    const token = await user.getIdToken();
+    return { "Authorization": "Bearer " + token };
+  } catch(e) { return {}; }
 }
 
 
