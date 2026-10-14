@@ -122,7 +122,7 @@ function FotoEditorCircular({ fotoAtual, nome, onConfirm }) {
   };
   const onMouseUp = () => setArrastando(false);
 
-  const fotoExibir = fotoAtual && fotoAtual.startsWith("http") ? fotoAtual : null;
+  const fotoExibir = fotoAtual && (fotoAtual.startsWith("http") || fotoAtual.startsWith("blob:")) ? fotoAtual : null;
 
   if (editando) {
     return (
