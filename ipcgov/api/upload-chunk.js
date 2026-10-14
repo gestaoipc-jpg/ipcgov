@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({
         sucesso: true, fileId,
         linkVisualizacao: `https://drive.google.com/file/d/${fileId}/view`,
-        linkDireto: `https://lh3.googleusercontent.com/d/${fileId}`,
+        linkDireto: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
       });
     }
 
