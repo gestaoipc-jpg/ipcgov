@@ -166,7 +166,7 @@ module.exports = async function handler(req, res) {
         sucesso: true, fileId,
         nome: nomeFinal,
         nomeOriginal: nomeArquivo,
-        linkDireto: `https://lh3.googleusercontent.com/d/${fileId}`,
+        linkDireto: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
         linkVisualizacao: `https://drive.google.com/file/d/${fileId}/view`,
         publico,
       });
@@ -209,7 +209,7 @@ module.exports = async function handler(req, res) {
       sucesso: true, fileId,
       nome: nomeFinal,
       nomeOriginal: nomeArquivo,
-      linkDireto: `https://lh3.googleusercontent.com/d/${fileId}`,
+      linkDireto: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
       linkVisualizacao: `https://drive.google.com/file/d/${fileId}/view`,
       publico: !!publico,
     });
