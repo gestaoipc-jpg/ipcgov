@@ -11,6 +11,31 @@ function autenticar() {
   return google.drive({ version: "v3", auth });
 }
 
+
+// Verifica Firebase ID Token
+async function verificarToken(req) {
+  const header = req.headers["authorization"] || "";
+  const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) throw Object.assign(new Error("Token ausente."), { status: 401 });
+  try {
+    const { initializeApp, cert, getApps } = require("firebase-admin/app");
+    const { getAuth } = require("firebase-admin/auth");
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert({
+          projectId:   process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+          privateKey:  (process.env.GOOGLE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+        }),
+      });
+    }
+    return await getAuth().verifyIdToken(token);
+  } catch(e) {
+    if (e.status === 401) throw e;
+    throw Object.assign(new Error("Token inválido ou expirado."), { status: 401 });
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "DELETE") {
     return res.status(405).json({ erro: "Método não permitido" });
