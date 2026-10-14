@@ -46,6 +46,7 @@ function normalizarNome(modulo, nomeOriginal) {
 
 
 // Verifica Firebase ID Token (usa Firebase Admin já inicializado ou inicializa uma vez)
+// Verifica Firebase ID Token
 async function verificarToken(req) {
   const header = req.headers["authorization"] || "";
   const token  = header.startsWith("Bearer ") ? header.slice(7) : null;
