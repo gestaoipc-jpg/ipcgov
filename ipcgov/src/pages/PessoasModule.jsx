@@ -319,7 +319,6 @@ Instituto Plácido Castelo
       });
       const texto = await resposta.text();
       const dados = JSON.parse(texto);
-      console.log("Upload foto resposta:", dados);
       if (!dados.sucesso) throw new Error(dados.erro || "Erro no upload");
       if (!dados.linkDireto) throw new Error("linkDireto não retornado");
       return dados.linkDireto;
