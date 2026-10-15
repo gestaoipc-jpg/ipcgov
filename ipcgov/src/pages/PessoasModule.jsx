@@ -319,7 +319,9 @@ Instituto Plácido Castelo
       });
       const texto = await resposta.text();
       const dados = JSON.parse(texto);
+      console.log("Upload foto resposta:", dados);
       if (!dados.sucesso) throw new Error(dados.erro || "Erro no upload");
+      if (!dados.linkDireto) throw new Error("linkDireto não retornado");
       return dados.linkDireto;
     } catch(e) {
       console.error("Erro upload foto Drive:", e);
@@ -332,11 +334,12 @@ Instituto Plácido Castelo
     setSalvando(true); setErroLogin("");
     try {
       let uid = form.uid || null;
-      // Nunca salvar blob URL no Firestore — só URLs reais do Firebase Storage
+      // Preserva URL existente do Drive; ignora blob: URLs locais
       let fotoUrl = (form.foto && form.foto.startsWith("http")) ? form.foto : "";
 
       if (form._fotoBlob) {
-        fotoUrl = await uploadFotoDrive(form._fotoBlob) || fotoUrl;
+        const novaUrl = await uploadFotoDrive(form._fotoBlob);
+        if (novaUrl) fotoUrl = novaUrl;
       }
 
       const chefiaFinal = calcularChefiaImediata(form.cargoId, form.chefiaManual);
